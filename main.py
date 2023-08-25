@@ -26,13 +26,13 @@ def main():
     radar_list = []
     agent_list = []
     radar = RadarCircularPattern()
-    agent = Agent([10,300,0])
+    agent = Agent([600,10,0])
     emmitterLocationEstimator = EmmitterLocationEstimator()
     radar_list.append(radar)
     agent_list.append(agent)
     bounds = (1200,1200)
     
-    t_end = 12
+    t_end = 200
     dt = .1
     t_current = 0
     plt_index = 0
@@ -43,7 +43,7 @@ def main():
         for radar in radar_list:
             radar.update(dt)
         for agent in agent_list:
-            agent.update(100,.01,dt,radar_list)
+            agent.update(120,.2,dt,radar_list)
         if len(agent.measurement_angle_of_arrival_values) != current_number_of_aoa_measurements:
             print("update cov")
             current_number_of_aoa_measurements += 1
