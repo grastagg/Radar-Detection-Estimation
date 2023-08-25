@@ -21,7 +21,7 @@ class EmmitterLocationEstimator:
 
         self.xHat = np.array([[xhat],[yhat]])
         self.sigmaHat = cov
-        print(self.sigmaHat)
+        print(self.xHat)
         
         return self.xHat, self.sigmaHat
         
@@ -73,9 +73,9 @@ class EmmitterLocationEstimator:
     def compute_location_covariance_from_two_aoa_measurements(self, pos1, theta1, pos1_cov, theta1_cov, pos2, theta2, pos2_cov, theta2_cov):
         #not incorperating agent location uncertainty but simple update to this equation to do so
         J_location_angles = self.location_from_two_aoa_measurements_angle_jacobian(pos1, theta1, pos2, theta2)  
-        print("J_location_angles",J_location_angles)
+        # print("J_location_angles",J_location_angles)
         angle_joing_covariance = np.array([[theta1_cov,0],[0,theta2_cov]])
-        print("angle_joing_covariance",angle_joing_covariance)
+        # print("angle_joing_covariance",angle_joing_covariance)
         
         return J_location_angles @ angle_joing_covariance @ J_location_angles.T
         
@@ -101,3 +101,24 @@ class EmmitterLocationEstimator:
                     pdf[i,j] = distr.pdf([X[i,j], Y[i,j]])
 
             ax.contourf(X, Y, pdf, cmap='viridis')
+
+            
+    def measurement_model(self, xem, yem, x, y):
+        return np.array([[np.arctan2(yem-y, xem-x)]])
+    
+    def measurement_jacobian(self, xem, yem, x, y):
+        d_h_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
+        d_h_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
+        return np.array([[d_h_d_x_emmitter, d_h_d_y_emmitter]])
+    
+    def ekf_update(self, aoa_measurement_pos, aoa_measurement_value, aoa_measurement_cov):
+        xem = self.xHat[0][0]
+        yem = self.xHat[1][0]
+        x = aoa_measurement_pos[0]
+        y = aoa_measurement_pos[1]
+
+        H = self.measurement_jacobian(xem, yem, x, y)
+        K = self.sigmaHat @ H.T @ np.linalg.inv(H@self.sigmaHat@H.T + np.array([[aoa_measurement_cov]]))
+        self.xHat = self.xHat + K@(aoa_measurement_value - self.measurement_model(xem, yem, x, y))
+        print(self.xHat)
+        self.sigmaHat = (np.eye(2) - K@H)@self.sigmaHat

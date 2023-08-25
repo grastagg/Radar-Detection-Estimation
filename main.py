@@ -43,13 +43,14 @@ def main():
         for radar in radar_list:
             radar.update(dt)
         for agent in agent_list:
-            agent.update(10,0,dt,radar_list)
+            agent.update(100,.01,dt,radar_list)
         if len(agent.measurement_angle_of_arrival_values) != current_number_of_aoa_measurements:
             print("update cov")
             current_number_of_aoa_measurements += 1
             if len(agent.measurement_angle_of_arrival_values) == 2:
                 xhat, cov = emmitterLocationEstimator.initial_emmitter_location_estimations(agent.measurement_locations[0], agent.measurement_angle_of_arrival_values[0], None, agent.angle_measurement_std_dev**2, agent.measurement_locations[1], agent.measurement_angle_of_arrival_values[1], None, agent.angle_measurement_std_dev**2)
-            
+            if len(agent.measurement_angle_of_arrival_values) > 2:
+                emmitterLocationEstimator.ekf_update(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
 
         plt_index += 1
         t_current += dt
