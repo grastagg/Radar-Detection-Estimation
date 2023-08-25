@@ -10,6 +10,8 @@ class Agent:
         self.measurement_power_values = []
         self.measurement_angle_of_arrival_values = []
         self.measurement_locations = []
+        self.power_measurement_std_dev = 1
+        self.angle_measurement_std_dev = (5*np.pi/180.0)
         
         
         
@@ -37,15 +39,17 @@ class Agent:
         for radar in radar_list:
             dist = self.get_distance(radar.position, self.position[0:1])
             if dist < self.sensing_range:
-                angle_between_radar_and_agent = np.arctan2(self.position[1]-radar.position[1], self.position[0]-self.position[0])
+                angle_between_radar_and_agent = np.arctan2(self.position[1]-radar.position[1], self.position[0]-radar.position[0])
                 # print("angle",angle_between_radar_and_agent)
                 # print("radar angle", radar.current_angle)
                 radar_angle = self.map_angle_minus_pi_to_pi(radar.current_angle)
                 if angle_between_radar_and_agent < radar_angle + radar.beamwidth/2 and angle_between_radar_and_agent > radar_angle - radar.beamwidth/2:
+                    print("radar angle", radar.current_angle)
                     print("angle",angle_between_radar_and_agent)
                     z = radar.output_power / dist**2
-                    #assume angle of arrival is measured in the global frame
-                    angle_of_arrival = self.map_angle_minus_pi_to_pi(radar_angle - np.pi)
+                    #aoa measured in global frame
+                    angle_of_arrival = self.map_angle_minus_pi_to_pi(angle_between_radar_and_agent + np.pi) + np.random.normal(0,self.angle_measurement_std_dev)
+                    print("AOA", angle_of_arrival)
 
                 else:
                     z = None
@@ -58,13 +62,23 @@ class Agent:
         return z
 
     def plot_power_measurements(self, ax):
-        if len(self.measurement_locations) > 1:
+        if len(self.measurement_locations) > 0:
             data = np.array(self.measurement_locations)
             ax.scatter(data[:,0],data[:,1],c=self.measurement_power_values)
         
     def plot_angle_of_arrival_measurements(self, ax):
         for i,angle in enumerate(self.measurement_angle_of_arrival_values):
-            start_x = self.measurement_locations
+            start_x = self.measurement_locations[i][0]
+            start_y = self.measurement_locations[i][1]
+            end_x = start_x + self.sensing_range * np.cos(angle)
+            end_y = start_y + self.sensing_range * np.sin(angle)
+            ax.plot([start_x,end_x],[start_y,end_y], c='g')
+            end_x = start_x + self.sensing_range * np.cos(angle+self.angle_measurement_std_dev)
+            end_y = start_y + self.sensing_range * np.sin(angle+self.angle_measurement_std_dev)
+            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c = 'g')
+            end_x = start_x + self.sensing_range * np.cos(angle-self.angle_measurement_std_dev)
+            end_y = start_y + self.sensing_range * np.sin(angle-self.angle_measurement_std_dev)
+            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c='g')
         
     def plot_agent(self,ax):
         x = self.position[0] 
@@ -77,6 +91,7 @@ class Agent:
         y_end = y + 10 * np.sin(h)
         ax.plot([x, x_end], [y, y_end])
         self.plot_power_measurements(ax)
+        self.plot_angle_of_arrival_measurements(ax)
 
             
 

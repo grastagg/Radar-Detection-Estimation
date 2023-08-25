@@ -24,7 +24,7 @@ def main():
     radar_list = []
     agent_list = []
     radar = RadarCircularPattern()
-    agent = Agent([10,10,np.pi/4])
+    agent = Agent([10,300,0])
     radar_list.append(radar)
     agent_list.append(agent)
     bounds = (1200,1200)
@@ -36,11 +36,11 @@ def main():
 
     
     while t_current < t_end:
+        plot_scene(radar_list, agent_list, bounds, plt_index)
         for radar in radar_list:
             radar.update(dt)
         for agent in agent_list:
             agent.update(20,0,dt,radar_list)
-        plot_scene(radar_list, agent_list, bounds, plt_index)
         plt_index += 1
         t_current += dt
 
