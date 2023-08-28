@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.stats import multivariate_normal
+import matplotlib.pyplot as plt
 
 
 class EmmitterLocationEstimator:
@@ -10,9 +11,54 @@ class EmmitterLocationEstimator:
     3) AOA measurements containt additive guassian noise with known variance (variance to be found through experimentation)
 
     '''
-    def __init__(self):
+    def __init__(self, groundTruth):
         self.xHat = None
         self.sigmaHat = None
+        self.groundTruth = groundTruth
+
+        self.errorHistory = []
+
+        self.measurementCount = 0
+        self.alreadyComputedInitialEmitterLocation = False
+
+        self.minimumDistanceSeperationForInitialEmitterLocationMeasurements = 30
+
+        self.firstMeasurementLocation = None
+        self.firstMeasurementValue = None
+        self.firstMeasurementCov = None
+
+        self.unusedMeasurementsLocation = []
+        self.unusedMeasurementsValue = []
+        self.unusedMeasurementsCov = []
+        
+        
+    def add_measurement(self, pos, theta, cov):
+        if self.measurementCount == 0:
+            print("first measurement")
+            self.firstMeasurementValue = theta
+            self.firstMeasurementLocation = pos
+            self.firstMeasurementCov = cov 
+            self.measurementCount += 1
+        elif not self.alreadyComputedInitialEmitterLocation and self.get_distance(pos, self.firstMeasurementLocation) < self.minimumDistanceSeperationForInitialEmitterLocationMeasurements:
+            print("too close to first measurement")
+            self.unusedMeasurementsLocation.append(pos)
+            self.unusedMeasurementsValue.append(theta)
+            self.unusedMeasurementsCov.append(cov)
+        elif not self.alreadyComputedInitialEmitterLocation and self.get_distance(pos, self.firstMeasurementLocation) > self.minimumDistanceSeperationForInitialEmitterLocationMeasurements:
+            print("computing initial emmitter location")
+            self.initial_emmitter_location_estimations(self.firstMeasurementLocation, self.firstMeasurementValue, None, self.firstMeasurementCov, pos, theta, None, cov )
+            print("updating with unused measurements")
+            for i in range(len(self.unusedMeasurementsValue)):
+                self.ekf_update(self.unusedMeasurementsLocation[i], self.unusedMeasurementsValue[i], self.unusedMeasurementsCov[i])
+            self.alreadyComputedInitialEmitterLocation = True
+        else:
+            print("normal update")
+            self.ekf_update(pos, theta, cov)
+            
+        
+
+    def get_distance(self,p1,p2):
+        return np.linalg.norm(np.array(p1)-np.array(p2))       
 
 
     def initial_emmitter_location_estimations(self, pos1, theta1, pos1_cov, theta1_cov, pos2, theta2, pos2_cov, theta2_cov):
@@ -22,6 +68,7 @@ class EmmitterLocationEstimator:
         self.xHat = np.array([[xhat],[yhat]])
         self.sigmaHat = cov
         print(self.xHat)
+        self.errorHistory.append(np.linalg.norm(self.xHat.reshape((2,)) - self.groundTruth))
         
         return self.xHat, self.sigmaHat
         
@@ -80,27 +127,6 @@ class EmmitterLocationEstimator:
         return J_location_angles @ angle_joing_covariance @ J_location_angles.T
         
             
-    def plot_esimate_1_sigma_bounds(self,ax):
-        if self.xHat is not None:
-            # print("emmiter location estimate:",self.xHat)
-            distr = multivariate_normal(cov = self.sigmaHat, mean = self.xHat.reshape((2,)))
-
-            # Generating a meshgrid complacent with
-            # the 3-sigma boundary
-            mean_1, mean_2 = self.xHat[0], self.xHat[1]
-            sigma_1, sigma_2 = self.sigmaHat[0,0], self.sigmaHat[1,1]
-            
-            # x = np.linspace(mean_1-3*sigma_1, mean_1+3*sigma_1, num=100)
-            # y = np.linspace(mean_2-3*sigma_2, mean_2+3*sigma_2, num=100)
-            x = np.linspace(0, 1200, num=100)
-            y = np.linspace(0, 1200, num=100)
-            X, Y = np.meshgrid(x,y)
-            pdf = np.zeros(X.shape)
-            for i in range(X.shape[0]):
-                for j in range(X.shape[1]):
-                    pdf[i,j] = distr.pdf([X[i,j], Y[i,j]])
-
-            ax.contourf(X, Y, pdf, cmap='viridis')
 
             
     def measurement_model(self, xem, yem, x, y):
@@ -122,3 +148,40 @@ class EmmitterLocationEstimator:
         self.xHat = self.xHat + K@(aoa_measurement_value - self.measurement_model(xem, yem, x, y))
         print(self.xHat)
         self.sigmaHat = (np.eye(2) - K@H)@self.sigmaHat
+        self.errorHistory.append(np.linalg.norm(self.xHat.reshape((2,)) - self.groundTruth))
+    
+    def plot_xHatHistory(self):
+        plt.figure()
+        
+        plt.plot(np.linspace(0, len(self.errorHistory), len(self.errorHistory)), self.errorHistory)
+        plt.show()
+
+    def plot_esimate_1_sigma_bounds(self,ax):
+        if self.xHat is not None:
+            # print("emmiter location estimate:",self.xHat)
+            distr = multivariate_normal(cov = self.sigmaHat, mean = self.xHat.reshape((2,)))
+
+            # Generating a meshgrid complacent with
+            # the 3-sigma boundary
+            mean_1, mean_2 = self.xHat[0], self.xHat[1]
+            sigma_1, sigma_2 = self.sigmaHat[0,0], self.sigmaHat[1,1]
+
+            invCovariance = np.linalg.inv(self.sigmaHat)
+            
+            # x = np.linspace(mean_1-3*sigma_1, mean_1+3*sigma_1, num=100)
+            # y = np.linspace(mean_2-3*sigma_2, mean_2+3*sigma_2, num=100)
+            x = np.linspace(0, 1200, num=100)
+            y = np.linspace(0, 1200, num=100)
+            X, Y = np.meshgrid(x,y)
+            pdf = np.zeros(X.shape)
+            malhanobisDist = np.zeros(X.shape)
+            for i in range(X.shape[0]):
+                for j in range(X.shape[1]):
+                    malhanobisDist[i,j] = (np.array([[X[i,j], Y[i,j]]]) - np.array([[self.xHat[0][0], self.xHat[1][0]]])) @ invCovariance @(np.array([[X[i,j], Y[i,j]]]) - np.array([[self.xHat[0][0], self.xHat[1][0]]])).T
+                    # pdf[i,j] = distr.pdf([X[i,j], Y[i,j]])
+
+            # c = ax.contourf(X, Y, pdf, cmap='viridis')
+            c = ax.contourf(X, Y, malhanobisDist, cmap='viridis',levels = [ 0,1,2,3])
+            return c
+        else:
+            return None
