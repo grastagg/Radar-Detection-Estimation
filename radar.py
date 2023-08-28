@@ -48,8 +48,12 @@ class RadarCircularPattern:
 
         ax.plot([x_left,x_middle,x_right],[y_left,y_middle,y_right])
 
+    def plot_radar_location(self, ax):
+        plt.scatter(self.position[0],self.position[1], marker='*')
+
     def plot_view_area(self, ax):
         self.plot_arc_length(ax)
         self.plot_end_bounds(ax)
+        self.plot_radar_location(ax)
         
         

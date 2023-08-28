@@ -22,6 +22,7 @@ class EmmitterLocationEstimator:
         self.alreadyComputedInitialEmitterLocation = False
 
         self.minimumDistanceSeperationForInitialEmitterLocationMeasurements = 30
+        self.minimumAngularSeperationForInitialEmitterLocationMeasurements = 30 * np.pi/180
 
         self.firstMeasurementLocation = None
         self.firstMeasurementValue = None
@@ -39,12 +40,24 @@ class EmmitterLocationEstimator:
             self.firstMeasurementLocation = pos
             self.firstMeasurementCov = cov 
             self.measurementCount += 1
-        elif not self.alreadyComputedInitialEmitterLocation and self.get_distance(pos, self.firstMeasurementLocation) < self.minimumDistanceSeperationForInitialEmitterLocationMeasurements:
+        # elif not self.alreadyComputedInitialEmitterLocation and self.get_distance(pos, self.firstMeasurementLocation) < self.minimumDistanceSeperationForInitialEmitterLocationMeasurements:
+        #     print("too close to first measurement")
+        #     self.unusedMeasurementsLocation.append(pos)
+        #     self.unusedMeasurementsValue.append(theta)
+        #     self.unusedMeasurementsCov.append(cov)
+        # elif not self.alreadyComputedInitialEmitterLocation and self.get_distance(pos, self.firstMeasurementLocation) > self.minimumDistanceSeperationForInitialEmitterLocationMeasurements:
+        #     print("computing initial emmitter location")
+        #     self.initial_emmitter_location_estimations(self.firstMeasurementLocation, self.firstMeasurementValue, None, self.firstMeasurementCov, pos, theta, None, cov )
+        #     print("updating with unused measurements")
+        #     for i in range(len(self.unusedMeasurementsValue)):
+        #         self.ekf_update(self.unusedMeasurementsLocation[i], self.unusedMeasurementsValue[i], self.unusedMeasurementsCov[i])
+        #     self.alreadyComputedInitialEmitterLocation = True
+        elif not self.alreadyComputedInitialEmitterLocation and np.abs(self.firstMeasurementValue - theta)  < self.minimumAngularSeperationForInitialEmitterLocationMeasurements:
             print("too close to first measurement")
             self.unusedMeasurementsLocation.append(pos)
             self.unusedMeasurementsValue.append(theta)
             self.unusedMeasurementsCov.append(cov)
-        elif not self.alreadyComputedInitialEmitterLocation and self.get_distance(pos, self.firstMeasurementLocation) > self.minimumDistanceSeperationForInitialEmitterLocationMeasurements:
+        elif not self.alreadyComputedInitialEmitterLocation and np.abs(self.firstMeasurementValue - theta) > self.minimumAngularSeperationForInitialEmitterLocationMeasurements:
             print("computing initial emmitter location")
             self.initial_emmitter_location_estimations(self.firstMeasurementLocation, self.firstMeasurementValue, None, self.firstMeasurementCov, pos, theta, None, cov )
             print("updating with unused measurements")
@@ -185,3 +198,9 @@ class EmmitterLocationEstimator:
             return c
         else:
             return None
+        
+        
+    def plot(self, ax):
+        self.plot_esimate_1_sigma_bounds(ax)
+        if self.xHat is not None:
+            ax.scatter(self.xHat[0], self.xHat[1])

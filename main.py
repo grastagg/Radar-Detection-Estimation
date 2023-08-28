@@ -18,7 +18,7 @@ def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator
             radar.plot_view_area(ax)
         for agent in agent_list:
             agent.plot_agent(ax)
-        c = emmitterLocationEstimator.plot_esimate_1_sigma_bounds(ax)
+        c = emmitterLocationEstimator.plot(ax)
         if c is not None:
             plt.colorbar(c)
         plt.savefig('images/'+str(plt_index)+'.png')
