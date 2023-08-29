@@ -37,7 +37,7 @@ class Agent:
     def measure_radar(self, radar_list):
         angle_of_arrival = None
         for radar in radar_list:
-            dist = self.get_distance(radar.position, self.position[0:1])
+            dist = self.get_distance(radar.position, self.position[0:2])
             if dist < self.sensing_range:
                 angle_between_radar_and_agent = np.arctan2(self.position[1]-radar.position[1], self.position[0]-radar.position[0])
                 # print("angle",angle_between_radar_and_agent)
@@ -47,6 +47,7 @@ class Agent:
                     # print("radar angle", radar.current_angle)
                     # print("angle",angle_between_radar_and_agent)
                     z = radar.output_power / dist**2
+                    print("dist",dist)
                     #aoa measured in global frame
                     angle_of_arrival = self.map_angle_minus_pi_to_pi(angle_between_radar_and_agent + np.pi) + np.random.normal(0,self.angle_measurement_std_dev)
                     # print("AOA", angle_of_arrival)
