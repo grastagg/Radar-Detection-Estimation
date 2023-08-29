@@ -46,7 +46,7 @@ class Agent:
                 if angle_between_radar_and_agent < radar_angle + radar.beamwidth/2 and angle_between_radar_and_agent > radar_angle - radar.beamwidth/2:
                     # print("radar angle", radar.current_angle)
                     # print("angle",angle_between_radar_and_agent)
-                    z = radar.output_power / dist**2 + np.random.normal(0,self.power_measurement_std_dev)**2
+                    z = radar.output_power / dist**2 #+ np.random.normal(0,self.power_measurement_std_dev)**2
                     print("dist",dist)
                     #aoa measured in global frame
                     angle_of_arrival = self.map_angle_minus_pi_to_pi(angle_between_radar_and_agent + np.pi) + np.random.normal(0,self.angle_measurement_std_dev)

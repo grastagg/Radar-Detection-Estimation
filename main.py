@@ -32,7 +32,7 @@ def main():
     radar_list = []
     agent_list = []
     radar = RadarCircularPattern()
-    agent = Agent([600,10,0])
+    agent = Agent([0,400,0])
     emmitterLocationEstimator = EmmitterLocationEstimator(groundTruth=np.array([[600,600]]))
     
     
@@ -41,7 +41,7 @@ def main():
     agent_list.append(agent)
     bounds = (1200,1200)
 
-    numTestPoints = 50 
+    numTestPoints = 60
     
     x_test = np.linspace(0,bounds[0],numTestPoints)
     y_test = np.linspace(0,bounds[1],numTestPoints)
@@ -54,7 +54,7 @@ def main():
     
     gp = GaussianProcess(X_test)
     
-    t_end = 20
+    t_end = 100
     dt = .1
     t_current = 0
     plt_index = 0
@@ -66,7 +66,7 @@ def main():
         for radar in radar_list:
             radar.update(dt)
         for agent in agent_list:
-            agent.update(120,.25,dt,radar_list)
+            agent.update(20,0,dt,radar_list)
         if len(agent.measurement_angle_of_arrival_values) != current_number_of_aoa_measurements:
             print("adding measurement")
             current_number_of_aoa_measurements += 1

@@ -1,5 +1,6 @@
 import numpy as np
 import time
+import matplotlib.pyplot as plt
 
 
 from kernels import vectorized_radial_kernel
@@ -14,6 +15,19 @@ class GaussianProcess:
         self.num_test_points = int(np.sqrt(len(self.X_test)))
 
         self.parametricEstimator = parametricRadarEstimator()
+        
+        self.ground_truth = self.compute_ground_truth(self.X_test, np.array([600,600]), 100)
+        self.plot_ground_truth()
+
+    def plot_ground_truth(self):
+        plt.figure()
+        c = plt.pcolormesh(self.X_test[:,0].reshape((self.num_test_points,self.num_test_points)), self.X_test[:,1].reshape((self.num_test_points,self.num_test_points)), np.log10(self.ground_truth.reshape((self.num_test_points,self.num_test_points))))
+        plt.colorbar(c)
+        plt.show()
+        
+    def compute_ground_truth(self, x_test, true_radar_pos, true_radar_power):
+        dist = np.linalg.norm(x_test - true_radar_pos, axis=1)
+        return true_radar_power / np.square(dist)
 
 
     
@@ -49,7 +63,8 @@ class GaussianProcess:
 
         inv_K_ff = np.linalg.inv(K_ff + meas_variance * np.eye(len(x_meas)))
         
-        predictive_mean = mu_test - K_sf @ inv_K_ff @ (np.array(y_meas) - mu_meas) 
+        # predictive_mean = mu_test - K_sf @ inv_K_ff @ (np.array(y_meas) - mu_meas) 
+        predictive_mean =  K_sf @ inv_K_ff @ np.array(y_meas) 
         predictive_cov = K_ss - K_sf @ inv_K_ff @ K_fs
         self.predictive_mean = predictive_mean
         self.predictive_cov = predictive_cov
