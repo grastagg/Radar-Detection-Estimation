@@ -6,18 +6,10 @@ def radial_kernel(x1, x2, center, sigma_f, length_scale):
     return sigma_f * np.exp(-(np.linalg.norm(x1-center)-np.linalg.norm(x2-center))**2/length_scale)
 
     
-def create_K_matrix(x1_vec, x2_vec, center, sigma_f, length_scale):
-    K = np.zeros((len(x1_vec),len(x2_vec)))
-    
-    for i in range(len(x1_vec)):
-        for j in range(len(x2_vec)):
-            K[i,j] = radial_kernel(x1_vec[i],x2_vec[j], center, sigma_f, length_scale)
-    
-    return K
 
 
 if __name__ == '__main__':
-    num_points = 1000
+    num_points = 10
     x_test = np.linspace(0,1200,num_points)
     y_test = np.linspace(0,1200,num_points)
 

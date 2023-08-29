@@ -11,7 +11,7 @@ class Agent:
         self.measurement_angle_of_arrival_values = []
         self.measurement_locations = []
         self.power_measurement_std_dev = 1
-        self.angle_measurement_std_dev = (2*np.pi/180.0)
+        self.angle_measurement_std_dev = (4*np.pi/180.0)
         
         
         
@@ -91,7 +91,7 @@ class Agent:
         y_end = y + 10 * np.sin(h)
         ax.plot([x, x_end], [y, y_end])
         self.plot_power_measurements(ax)
-        self.plot_angle_of_arrival_measurements(ax)
+        # self.plot_angle_of_arrival_measurements(ax)
 
             
 

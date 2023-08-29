@@ -22,7 +22,7 @@ class EmmitterLocationEstimator:
         self.alreadyComputedInitialEmitterLocation = False
 
         self.minimumDistanceSeperationForInitialEmitterLocationMeasurements = 30
-        self.minimumAngularSeperationForInitialEmitterLocationMeasurements = 30 * np.pi/180
+        self.minimumAngularSeperationForInitialEmitterLocationMeasurements = 20 * np.pi/180
 
         self.firstMeasurementLocation = None
         self.firstMeasurementValue = None
