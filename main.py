@@ -41,7 +41,7 @@ def main():
     agent_list.append(agent)
     bounds = (1200,1200)
 
-    numTestPoints = 100
+    numTestPoints = 50 
     
     x_test = np.linspace(0,bounds[0],numTestPoints)
     y_test = np.linspace(0,bounds[1],numTestPoints)

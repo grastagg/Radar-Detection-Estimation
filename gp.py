@@ -3,6 +3,7 @@ import time
 
 
 from kernels import vectorized_radial_kernel
+from paramatric_radar_estimator import parametricRadarEstimator
 
 
 class GaussianProcess:
@@ -11,6 +12,8 @@ class GaussianProcess:
         self.predictive_cov = None
         self.X_test = np.array(X_test)
         self.num_test_points = int(np.sqrt(len(self.X_test)))
+
+        self.parametricEstimator = parametricRadarEstimator()
 
 
     
@@ -25,6 +28,13 @@ class GaussianProcess:
         return np.array(K)
     
     def gp_prediction(self, x_test, x_meas, y_meas, emiter_location):
+
+        self.parametricEstimator.fit_parametric_estimator(y_meas, x_meas, emiter_location)
+
+        mu_test = self.parametricEstimator.prediction(x_test, emiter_location).reshape((-1,))
+        mu_meas = self.parametricEstimator.prediction(x_meas, emiter_location).reshape((-1,))
+        
+        
         length_scale = 50
         sigma_f = 1
         
@@ -39,7 +49,7 @@ class GaussianProcess:
 
         inv_K_ff = np.linalg.inv(K_ff + meas_variance * np.eye(len(x_meas)))
         
-        predictive_mean = K_sf @ inv_K_ff @ np.array(y_meas) 
+        predictive_mean = mu_test - K_sf @ inv_K_ff @ (np.array(y_meas) - mu_meas) 
         predictive_cov = K_ss - K_sf @ inv_K_ff @ K_fs
         self.predictive_mean = predictive_mean
         self.predictive_cov = predictive_cov
