@@ -16,7 +16,7 @@ class RadarCircularPattern:
         # self.power_output = power_output
         self.beamwidth = beamwidth
         self.angular_rate = angular_rate
-        self.output_power = 100
+        self.output_power = output_power
 
         
         self.current_angle = 0

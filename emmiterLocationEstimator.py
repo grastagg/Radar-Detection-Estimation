@@ -200,7 +200,9 @@ class EmmitterLocationEstimator:
             return None
         
         
-    def plot(self, ax):
-        self.plot_esimate_1_sigma_bounds(ax)
+    def plot(self, ax, plot_var = True):
+
+        if plot_var:
+            self.plot_esimate_1_sigma_bounds(ax)
         if self.xHat is not None:
             ax.scatter(self.xHat[0], self.xHat[1])

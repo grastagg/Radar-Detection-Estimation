@@ -15,16 +15,16 @@ def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator
         ax.set_xlim((0,bounds[0]))
         ax.set_ylim((0,bounds[1]))
         ax.set_aspect('equal')
-        for radar in radar_list:
-            radar.plot_view_area(ax)
-        for agent in agent_list:
-            agent.plot_agent(ax)
-        # c = emmitterLocationEstimator.plot(ax)
-        # if c is not None:
-        #     plt.colorbar(c)
         c = gp.plot(ax)
         if c is not None:
             plt.colorbar(c)
+        for agent in agent_list:
+            agent.plot_agent(ax)
+        c = emmitterLocationEstimator.plot(ax, False)
+        # if c is not None:
+        #     plt.colorbar(c)
+        for radar in radar_list:
+            radar.plot_view_area(ax)
         plt.savefig('images/'+str(plt_index)+'.png')
         plt.close()
 
@@ -32,12 +32,14 @@ def main():
     radar_list = []
     agent_list = []
     radar = RadarCircularPattern()
-    agent = Agent([0,400,0])
+    radar2 = RadarCircularPattern(position=[30,30])
+    agent = Agent([600,10,0])
     emmitterLocationEstimator = EmmitterLocationEstimator(groundTruth=np.array([[600,600]]))
     
     
     
     radar_list.append(radar)
+    radar_list.append(radar2)
     agent_list.append(agent)
     bounds = (1200,1200)
 
@@ -54,7 +56,7 @@ def main():
     
     gp = GaussianProcess(X_test)
     
-    t_end = 100
+    t_end = 20
     dt = .1
     t_current = 0
     plt_index = 0
@@ -66,7 +68,7 @@ def main():
         for radar in radar_list:
             radar.update(dt)
         for agent in agent_list:
-            agent.update(20,0,dt,radar_list)
+            agent.update(120,.25,dt,radar_list)
         if len(agent.measurement_angle_of_arrival_values) != current_number_of_aoa_measurements:
             print("adding measurement")
             current_number_of_aoa_measurements += 1
