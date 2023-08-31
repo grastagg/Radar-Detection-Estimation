@@ -7,22 +7,24 @@ import matplotlib.pyplot as plt
 from radar import RadarCircularPattern
 from agent import Agent
 from emmiterLocationEstimator import EmmitterLocationEstimator
+from batchEmmiterLocationEstimator import BatchEmmiterLocationEstimator
 from gp import GaussianProcess
 
 
-def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator, gp):
+def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator):
         fig,ax = plt.subplots()
         ax.set_xlim((0,bounds[0]))
         ax.set_ylim((0,bounds[1]))
         ax.set_aspect('equal')
-        c = gp.plot(ax)
-        if c is not None:
-            plt.colorbar(c)
+        # c = gp.plot(ax)
+        # if c is not None:
+            # plt.colorbar(c)
         for agent in agent_list:
             agent.plot_agent(ax)
         c = emmitterLocationEstimator.plot(ax, False)
         # if c is not None:
         #     plt.colorbar(c)
+        batchEmmiterLocationEstimator.plot(ax)
         for radar in radar_list:
             radar.plot_view_area(ax)
         plt.savefig('images/'+str(plt_index)+'.png')
@@ -32,14 +34,15 @@ def main():
     radar_list = []
     agent_list = []
     radar = RadarCircularPattern()
-    radar2 = RadarCircularPattern(position=[30,30])
+    # radar2 = RadarCircularPattern(position=[30,30])
     agent = Agent([600,10,0])
     emmitterLocationEstimator = EmmitterLocationEstimator(groundTruth=np.array([[600,600]]))
+    batchEmmiterLocationEstimator = BatchEmmiterLocationEstimator(np.array([[600,600]]))
     
     
     
     radar_list.append(radar)
-    radar_list.append(radar2)
+    # radar_list.append(radar2)
     agent_list.append(agent)
     bounds = (1200,1200)
 
@@ -64,7 +67,7 @@ def main():
     current_number_of_aoa_measurements = 0
     
     while t_current < t_end:
-        plot_scene(radar_list, agent_list, bounds, plt_index,emmitterLocationEstimator, gp)
+        plot_scene(radar_list, agent_list, bounds, plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator)
         for radar in radar_list:
             radar.update(dt)
         for agent in agent_list:
@@ -73,6 +76,7 @@ def main():
             print("adding measurement")
             current_number_of_aoa_measurements += 1
             emmitterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
+            batchEmmiterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             
             if emmitterLocationEstimator.alreadyComputedInitialEmitterLocation:
                 print(agent.measurement_power_values)
@@ -85,8 +89,12 @@ def main():
         plt_index += 1
         t_current += dt
 
-    emmitterLocationEstimator.plot_xHatHistory()
     
+    plt.figure()
+    plt.plot(np.linspace(0, len(emmitterLocationEstimator.errorHistory), len(emmitterLocationEstimator.errorHistory)), emmitterLocationEstimator.errorHistory, label = "ekf")
+    plt.plot(np.linspace(0, len(batchEmmiterLocationEstimator.errorHistory), len(batchEmmiterLocationEstimator.errorHistory)), batchEmmiterLocationEstimator.errorHistory, label = "batch")
+    plt.legend()
+    plt.show()
     
 
 

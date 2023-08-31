@@ -159,7 +159,7 @@ class EmmitterLocationEstimator:
         H = self.measurement_jacobian(xem, yem, x, y)
         K = self.sigmaHat @ H.T @ np.linalg.inv(H@self.sigmaHat@H.T + np.array([[aoa_measurement_cov]]))
         self.xHat = self.xHat + K@(aoa_measurement_value - self.measurement_model(xem, yem, x, y))
-        print(self.xHat)
+        print("online emmiter location", self.xHat)
         self.sigmaHat = (np.eye(2) - K@H)@self.sigmaHat
         self.errorHistory.append(np.linalg.norm(self.xHat.reshape((2,)) - self.groundTruth))
     

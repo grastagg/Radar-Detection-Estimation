@@ -67,7 +67,6 @@ class Agent:
             self.measurement_power_values.append(power_measurements[closest_radar_index])
             self.measurement_locations.append(self.position[0:2])
             self.measurement_angle_of_arrival_values.append(angle_of_arrivals[closest_radar_index])
-        return z
 
     def plot_power_measurements(self, ax):
         if len(self.measurement_locations) > 0:
