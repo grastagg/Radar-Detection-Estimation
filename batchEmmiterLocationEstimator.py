@@ -104,8 +104,8 @@ class BatchEmmiterLocationEstimator:
 
     def plot(self, ax):
         if self.estimated_emmiter_location is not None:
+            ax.scatter(self.estimated_emmiter_location[0], self.estimated_emmiter_location[1], marker='x', color = 'r')
             self.plot_esimate_1_sigma_bounds(ax)
-            ax.scatter(self.estimated_emmiter_location[0], self.estimated_emmiter_location[1], marker='x')
 
         
 

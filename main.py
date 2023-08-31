@@ -8,6 +8,7 @@ from radar import RadarCircularPattern
 from agent import Agent
 from emmiterLocationEstimator import EmmitterLocationEstimator
 from batchEmmiterLocationEstimator import BatchEmmiterLocationEstimator
+from mulitple_radar_location_tracking import MultipleRadarLocationEstimator
 from gp import GaussianProcess
 
 
@@ -38,6 +39,7 @@ def main():
     agent = Agent([600,10,0])
     emmitterLocationEstimator = EmmitterLocationEstimator(groundTruth=np.array([[600,600]]))
     batchEmmiterLocationEstimator = BatchEmmiterLocationEstimator(np.array([[600,600]]))
+    multipleRadarLocationEstimator = MultipleRadarLocationEstimator()
     
     
     
@@ -77,6 +79,7 @@ def main():
             current_number_of_aoa_measurements += 1
             emmitterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             batchEmmiterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
+            multipleRadarLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             
             if emmitterLocationEstimator.alreadyComputedInitialEmitterLocation:
                 print(agent.measurement_power_values)
