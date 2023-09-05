@@ -205,4 +205,4 @@ class EmmitterLocationEstimator:
         if plot_var:
             self.plot_esimate_1_sigma_bounds(ax)
         if self.xHat is not None:
-            ax.scatter(self.xHat[0], self.xHat[1])
+            ax.scatter(self.xHat[0], self.xHat[1], marker='x', color = 'g')

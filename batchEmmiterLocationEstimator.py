@@ -65,7 +65,6 @@ class BatchEmmiterLocationEstimator:
         return np.array([self.measurement_model(emmiter_location[0], emmiter_location[1], loc[0], loc[1]) for loc in measurement_locations]).reshape((len(aoa_measurements),)) - np.array(aoa_measurements).reshape((len(aoa_measurements),))
 
     def batch_estimation(self):
-        print("AOA measurements", self.aoa_measurement_values)
         x0 = self.estimated_emmiter_location
         sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(self.aoa_measurement_values,self.measurement_locations))
         # print("sol",sol)
@@ -76,7 +75,6 @@ class BatchEmmiterLocationEstimator:
 
         self.estimated_emmiter_location_cov = self.aoa_measurement_variances[0] * np.linalg.inv(jacobians.T@jacobians)
 
-        print()
     
     def stack_measurement_jacobian(self, emitter_location, aoa_measurements, measurement_locations):
         return np.array([self.measurement_jacobian(emitter_location[0], emitter_location[1], loc[0], loc[1]) for loc in measurement_locations])
@@ -102,9 +100,11 @@ class BatchEmmiterLocationEstimator:
         c = ax.contourf(X, Y, malhanobisDist, cmap='viridis',levels = [ 0,1,2,3])
         return c
 
-    def plot(self, ax):
+    def plot(self, ax, plot_var = False):
         if self.estimated_emmiter_location is not None:
             ax.scatter(self.estimated_emmiter_location[0], self.estimated_emmiter_location[1], marker='x', color = 'r')
+        
+        if plot_var:
             self.plot_esimate_1_sigma_bounds(ax)
 
         

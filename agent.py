@@ -74,21 +74,28 @@ class Agent:
             ax.scatter(data[:,0],data[:,1],c=np.log10(np.array(self.measurement_power_values)),vmin = -5, vmax =.5)
             # ax.scatter(data[:,0],data[:,1],c=np.log10(np.array(self.measurement_power_values)))
         
-    def plot_angle_of_arrival_measurements(self, ax):
+    def plot_angle_of_arrival_measurements(self, ax, inlier_mask):
+        color = 'g'
+        print("inliers", inlier_mask)
         for i,angle in enumerate(self.measurement_angle_of_arrival_values):
+            if inlier_mask is not None:
+                if not inlier_mask[i]:
+                    color = 'r'
+                else:
+                    color = 'g'
             start_x = self.measurement_locations[i][0]
             start_y = self.measurement_locations[i][1]
             end_x = start_x + self.sensing_range * np.cos(angle)
             end_y = start_y + self.sensing_range * np.sin(angle)
-            ax.plot([start_x,end_x],[start_y,end_y], c='g')
+            ax.plot([start_x,end_x],[start_y,end_y], c=color)
             end_x = start_x + self.sensing_range * np.cos(angle+self.angle_measurement_std_dev)
             end_y = start_y + self.sensing_range * np.sin(angle+self.angle_measurement_std_dev)
-            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c = 'g')
+            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c = color)
             end_x = start_x + self.sensing_range * np.cos(angle-self.angle_measurement_std_dev)
             end_y = start_y + self.sensing_range * np.sin(angle-self.angle_measurement_std_dev)
-            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c='g')
+            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c=color)
         
-    def plot_agent(self,ax):
+    def plot_agent(self,ax, inlier_mask):
         x = self.position[0] 
         y = self.position[1] 
         circle = Circle((x,y),radius = 1,fill = False)
@@ -99,7 +106,7 @@ class Agent:
         y_end = y + 10 * np.sin(h)
         ax.plot([x, x_end], [y, y_end])
         self.plot_power_measurements(ax)
-        self.plot_angle_of_arrival_measurements(ax)
+        self.plot_angle_of_arrival_measurements(ax, inlier_mask)
 
             
 
