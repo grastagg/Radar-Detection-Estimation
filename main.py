@@ -36,16 +36,20 @@ def main():
     radar_list = []
     agent_list = []
     radar = RadarCircularPattern()
-    radar2 = RadarCircularPattern(position=[30,30])
+    radar2 = RadarCircularPattern(position=[200,200], phase=np.pi, angular_rate=2.5)
+    radar3 = RadarCircularPattern(position=[1000,1000], phase=np.pi/2, angular_rate=3.5)
+    radar4 = RadarCircularPattern(position=[200,1000], phase=np.pi/3, angular_rate=4)
     agent = Agent([600,10,0])
     emmitterLocationEstimator = EmmitterLocationEstimator(groundTruth=np.array([[600,600]]))
     batchEmmiterLocationEstimator = BatchEmmiterLocationEstimator(np.array([[600,600]]))
-    multipleRadarLocationEstimator = MultipleRadarLocationEstimator()
+    multipleRadarLocationEstimator = MultipleRadarLocationEstimator(sensing_range=agent.sensing_range, angle_measurement_std_dev=agent.angle_measurement_std_dev)
     
     
     
     radar_list.append(radar)
     radar_list.append(radar2)
+    radar_list.append(radar3)
+    radar_list.append(radar4)
     agent_list.append(agent)
     bounds = (1200,1200)
 
