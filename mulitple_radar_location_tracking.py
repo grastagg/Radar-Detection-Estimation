@@ -5,8 +5,10 @@ from sklearn.linear_model import RANSACRegressor
 # from sklearn import base
 
 class NonlinearEstimator():
-    def __init__(self):
+    def __init__(self, measurement_variance = (4*np.pi/180.0)**2):
         self.estimated_emmiter_location =  None
+        self.estimated_emmiter_location_covariances = None
+        self.measurement_variance = measurement_variance
 
     def measurement_residual(self, emmiter_location, measurement_locations, aoa_measurements):
         return np.array([self.measurement_model(emmiter_location[0], emmiter_location[1], loc[0], loc[1]) for loc in measurement_locations]).reshape((len(aoa_measurements),)) - np.array(aoa_measurements).reshape((len(aoa_measurements),))
@@ -15,6 +17,7 @@ class NonlinearEstimator():
         x0 = np.array([500,500])
         sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(X,y), bounds=([0,0],[2000,2000]))
         self.estimated_emmiter_location = sol.x
+        # self.estimated_emmiter_location_covariances = self.compute_emmitor_estimate_covariance(X, y, self.measurement_variance)
 
     def score(self, X,y):
         return np.linalg.norm(self.measurement_residual(self.estimated_emmiter_location, X, y))**2
@@ -25,7 +28,7 @@ class NonlinearEstimator():
     def measurement_model(self, xem, yem, x, y):
         return np.array([[np.arctan2(yem-y, xem-x)]])
     
-    def stack_measurement_jacobian(self, emitter_location,measurement_locations, aoa_measurements):
+    def stack_measurement_jacobian(self, emitter_location,measurement_locations, aoa_measurement_values):
         return np.array([self.measurement_jacobian(emitter_location[0], emitter_location[1], loc[0], loc[1]) for loc in measurement_locations])
 
     def measurement_jacobian(self, xem, yem, x, y):
@@ -40,10 +43,17 @@ class NonlinearEstimator():
 
     def get_estimate_emmitor_location(self):
         return self.estimated_emmiter_location
+    
+    def compute_emmitor_estimate_covariance(self, X, y, measurement_variance):
+        jacobians = self.stack_measurement_jacobian(self.estimated_emmiter_location, X, y)
+        emmiter_location_cov = measurement_variance * np.linalg.inv(jacobians.T@jacobians)
+        return emmiter_location_cov
 
     def get_params(self, deep=False):
         # return {"position": self.estimated_emmiter_location}
         return {}
+    
+
     
 
 class MultipleRadarLocationEstimator:
@@ -53,6 +63,7 @@ class MultipleRadarLocationEstimator:
         self.angle_measurement_std_dev = angle_measurement_std_dev
 
         self.estimated_emmiter_locations = [] 
+        self.estimated_emmiter_location_covariances = [] 
 
         self.outlier_indicies = []
 
@@ -70,15 +81,16 @@ class MultipleRadarLocationEstimator:
         print("measurement_locations",measurement_locations)
         print("aoa_values", aoa_values)
         if len(aoa_values) > 1:
-            regressionModel = NonlinearEstimator()
+            regressionModel = NonlinearEstimator(self.angle_measurement_std_dev**2)
             ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,residual_threshold=.2)
             ransacRegressor.fit(np.array(measurement_locations), np.array(aoa_values).reshape((-1,1)))
             self.estimated_emmiter_locations.append(ransacRegressor.estimator_.get_estimate_emmitor_location())
+            self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
+            self.estimated_emmiter_location_covariances.append(ransacRegressor.estimator_.compute_emmitor_estimate_covariance(np.array(self.measurement_locations)[self.group_lists[-1]], np.array(self.aoa_measurement_values)[self.group_lists[-1]], self.angle_measurement_std_dev**2))
             # print("ransac prediction", self.ransacRegressor.estimator_.get_estimate_emmitor_location())
             self.inlier_mask = ransacRegressor.inlier_mask_
-            print("inliers", self.inlier_mask)
-            self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
             self.fit_ransac_model(measurement_locations[ransacRegressor.inlier_mask_== False],aoa_values[ransacRegressor.inlier_mask_== False], original_index[ransacRegressor.inlier_mask_== False])
+                
         elif len(aoa_values) >= 1:
             self.outlier_indicies.append(original_index)
         else:
@@ -88,6 +100,7 @@ class MultipleRadarLocationEstimator:
     
     def add_measurement(self, measurement_location, aoa_value, measurement_var):
         self.estimated_emmiter_locations = [] 
+        self.estimated_emmiter_location_covariances = [] 
         self.group_lists = []
         self.outlier_indicies = []
         self.measurement_locations.append(measurement_location)
@@ -99,6 +112,7 @@ class MultipleRadarLocationEstimator:
             # print("ransac prediction", self.ransacRegressor.estimator_.get_estimate_emmitor_location())
             print("ransac prediction", self.estimated_emmiter_locations)
             print("group lists", self.group_lists)
+            print("outliers", self.outlier_indicies)
             # self.inlier_mask = self.ransacRegressor.inlier_mask_
             # print("number of inliers", self.ransacRegressor.inlier_mask_)
         elif len(self.aoa_measurement_values) == 2:
@@ -116,8 +130,10 @@ class MultipleRadarLocationEstimator:
                 self.plot_angle_of_arrival_measurements(ax, color_list[i], np.array(self.measurement_locations)[angle_indicies], np.array(self.aoa_measurement_values)[angle_indicies])
             
 
-            for estimated_emmiter_location in self.estimated_emmiter_locations:
+            for i,estimated_emmiter_location in enumerate(self.estimated_emmiter_locations):
                 ax.scatter(estimated_emmiter_location[0], estimated_emmiter_location[1], marker='x', c = 'm')
+                c = self.plot_esimate_1_sigma_bounds(ax, estimated_emmiter_location, self.estimated_emmiter_location_covariances[i])
+            return c
             
     def plot_angle_of_arrival_measurements(self, ax, color, measurement_locations, measurement_angle_of_arrival_values):
         for i,angle in enumerate(measurement_angle_of_arrival_values):
@@ -132,3 +148,19 @@ class MultipleRadarLocationEstimator:
             end_x = start_x + self.sensing_range * np.cos(angle-self.angle_measurement_std_dev)
             end_y = start_y + self.sensing_range * np.sin(angle-self.angle_measurement_std_dev)
             ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c=color)
+
+    def plot_esimate_1_sigma_bounds(self, ax, estimated_emmiter_location, estimated_emmiter_location_cov):
+        invCovariance = np.linalg.inv(estimated_emmiter_location_cov)
+        
+        # x = np.linspace(mean_1-3*sigma_1, mean_1+3*sigma_1, num=100)
+        # y = np.linspace(mean_2-3*sigma_2, mean_2+3*sigma_2, num=100)
+        x = np.linspace(0, 1200, num=100)
+        y = np.linspace(0, 1200, num=100)
+        X, Y = np.meshgrid(x,y)
+        malhanobisDist = np.zeros(X.shape)
+        for i in range(X.shape[0]):
+            for j in range(X.shape[1]):
+                malhanobisDist[i,j] = (np.array([[X[i,j], Y[i,j]]]) - np.array([[estimated_emmiter_location[0], estimated_emmiter_location[1]]])) @ invCovariance @(np.array([[X[i,j], Y[i,j]]]) - np.array([[estimated_emmiter_location[0], estimated_emmiter_location[1]]])).T
+
+        c = ax.contourf(X, Y, malhanobisDist, cmap='viridis',levels = [ 0,1,2,3])
+        return c

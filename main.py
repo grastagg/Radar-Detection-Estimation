@@ -11,6 +11,7 @@ from batchEmmiterLocationEstimator import BatchEmmiterLocationEstimator
 from mulitple_radar_location_tracking import MultipleRadarLocationEstimator
 from gp import GaussianProcess
 
+# np.random.seed(12342)
 
 def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleEmmiterLocationEstimator):
         fig,ax = plt.subplots()
