@@ -17,9 +17,8 @@ class NonlinearEstimator():
         self.estimated_emmiter_location = sol.x
 
     def score(self, X,y):
-        return np.linalg.norm(self.measurement_residual(self.estimated_emmiter_location, X, y))
-        
-
+        return np.linalg.norm(self.measurement_residual(self.estimated_emmiter_location, X, y))**2
+    
     def predict(self, X):
         return np.array([self.measurement_model(self.estimated_emmiter_location[0], self.estimated_emmiter_location[1], loc[0], loc[1]) for loc in X]).reshape((-1,1))
 
