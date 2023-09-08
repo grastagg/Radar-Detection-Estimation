@@ -3,7 +3,7 @@ from scipy.stats import multivariate_normal
 import matplotlib.pyplot as plt
 
 
-class EmmitterLocationEstimator:
+class EmitterLocationEstimator:
     '''
     Assumptions:
     1) location of agent is known exactly (could incorperate uncertainty due to this in the future)

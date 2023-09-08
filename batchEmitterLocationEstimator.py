@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.optimize import least_squares
 
-class BatchEmmiterLocationEstimator:
+class BatchEmitterLocationEstimator:
     def __init__(self, ground_truth):
         self.ground_truth = ground_truth
         self.measurement_locations = []

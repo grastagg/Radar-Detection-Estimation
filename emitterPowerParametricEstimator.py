@@ -2,7 +2,7 @@ import numpy as np
 
 
 
-class parametricRadarEstimator:
+class EmitterPowerParametricEstimator:
     def __init__(self):
         self.estimated_radar_power = None
         

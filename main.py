@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 
 from radar import RadarCircularPattern
 from agent import Agent
-from emmiterLocationEstimator import EmmitterLocationEstimator
-from batchEmmiterLocationEstimator import BatchEmmiterLocationEstimator
-from multipleEmmiterBatchLocationEstimator import MultipleEmmiterBatchLocationEstimator
+from emitterLocationEstimator import EmitterLocationEstimator 
+from batchEmitterLocationEstimator import BatchEmitterLocationEstimator 
+from multipleEmitterBatchLocationEstimator import MultipleEmitterBatchLocationEstimator
 from gp import GaussianProcess
 
 # np.random.seed(12342)
@@ -48,7 +48,7 @@ def main():
     # batchEmmiterLocationEstimator = BatchEmmiterLocationEstimator(np.array([[600,600]]))
     emmitterLocationEstimator = None 
     batchEmmiterLocationEstimator = None
-    multipleRadarLocationEstimator = MultipleEmmiterBatchLocationEstimator(sensing_range=agent.sensing_range, angle_measurement_std_dev=agent.angle_measurement_std_dev)
+    multipleRadarLocationEstimator = MultipleEmitterBatchLocationEstimator(sensing_range=agent.sensing_range, angle_measurement_std_dev=agent.angle_measurement_std_dev)
     
     
     

@@ -56,7 +56,7 @@ class NonlinearEstimator():
 
     
 
-class MultipleEmmiterBatchLocationEstimator:
+class MultipleEmitterBatchLocationEstimator:
     def __init__(self, sensing_range, angle_measurement_std_dev):
         self.ekf_list = []
         self.sensing_range = sensing_range
