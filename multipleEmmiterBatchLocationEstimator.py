@@ -56,7 +56,7 @@ class NonlinearEstimator():
 
     
 
-class MultipleRadarLocationEstimator:
+class MultipleEmmiterBatchLocationEstimator:
     def __init__(self, sensing_range, angle_measurement_std_dev):
         self.ekf_list = []
         self.sensing_range = sensing_range
@@ -136,18 +136,19 @@ class MultipleRadarLocationEstimator:
             return c
             
     def plot_angle_of_arrival_measurements(self, ax, color, measurement_locations, measurement_angle_of_arrival_values):
+        line_width = 1
         for i,angle in enumerate(measurement_angle_of_arrival_values):
             start_x = measurement_locations[i][0]
             start_y = measurement_locations[i][1]
             end_x = start_x + self.sensing_range * np.cos(angle)
             end_y = start_y + self.sensing_range * np.sin(angle)
-            ax.plot([start_x,end_x],[start_y,end_y], c=color)
+            ax.plot([start_x,end_x],[start_y,end_y], c=color, linewidth = line_width)
             end_x = start_x + self.sensing_range * np.cos(angle+self.angle_measurement_std_dev)
             end_y = start_y + self.sensing_range * np.sin(angle+self.angle_measurement_std_dev)
-            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c = color)
+            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c = color, linewidth = line_width)
             end_x = start_x + self.sensing_range * np.cos(angle-self.angle_measurement_std_dev)
             end_y = start_y + self.sensing_range * np.sin(angle-self.angle_measurement_std_dev)
-            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c=color)
+            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c=color, linewidth = line_width)
 
     def plot_esimate_1_sigma_bounds(self, ax, estimated_emmiter_location, estimated_emmiter_location_cov):
         invCovariance = np.linalg.inv(estimated_emmiter_location_cov)
