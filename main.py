@@ -10,10 +10,11 @@ from emitterLocationEstimator import EmitterLocationEstimator
 from batchEmitterLocationEstimator import BatchEmitterLocationEstimator 
 from multipleEmitterBatchLocationEstimator import MultipleEmitterBatchLocationEstimator
 from gp import GaussianProcess
+from multipleEmitterPowerParametricEstimator import MultipleEmittorPowerParametricEstimator
 
 # np.random.seed(12342)
 
-def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleEmmiterLocationEstimator):
+def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleEmmiterLocationEstimator, multipleEmitterPowerParametricEstimator):
         fig,ax = plt.subplots()
         ax.set_xlim((0,bounds[0]))
         ax.set_ylim((0,bounds[1]))
@@ -30,6 +31,10 @@ def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator
         if batchEmmiterLocationEstimator is not None:
             batchEmmiterLocationEstimator.plot(ax)
         multipleEmmiterLocationEstimator.plot(ax)
+        c = multipleEmitterPowerParametricEstimator.plot(ax)
+        if c is not None:
+            plt.colorbar(c)
+            
         for radar in radar_list:
             radar.plot_view_area(ax)
         plt.savefig('images/'+str(plt_index)+'.png')
@@ -40,8 +45,8 @@ def main():
     agent_list = []
     radar = RadarCircularPattern()
     radar2 = RadarCircularPattern(position=[200,200], phase=np.pi, angular_rate=2.5)
-    # radar3 = RadarCircularPattern(position=[1000,1000], phase=np.pi/2, angular_rate=3.5)
-    # radar4 = RadarCircularPattern(position=[200,1000], phase=np.pi/3, angular_rate=4)
+    radar3 = RadarCircularPattern(position=[1000,1000], phase=np.pi/2, angular_rate=3.5)
+    radar4 = RadarCircularPattern(position=[200,1000], phase=np.pi/3, angular_rate=4)
     # radar5 = RadarCircularPattern(position=[1000,200], phase=2*np.pi/3, angular_rate=2.75)
     agent = Agent([600,10,0])
     # emmitterLocationEstimator = EmmitterLocationEstimator(groundTruth=np.array([[600,600]]))
@@ -51,11 +56,10 @@ def main():
     multipleRadarLocationEstimator = MultipleEmitterBatchLocationEstimator(sensing_range=agent.sensing_range, angle_measurement_std_dev=agent.angle_measurement_std_dev)
     
     
-    
     radar_list.append(radar)
     radar_list.append(radar2)
-    # radar_list.append(radar3)
-    # radar_list.append(radar4)
+    radar_list.append(radar3)
+    radar_list.append(radar4)
     # radar_list.append(radar5)
     agent_list.append(agent)
     bounds = (1200,1200)
@@ -71,7 +75,11 @@ def main():
         for j in range(numTestPoints):
             X_test.append(np.array([x_test[i],y_test[j]]))
     
-    gp = GaussianProcess(X_test)
+    # gp = GaussianProcess(X_test)
+    gp = None 
+
+    multipleEmitterPowerParametricEstimator = MultipleEmittorPowerParametricEstimator(X_test)
+
     
     t_end = 20
     dt = .1
@@ -83,7 +91,7 @@ def main():
     inlier_mask = None
     
     while t_current < t_end:
-        plot_scene(radar_list, agent_list, bounds, plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleRadarLocationEstimator)
+        plot_scene(radar_list, agent_list, bounds, plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleRadarLocationEstimator, multipleEmitterPowerParametricEstimator)
         for radar in radar_list:
             radar.update(dt)
         for agent in agent_list:
@@ -94,6 +102,9 @@ def main():
             # emmitterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             # batchEmmiterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             multipleRadarLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
+
+            if len(multipleRadarLocationEstimator.estimated_emmiter_locations) > 0:
+                multipleEmitterPowerParametricEstimator.fit(multipleRadarLocationEstimator.measurement_locations, agent.measurement_power_values, multipleRadarLocationEstimator.estimated_emmiter_locations, multipleRadarLocationEstimator.group_lists)
             
             # if emmitterLocationEstimator.alreadyComputedInitialEmitterLocation:
             #     predictiveMean, predictiveCov = gp.gp_prediction(X_test, agent.measurement_locations, agent.measurement_power_values, emmitterLocationEstimator.xHat)
@@ -106,11 +117,11 @@ def main():
         t_current += dt
 
     
-    plt.figure()
-    plt.plot(np.linspace(0, len(emmitterLocationEstimator.errorHistory), len(emmitterLocationEstimator.errorHistory)), emmitterLocationEstimator.errorHistory, label = "ekf")
-    plt.plot(np.linspace(0, len(batchEmmiterLocationEstimator.errorHistory), len(batchEmmiterLocationEstimator.errorHistory)), batchEmmiterLocationEstimator.errorHistory, label = "batch")
-    plt.legend()
-    plt.show()
+    # plt.figure()
+    # plt.plot(np.linspace(0, len(emmitterLocationEstimator.errorHistory), len(emmitterLocationEstimator.errorHistory)), emmitterLocationEstimator.errorHistory, label = "ekf")
+    # plt.plot(np.linspace(0, len(batchEmmiterLocationEstimator.errorHistory), len(batchEmmiterLocationEstimator.errorHistory)), batchEmmiterLocationEstimator.errorHistory, label = "batch")
+    # plt.legend()
+    # plt.show()
     
 
 

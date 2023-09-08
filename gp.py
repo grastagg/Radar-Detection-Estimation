@@ -16,7 +16,7 @@ class GaussianProcess:
 
         
         self.ground_truth = self.compute_ground_truth(self.X_test, np.array([600,600]), 100)
-        self.plot_ground_truth()
+        # self.plot_ground_truth()
 
     def plot_ground_truth(self):
         plt.figure()
