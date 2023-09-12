@@ -31,9 +31,9 @@ def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator
         if batchEmmiterLocationEstimator is not None:
             batchEmmiterLocationEstimator.plot(ax)
         multipleEmmiterLocationEstimator.plot(ax)
-        c = multipleEmitterPowerParametricEstimator.plot(ax)
-        if c is not None:
-            plt.colorbar(c)
+        # c = multipleEmitterPowerParametricEstimator.plot(ax)
+        # if c is not None:
+        #     plt.colorbar(c)
             
         for radar in radar_list:
             radar.plot_view_area(ax)

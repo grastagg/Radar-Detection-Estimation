@@ -65,7 +65,7 @@ class MultipleEmitterBatchLocationEstimator:
         self.estimated_emmiter_locations = [] 
         self.estimated_emmiter_location_covariances = [] 
 
-        self.outlier_indicies = []
+        self.outlier_indicies = np.array([], dtype=int)
 
 
         self.measurement_locations = []
@@ -76,10 +76,10 @@ class MultipleEmitterBatchLocationEstimator:
     
 
     def fit_ransac_model(self, measurement_locations, aoa_values, original_index):
-        print("in recursion")
-        print("original index", original_index)
-        print("measurement_locations",measurement_locations)
-        print("aoa_values", aoa_values)
+        # print("in recursion")
+        # print("original index", original_index)
+        # print("measurement_locations",measurement_locations)
+        # print("aoa_values", aoa_values)
         if len(aoa_values) > 1:
             regressionModel = NonlinearEstimator(self.angle_measurement_std_dev**2)
             ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,residual_threshold=.2)
@@ -87,43 +87,72 @@ class MultipleEmitterBatchLocationEstimator:
             self.estimated_emmiter_locations.append(ransacRegressor.estimator_.get_estimate_emmitor_location())
             self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
             self.estimated_emmiter_location_covariances.append(ransacRegressor.estimator_.compute_emmitor_estimate_covariance(np.array(self.measurement_locations)[self.group_lists[-1]], np.array(self.aoa_measurement_values)[self.group_lists[-1]], self.angle_measurement_std_dev**2))
+            for ind in original_index[ransacRegressor.inlier_mask_== True]:
+                self.outlier_indicies = np.delete(self.outlier_indicies, np.argwhere(self.outlier_indicies == ind))
             # print("ransac prediction", self.ransacRegressor.estimator_.get_estimate_emmitor_location())
-            self.inlier_mask = ransacRegressor.inlier_mask_
-            self.fit_ransac_model(measurement_locations[ransacRegressor.inlier_mask_== False],aoa_values[ransacRegressor.inlier_mask_== False], original_index[ransacRegressor.inlier_mask_== False])
+            # self.inlier_mask = ransacRegressor.inlier_mask_
+            # self.fit_ransac_model(measurement_locations[ransacRegressor.inlier_mask_== False],aoa_values[ransacRegressor.inlier_mask_== False], original_index[ransacRegressor.inlier_mask_== False])
                 
-        elif len(aoa_values) >= 1:
-            self.outlier_indicies.append(original_index)
-        else:
-            pass
+        # elif len(aoa_values) == 1:
+        #     self.outlier_indicies.append(original_index)
+        # else:
+        #     pass
 
+    def ekf_update(self, aoa_measurement_pos, aoa_measurement_value, aoa_measurement_cov, x_prev, sigma_prev):
+        xem = x_prev[0][0]
+        yem = x_prev[1][0]
+        x = aoa_measurement_pos[0]
+        y = aoa_measurement_pos[1]
 
+        H = self.measurement_jacobian(xem, yem, x, y)
+        K = sigma_prev @ H.T @ np.linalg.inv(H@sigma_prev@H.T + np.array([[aoa_measurement_cov]]))
+        xHat = x_prev + K@(aoa_measurement_value - self.measurement_model(xem, yem, x, y))
+        sigmaHat = (np.eye(2) - K@H)@sigma_prev
+        return xHat, sigmaHat
+
+    def mahalonobis_distance(self, point, mean, covariance):
+        return (point - mean) * (1/ covariance) * (point - mean)
     
+    def measurement_model(self, xem, yem, x, y):
+        return np.array([[np.arctan2(yem-y, xem-x)]])
+
     def add_measurement(self, measurement_location, aoa_value, measurement_var):
-        self.estimated_emmiter_locations = [] 
-        self.estimated_emmiter_location_covariances = [] 
-        self.group_lists = []
-        self.outlier_indicies = []
+        # self.estimated_emmiter_locations = [] 
+        # self.estimated_emmiter_location_covariances = [] 
+        # self.group_lists = []
+        # self.outlier_indicies = []
         self.measurement_locations.append(measurement_location)
         self.aoa_measurement_values.append(aoa_value)
         if len(self.aoa_measurement_values) > 2:
-            self.fit_ransac_model(np.array(self.measurement_locations), np.array(self.aoa_measurement_values), np.arange(len(self.aoa_measurement_values), dtype=int))
+            updated_using_ekf = False
+            for i,emitter_location in enumerate(self.estimated_emmiter_locations):
+                measurement_mahalonobis_distance = self.mahalonobis_distance(aoa_value, self.measurement_model(emitter_location[0], emitter_location[1], measurement_location[0], measurement_location[1])[0][0], measurement_var)
+                print("measurement_mahalonobis_distance",measurement_mahalonobis_distance)
+                if measurement_mahalonobis_distance < 6:
+                    self.estimated_emmiter_locations[i],  self.estimated_emmiter_location_covariances[i] = self.ekf_update(measurement_location, aoa_value, measurement_var, emitter_location, self.estimated_emmiter_location_covariances[i])
+                    self.group_lists[i].append(len(self.aoa_measurement_values)-1)
+                    updated_using_ekf = True
+            if not updated_using_ekf:
+                self.outlier_indicies = np.append(self.outlier_indicies, len(self.aoa_measurement_values)-1)
+                self.fit_ransac_model(np.array(self.measurement_locations)[self.outlier_indicies], np.array(self.aoa_measurement_values)[self.outlier_indicies], self.outlier_indicies)
             # self.ransacRegressor.fit(np.array(self.measurement_locations), np.array(self.aoa_measurement_values).reshape((-1,1)))
             # self.estimated_emmiter_location = self.ransacRegressor.estimator_.get_estimate_emmitor_location()
             # print("ransac prediction", self.ransacRegressor.estimator_.get_estimate_emmitor_location())
             print("ransac prediction", self.estimated_emmiter_locations)
             print("group lists", self.group_lists)
             print("outliers", self.outlier_indicies)
+            print("size of covariance", [np.linalg.det(lam) for lam in self.estimated_emmiter_location_covariances])
             # self.inlier_mask = self.ransacRegressor.inlier_mask_
             # print("number of inliers", self.ransacRegressor.inlier_mask_)
         elif len(self.aoa_measurement_values) == 2:
-            self.outlier_indicies.append([0,1])
+            self.outlier_indicies = np.append(self.outlier_indicies, 1)
         else:
-            self.outlier_indicies.append([0])
+            self.outlier_indicies = np.append(self.outlier_indicies, 0)
             
     def plot(self, ax):
         color_list = ['tab:blue','tab:orange','tab:green','tab:purple', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
 
-        for i,angle_indicies in enumerate(self.outlier_indicies):
+        for i,angle_indicies in enumerate([self.outlier_indicies]):
             self.plot_angle_of_arrival_measurements(ax, 'r', np.array(self.measurement_locations)[angle_indicies], np.array(self.aoa_measurement_values)[angle_indicies])
         if len(self.estimated_emmiter_locations) > 0:
             for i,angle_indicies in enumerate(self.group_lists):
