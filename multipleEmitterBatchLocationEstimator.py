@@ -73,6 +73,8 @@ class MultipleEmitterBatchLocationEstimator:
 
         self.inlier_mask = None
         self.group_lists = []
+
+        self.mahalonobis_distance_inlier_threshold = 30
     
 
     def fit_ransac_model(self, measurement_locations, aoa_values, original_index):
@@ -99,22 +101,34 @@ class MultipleEmitterBatchLocationEstimator:
         #     pass
 
     def ekf_update(self, aoa_measurement_pos, aoa_measurement_value, aoa_measurement_cov, x_prev, sigma_prev):
-        xem = x_prev[0][0]
-        yem = x_prev[1][0]
+        xem = x_prev[0]
+        yem = x_prev[1]
         x = aoa_measurement_pos[0]
         y = aoa_measurement_pos[1]
 
         H = self.measurement_jacobian(xem, yem, x, y)
         K = sigma_prev @ H.T @ np.linalg.inv(H@sigma_prev@H.T + np.array([[aoa_measurement_cov]]))
-        xHat = x_prev + K@(aoa_measurement_value - self.measurement_model(xem, yem, x, y))
+        xHat = x_prev + (K@(aoa_measurement_value - self.measurement_model(xem, yem, x, y))).reshape((-1,))
         sigmaHat = (np.eye(2) - K@H)@sigma_prev
         return xHat, sigmaHat
 
     def mahalonobis_distance(self, point, mean, covariance):
-        return (point - mean) * (1/ covariance) * (point - mean)
+        print("TEST!!!!!!!!!!!!!!!")
+        print("value",point)
+        print("mean",mean)
+        diff_square = min((point - mean)**2, min((point - (mean + 2*np.pi))**2, (point - (mean - 2 * np.pi))**2))
+        print("diff_square", diff_square)
+        print("mal dist:",diff_square * (1/ covariance))
+        print("END!!!!!!!!!!!!")
+        return diff_square * (1/ covariance)
     
     def measurement_model(self, xem, yem, x, y):
         return np.array([[np.arctan2(yem-y, xem-x)]])
+
+    def measurement_jacobian(self, xem, yem, x, y):
+        d_h_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
+        d_h_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
+        return np.array([[d_h_d_x_emmitter, d_h_d_y_emmitter]])
 
     def add_measurement(self, measurement_location, aoa_value, measurement_var):
         # self.estimated_emmiter_locations = [] 
@@ -128,9 +142,9 @@ class MultipleEmitterBatchLocationEstimator:
             for i,emitter_location in enumerate(self.estimated_emmiter_locations):
                 measurement_mahalonobis_distance = self.mahalonobis_distance(aoa_value, self.measurement_model(emitter_location[0], emitter_location[1], measurement_location[0], measurement_location[1])[0][0], measurement_var)
                 print("measurement_mahalonobis_distance",measurement_mahalonobis_distance)
-                if measurement_mahalonobis_distance < 6:
+                if measurement_mahalonobis_distance < self.mahalonobis_distance_inlier_threshold:
                     self.estimated_emmiter_locations[i],  self.estimated_emmiter_location_covariances[i] = self.ekf_update(measurement_location, aoa_value, measurement_var, emitter_location, self.estimated_emmiter_location_covariances[i])
-                    self.group_lists[i].append(len(self.aoa_measurement_values)-1)
+                    self.group_lists[i] = np.append(self.group_lists[i],(len(self.aoa_measurement_values)-1))
                     updated_using_ekf = True
             if not updated_using_ekf:
                 self.outlier_indicies = np.append(self.outlier_indicies, len(self.aoa_measurement_values)-1)
