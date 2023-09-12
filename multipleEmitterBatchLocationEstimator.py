@@ -174,10 +174,10 @@ class MultipleEmitterBatchLocationEstimator:
 
             else:
                 self.outlier_indicies = np.append(self.outlier_indicies, len(self.aoa_measurement_values)-1)
-                try:
-                    self.fit_ransac_model(np.array(self.measurement_locations)[self.outlier_indicies], np.array(self.aoa_measurement_values)[self.outlier_indicies], self.outlier_indicies)
-                except:
-                    print("no model found")
+                # try:
+                self.fit_ransac_model(np.array(self.measurement_locations)[self.outlier_indicies], np.array(self.aoa_measurement_values)[self.outlier_indicies], self.outlier_indicies)
+                # except:
+                #     print("no model found")
             print("ransac prediction", self.estimated_emmiter_locations)
             print("group lists", self.group_lists)
             print("outliers", self.outlier_indicies)
