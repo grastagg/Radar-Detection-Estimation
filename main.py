@@ -43,10 +43,10 @@ def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator
 def main():
     radar_list = []
     agent_list = []
-    radar = RadarCircularPattern()
-    radar2 = RadarCircularPattern(position=[200,200], phase=np.pi, angular_rate=2.5)
-    radar3 = RadarCircularPattern(position=[1000,1000], phase=np.pi/2, angular_rate=3.5)
-    radar4 = RadarCircularPattern(position=[200,1000], phase=np.pi/3, angular_rate=4)
+    radar = RadarCircularPattern(position=[200,800])
+    radar2 = RadarCircularPattern(position=[500,800], phase=np.pi, angular_rate=2.5)
+    radar3 = RadarCircularPattern(position=[800,800], phase=np.pi/2, angular_rate=3.5)
+    radar4 = RadarCircularPattern(position=[1100,800], phase=np.pi/3, angular_rate=4)
     # radar5 = RadarCircularPattern(position=[1000,200], phase=2*np.pi/3, angular_rate=2.75)
     agent = Agent([600,10,0])
     # emmitterLocationEstimator = EmmitterLocationEstimator(groundTruth=np.array([[600,600]]))

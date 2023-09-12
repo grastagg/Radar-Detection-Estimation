@@ -11,7 +11,7 @@ class Agent:
         self.measurement_angle_of_arrival_values = []
         self.measurement_locations = []
         self.power_measurement_std_dev = .01
-        self.angle_measurement_std_dev = (4*np.pi/180.0)
+        self.angle_measurement_std_dev = (3*np.pi/180.0)
         
         
         

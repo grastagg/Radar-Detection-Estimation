@@ -74,13 +74,13 @@ class MultipleEmitterBatchLocationEstimator:
         self.inlier_mask = None
         self.group_lists = []
 
-        self.mahalonobis_distance_inlier_threshold = 7
+        self.mahalonobis_distance_inlier_threshold = 6
     
 
     def fit_ransac_model(self, measurement_locations, aoa_values, original_index):
-        if len(aoa_values) > 1:
+        if len(aoa_values) > 2:
             regressionModel = NonlinearEstimator(self.angle_measurement_std_dev**2)
-            ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,residual_threshold=.2)
+            ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,residual_threshold=.1)
             ransacRegressor.fit(np.array(measurement_locations), np.array(aoa_values).reshape((-1,1)))
             self.estimated_emmiter_locations.append(ransacRegressor.estimator_.get_estimate_emmitor_location())
             self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
