@@ -74,14 +74,10 @@ class MultipleEmitterBatchLocationEstimator:
         self.inlier_mask = None
         self.group_lists = []
 
-        self.mahalonobis_distance_inlier_threshold = 30
+        self.mahalonobis_distance_inlier_threshold = 7
     
 
     def fit_ransac_model(self, measurement_locations, aoa_values, original_index):
-        # print("in recursion")
-        # print("original index", original_index)
-        # print("measurement_locations",measurement_locations)
-        # print("aoa_values", aoa_values)
         if len(aoa_values) > 1:
             regressionModel = NonlinearEstimator(self.angle_measurement_std_dev**2)
             ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,residual_threshold=.2)
@@ -91,14 +87,7 @@ class MultipleEmitterBatchLocationEstimator:
             self.estimated_emmiter_location_covariances.append(ransacRegressor.estimator_.compute_emmitor_estimate_covariance(np.array(self.measurement_locations)[self.group_lists[-1]], np.array(self.aoa_measurement_values)[self.group_lists[-1]], self.angle_measurement_std_dev**2))
             for ind in original_index[ransacRegressor.inlier_mask_== True]:
                 self.outlier_indicies = np.delete(self.outlier_indicies, np.argwhere(self.outlier_indicies == ind))
-            # print("ransac prediction", self.ransacRegressor.estimator_.get_estimate_emmitor_location())
-            # self.inlier_mask = ransacRegressor.inlier_mask_
-            # self.fit_ransac_model(measurement_locations[ransacRegressor.inlier_mask_== False],aoa_values[ransacRegressor.inlier_mask_== False], original_index[ransacRegressor.inlier_mask_== False])
                 
-        # elif len(aoa_values) == 1:
-        #     self.outlier_indicies.append(original_index)
-        # else:
-        #     pass
 
     def ekf_update(self, aoa_measurement_pos, aoa_measurement_value, aoa_measurement_cov, x_prev, sigma_prev):
         xem = x_prev[0]
@@ -113,14 +102,35 @@ class MultipleEmitterBatchLocationEstimator:
         return xHat, sigmaHat
 
     def mahalonobis_distance(self, point, mean, covariance):
-        print("TEST!!!!!!!!!!!!!!!")
-        print("value",point)
-        print("mean",mean)
         diff_square = min((point - mean)**2, min((point - (mean + 2*np.pi))**2, (point - (mean - 2 * np.pi))**2))
-        print("diff_square", diff_square)
-        print("mal dist:",diff_square * (1/ covariance))
-        print("END!!!!!!!!!!!!")
-        return diff_square * (1/ covariance)
+        return np.sqrt(diff_square * (1/ covariance))
+    
+    def get_linear_model_from_aoa_measurement(self, aoa_value, measurement_location):
+        m = np.tan(aoa_value)
+        b = measurement_location[1] - m * measurement_location[0]
+        return m,b
+    
+    def mahalonobis_distance_in_x_y_space(self, aoa_value, measurement_location, mean, covariance):
+        mean = mean.reshape((2,1))
+        m,b = self.get_linear_model_from_aoa_measurement(aoa_value, measurement_location)
+        
+        A = np.array([m,-1])
+        C = np.zeros((3,3))
+        inv_cov = np.linalg.inv(covariance)
+        C[0:2,0:2] = 2*inv_cov
+        C[0:2,2] = A.T
+        C[2,0:2] = A
+        D = np.zeros((3,1))
+        D[0:2,0] = 2*mean.T@inv_cov
+        D[2,0] = -b
+        # D = np.array([[-mean[0]],[-mean[1]],[-b]])
+
+        
+        opt = np.linalg.solve(C, D)
+        x = opt[0:2]
+        
+        mahalonobis_distance_squared = ((x-mean).T@inv_cov@(x-mean))[0][0]
+        return np.sqrt(mahalonobis_distance_squared)
     
     def measurement_model(self, xem, yem, x, y):
         return np.array([[np.arctan2(yem-y, xem-x)]])
@@ -139,25 +149,38 @@ class MultipleEmitterBatchLocationEstimator:
         self.aoa_measurement_values.append(aoa_value)
         if len(self.aoa_measurement_values) > 2:
             updated_using_ekf = False
+            minimum_mal_dist = 10000
+            minimum_mal_dist_index = -1
             for i,emitter_location in enumerate(self.estimated_emmiter_locations):
                 measurement_mahalonobis_distance = self.mahalonobis_distance(aoa_value, self.measurement_model(emitter_location[0], emitter_location[1], measurement_location[0], measurement_location[1])[0][0], measurement_var)
+                measurement_mahalonobis_distance_in_x_y = self.mahalonobis_distance_in_x_y_space(aoa_value, measurement_location, emitter_location, self.estimated_emmiter_location_covariances[i])
+                combined_mahalanobis_distance = measurement_mahalonobis_distance_in_x_y + measurement_mahalonobis_distance
                 print("measurement_mahalonobis_distance",measurement_mahalonobis_distance)
-                if measurement_mahalonobis_distance < self.mahalonobis_distance_inlier_threshold:
-                    self.estimated_emmiter_locations[i],  self.estimated_emmiter_location_covariances[i] = self.ekf_update(measurement_location, aoa_value, measurement_var, emitter_location, self.estimated_emmiter_location_covariances[i])
-                    self.group_lists[i] = np.append(self.group_lists[i],(len(self.aoa_measurement_values)-1))
-                    updated_using_ekf = True
-            if not updated_using_ekf:
+                print("measurement_mahalonobis_distance_in_x_y",measurement_mahalonobis_distance_in_x_y)
+                # if measurement_mahalonobis_distance < minimum_mal_dist:
+                #     minimum_mal_dist  = measurement_mahalonobis_distance
+                #     minimum_mal_dist_index = i
+                # if measurement_mahalonobis_distance_in_x_y < minimum_mal_dist:
+                #     minimum_mal_dist  = measurement_mahalonobis_distance_in_x_y
+                #     minimum_mal_dist_index = i
+                if combined_mahalanobis_distance < minimum_mal_dist:
+                    minimum_mal_dist  = combined_mahalanobis_distance
+                    minimum_mal_dist_index = i
+
+            if minimum_mal_dist < self.mahalonobis_distance_inlier_threshold:
+
+                self.estimated_emmiter_locations[minimum_mal_dist_index],  self.estimated_emmiter_location_covariances[minimum_mal_dist_index] = self.ekf_update(measurement_location, aoa_value, measurement_var, self.estimated_emmiter_locations[minimum_mal_dist_index], self.estimated_emmiter_location_covariances[minimum_mal_dist_index])
+                self.group_lists[minimum_mal_dist_index] = np.append(self.group_lists[minimum_mal_dist_index],(len(self.aoa_measurement_values)-1))
+
+            else:
                 self.outlier_indicies = np.append(self.outlier_indicies, len(self.aoa_measurement_values)-1)
-                self.fit_ransac_model(np.array(self.measurement_locations)[self.outlier_indicies], np.array(self.aoa_measurement_values)[self.outlier_indicies], self.outlier_indicies)
-            # self.ransacRegressor.fit(np.array(self.measurement_locations), np.array(self.aoa_measurement_values).reshape((-1,1)))
-            # self.estimated_emmiter_location = self.ransacRegressor.estimator_.get_estimate_emmitor_location()
-            # print("ransac prediction", self.ransacRegressor.estimator_.get_estimate_emmitor_location())
+                try:
+                    self.fit_ransac_model(np.array(self.measurement_locations)[self.outlier_indicies], np.array(self.aoa_measurement_values)[self.outlier_indicies], self.outlier_indicies)
+                except:
+                    print("no model found")
             print("ransac prediction", self.estimated_emmiter_locations)
             print("group lists", self.group_lists)
             print("outliers", self.outlier_indicies)
-            print("size of covariance", [np.linalg.det(lam) for lam in self.estimated_emmiter_location_covariances])
-            # self.inlier_mask = self.ransacRegressor.inlier_mask_
-            # print("number of inliers", self.ransacRegressor.inlier_mask_)
         elif len(self.aoa_measurement_values) == 2:
             self.outlier_indicies = np.append(self.outlier_indicies, 1)
         else:

@@ -21,7 +21,7 @@ class EmitterPowerParametricEstimator:
         A = self.create_basis_function_matrix(measurement_locations, estimated_radar_location)
         self.estimated_radar_power = np.linalg.lstsq(A, measurment_power_values, rcond=None)[0]
 
-        print("estimated radar power", self.estimated_radar_power)
+        # print("estimated radar power", self.estimated_radar_power)
     
     def prediction(self, prediction_locations, estimated_radar_location):
         A = self.create_basis_function_matrix(prediction_locations, estimated_radar_location)

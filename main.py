@@ -97,7 +97,7 @@ def main():
         for agent in agent_list:
             agent.update(120,.25,dt,radar_list)
         if len(agent.measurement_angle_of_arrival_values) != current_number_of_aoa_measurements:
-            print("adding measurement")
+            print("adding measurement:", current_number_of_aoa_measurements)
             current_number_of_aoa_measurements += 1
             # emmitterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             # batchEmmiterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
