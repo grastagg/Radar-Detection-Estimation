@@ -94,7 +94,7 @@ class Agent:
             end_y = start_y + self.sensing_range * np.sin(angle-self.angle_measurement_std_dev)
             ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c=color)
         
-    def plot_agent(self,ax, inlier_mask):
+    def plot_agent(self,ax, inlier_mask = None):
         x = self.position[0] 
         y = self.position[1] 
         circle = Circle((x,y),radius = 1,fill = False)

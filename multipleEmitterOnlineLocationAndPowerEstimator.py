@@ -1,3 +1,4 @@
+
 import numpy as np
 from scipy.optimize import least_squares
 
@@ -10,7 +11,7 @@ class NonlinearEstimator():
         self.estimated_emmiter_location_covariances = None
         self.measurement_variance = measurement_variance
 
-    def measurement_residual(self, emmiter_location, measurement_locations, aoa_measurements):
+    def measurement_residual(self, emmiter_location, measurement_locations, aoa_measurements, power_measurements):
         return np.array([self.measurement_model(emmiter_location[0], emmiter_location[1], loc[0], loc[1]) for loc in measurement_locations]).reshape((len(aoa_measurements),)) - np.array(aoa_measurements).reshape((len(aoa_measurements),))
 
     def fit(self, X, y):
@@ -25,16 +26,22 @@ class NonlinearEstimator():
     def predict(self, X):
         return np.array([self.measurement_model(self.estimated_emmiter_location[0], self.estimated_emmiter_location[1], loc[0], loc[1]) for loc in X]).reshape((-1,1))
 
-    def measurement_model(self, xem, yem, x, y):
-        return np.array([[np.arctan2(yem-y, xem-x)]])
+    def measurement_model(self, xem, yem, pem, x, y):
+        return np.array([[np.arctan2(yem-y, xem-x)], [pem/((xem-x)**2 + (yem-y)**2)]])
     
-    def stack_measurement_jacobian(self, emitter_location,measurement_locations, aoa_measurement_values):
-        return np.array([self.measurement_jacobian(emitter_location[0], emitter_location[1], loc[0], loc[1]) for loc in measurement_locations])
+    def stack_measurement_jacobian(self, emitter_location,emitter_power, measurement_locations, aoa_measurement_values):
+        return np.array([self.measurement_jacobian(emitter_location[0], emitter_location[1],emitter_power, loc[0], loc[1]) for loc in measurement_locations])
 
-    def measurement_jacobian(self, xem, yem, x, y):
-        d_h_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
-        d_h_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
-        return np.array([d_h_d_x_emmitter, d_h_d_y_emmitter])
+    def measurement_jacobian(self, xem, yem, pem, x, y):
+        d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
+        d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
+        d_h1_d_p_emmitter = 0
+
+        d_h2_d_x_emmitter = -(2*pem*(xem-x))/((xem-x)**2+(yem-y)**2)**2
+        d_h2_d_y_emmitter = -(2*pem*(yem-y))/((yem-y)**2+(xem-x)**2)**2
+        d_h2_d_p_emmitter = 1/((yem-y)**2+(xem-x)**2)
+
+        return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
 
     def set_params(self, **parameters):
         for parameter, value in parameters.items():
