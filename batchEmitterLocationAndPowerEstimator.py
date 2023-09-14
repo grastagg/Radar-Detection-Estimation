@@ -9,8 +9,8 @@ class BatchEmitterLocationAndPowerEstimator:
         self.measurement_values = []
         # self.aoa_measurement_variances = []
         self.errorHistory = []
-        self.estimated_emmiter_location = None
-        self.estimated_emmiter_location_cov = None
+        self.estimated_emmiter_params = None
+        self.estimated_emmiter_params_cov = None
         self.measurement_covariance = measurement_cov
         
     def add_measurement(self, measurement_location, aoa_value, power_val):
@@ -36,12 +36,12 @@ class BatchEmitterLocationAndPowerEstimator:
         x0 = [600,600,100]
         sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(self.measurement_values,self.measurement_locations))
         # print("sol",sol)
-        self.estimated_emmiter_location = sol.x
+        self.estimated_emmiter_params = sol.x
         # print("residuals", self.measurement_residual(emmiter_location,self.aoa_measurement_values, self.measurement_locations))
-        print("batch emmiter location", self.estimated_emmiter_location)
-        jacobians = self.stack_measurement_jacobian(self.estimated_emmiter_location, None, self.measurement_locations)
+        print("batch emmiter params", self.estimated_emmiter_params)
+        jacobians = self.stack_measurement_jacobian(self.estimated_emmiter_params, None, self.measurement_locations)
         combined_measurment_cov = block_diag(*[self.measurement_covariance for i in self.measurement_locations])
-        self.estimated_emmiter_location_cov = jacobians.T@combined_measurment_cov@jacobians
+        self.estimated_emmiter_params_cov = np.linalg.inv(jacobians.T@np.linalg.inv(combined_measurment_cov)@jacobians)
 
     
     def stack_measurement_jacobian(self, emitter_params, measurements, measurement_locations):
@@ -59,7 +59,8 @@ class BatchEmitterLocationAndPowerEstimator:
         return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
     
     def plot_esimate_1_sigma_bounds(self,ax):
-        invCovariance = np.linalg.inv(self.estimated_emmiter_location_cov)
+        print(self.estimated_emmiter_params_cov[0:2,0:2])
+        invCovariance = np.linalg.inv(self.estimated_emmiter_params_cov[0:2,0:2])
         
         # x = np.linspace(mean_1-3*sigma_1, mean_1+3*sigma_1, num=100)
         # y = np.linspace(mean_2-3*sigma_2, mean_2+3*sigma_2, num=100)
@@ -69,17 +70,16 @@ class BatchEmitterLocationAndPowerEstimator:
         malhanobisDist = np.zeros(X.shape)
         for i in range(X.shape[0]):
             for j in range(X.shape[1]):
-                malhanobisDist[i,j] = (np.array([[X[i,j], Y[i,j]]]) - np.array([[self.estimated_emmiter_location[0], self.estimated_emmiter_location[1]]])) @ invCovariance @(np.array([[X[i,j], Y[i,j]]]) - np.array([[self.estimated_emmiter_location[0], self.estimated_emmiter_location[1]]])).T
+                malhanobisDist[i,j] = (np.array([[X[i,j], Y[i,j]]]) - np.array([[self.estimated_emmiter_params[0], self.estimated_emmiter_params[1]]])) @ invCovariance @(np.array([[X[i,j], Y[i,j]]]) - np.array([[self.estimated_emmiter_params[0], self.estimated_emmiter_params[1]]])).T
 
         c = ax.contourf(X, Y, malhanobisDist, cmap='viridis',levels = [ 0,1,2,3])
         return c
 
     def plot(self, ax, plot_var = False):
-        if self.estimated_emmiter_location is not None:
-            ax.scatter(self.estimated_emmiter_location[0], self.estimated_emmiter_location[1], marker='x', color = 'r')
-        
-        if plot_var:
-            self.plot_esimate_1_sigma_bounds(ax)
+        if self.estimated_emmiter_params is not None:
+            ax.scatter(self.estimated_emmiter_params[0], self.estimated_emmiter_params[1], marker='x', color = 'r')
+            if plot_var:
+                self.plot_esimate_1_sigma_bounds(ax)
 
         
 

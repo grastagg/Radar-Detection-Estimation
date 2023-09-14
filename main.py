@@ -15,7 +15,7 @@ from batchEmitterLocationAndPowerEstimator import BatchEmitterLocationAndPowerEs
 
 # np.random.seed(12342)
 
-def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleEmmiterLocationEstimator, multipleEmitterPowerParametricEstimator):
+def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleEmmiterLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmitterLocationAndPowerEstimator):
         fig,ax = plt.subplots()
         ax.set_xlim((0,bounds[0]))
         ax.set_ylim((0,bounds[1]))
@@ -36,6 +36,7 @@ def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator
         # c = multipleEmitterPowerParametricEstimator.plot(ax)
         # if c is not None:
         #     plt.colorbar(c)
+        batchEmitterLocationAndPowerEstimator.plot(ax, plot_var = True)
             
         for radar in radar_list:
             radar.plot_view_area(ax)
@@ -95,7 +96,7 @@ def main():
     inlier_mask = None
     
     while t_current < t_end:
-        plot_scene(radar_list, agent_list, bounds, plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleRadarLocationEstimator, multipleEmitterPowerParametricEstimator)
+        plot_scene(radar_list, agent_list, bounds, plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleRadarLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmiterAndPowerEstimator)
         for radar in radar_list:
             radar.update(dt)
         for agent in agent_list:
