@@ -1,36 +1,41 @@
 
 import numpy as np
 from scipy.optimize import least_squares
+from scipy.linalg import block_diag
 
 from sklearn.linear_model import RANSACRegressor
 # from sklearn import base
 
 class NonlinearEstimator():
-    def __init__(self, measurement_variance = (4*np.pi/180.0)**2):
-        self.estimated_emmiter_location =  None
-        self.estimated_emmiter_location_covariances = None
-        self.measurement_variance = measurement_variance
+    def __init__(self, measurement_cov):
+        self.estimated_emmiter_params = None
+        self.estimated_emmiter_params_cov = None
+        self.measurement_covariance = measurement_cov
 
-    def measurement_residual(self, emmiter_location, measurement_locations, aoa_measurements, power_measurements):
-        return np.array([self.measurement_model(emmiter_location[0], emmiter_location[1], loc[0], loc[1]) for loc in measurement_locations]).reshape((len(aoa_measurements),)) - np.array(aoa_measurements).reshape((len(aoa_measurements),))
+    def measurement_residual(self, emitter_params, measurements, measurement_locations):
+        return np.array([self.measurement_model(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1]) for loc in measurement_locations]).reshape((-1,)) - np.array(measurements).reshape((-1,))
 
     def fit(self, X, y):
-        x0 = np.array([500,500])
-        sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(X,y), bounds=([0,0],[2000,2000]))
-        self.estimated_emmiter_location = sol.x
+        x0 = np.array([500,500,100])
+        # sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(y,X), bounds=([0,0,10],[2000,2000,np.inf]))
+        sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(y,X), bounds=([-np.inf,-np.inf,10],[np.inf,np.inf,np.inf]))
+        self.estimated_emmiter_params = sol.x
         # self.estimated_emmiter_location_covariances = self.compute_emmitor_estimate_covariance(X, y, self.measurement_variance)
 
     def score(self, X,y):
-        return np.linalg.norm(self.measurement_residual(self.estimated_emmiter_location, X, y))**2
+        # print("X",X)
+        # print("y",y)
+        # print("score",np.linalg.norm(self.measurement_residual(self.estimated_emmiter_params, y, X))**2)
+        return 1/np.linalg.norm(self.measurement_residual(self.estimated_emmiter_params, y, X))**2
     
     def predict(self, X):
-        return np.array([self.measurement_model(self.estimated_emmiter_location[0], self.estimated_emmiter_location[1], loc[0], loc[1]) for loc in X]).reshape((-1,1))
+        return np.array([self.measurement_model(self.estimated_emmiter_params[0], self.estimated_emmiter_params[1], self.estimated_emmiter_params[2], loc[0], loc[1]) for loc in X]).reshape((-1,2))
 
     def measurement_model(self, xem, yem, pem, x, y):
         return np.array([[np.arctan2(yem-y, xem-x)], [pem/((xem-x)**2 + (yem-y)**2)]])
     
-    def stack_measurement_jacobian(self, emitter_location,emitter_power, measurement_locations, aoa_measurement_values):
-        return np.array([self.measurement_jacobian(emitter_location[0], emitter_location[1],emitter_power, loc[0], loc[1]) for loc in measurement_locations])
+    def stack_measurement_jacobian(self, emitter_params, measurements, measurement_locations):
+        return np.array([self.measurement_jacobian(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1]) for loc in measurement_locations]).reshape((2*len(measurement_locations),3))
 
     def measurement_jacobian(self, xem, yem, pem, x, y):
         d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
@@ -48,74 +53,97 @@ class NonlinearEstimator():
             setattr(self, parameter, value)
         return self
 
-    def get_estimate_emmitor_location(self):
-        return self.estimated_emmiter_location
+    def get_estimate_emmitor_params(self):
+        return self.estimated_emmiter_params
     
-    def compute_emmitor_estimate_covariance(self, X, y, measurement_variance):
-        jacobians = self.stack_measurement_jacobian(self.estimated_emmiter_location, X, y)
-        emmiter_location_cov = measurement_variance * np.linalg.inv(jacobians.T@jacobians)
-        return emmiter_location_cov
+    def compute_emmitor_estimate_covariance(self, X, y):
+        jacobians = self.stack_measurement_jacobian(self.estimated_emmiter_params, y, X)
+        combined_measurment_cov = block_diag(*[self.measurement_covariance for i in X])
+        emitter_params_cov = np.linalg.inv(jacobians.T@np.linalg.inv(combined_measurment_cov)@jacobians)
+        return emitter_params_cov
 
     def get_params(self, deep=False):
         # return {"position": self.estimated_emmiter_location}
-        return {}
+        return {"measurement_cov": self.measurement_covariance}
     
 
     
 
-class MultipleEmitterBatchLocationEstimator:
-    def __init__(self, sensing_range, angle_measurement_std_dev):
+class MultipleEmitterOnlineLocationAndPowerEstimator:
+    def __init__(self, sensing_range, angle_measurement_std_dev, measurement_cov):
         self.ekf_list = []
         self.sensing_range = sensing_range
         self.angle_measurement_std_dev = angle_measurement_std_dev
+        self.measurement_cov = measurement_cov
 
-        self.estimated_emmiter_locations = [] 
-        self.estimated_emmiter_location_covariances = [] 
+        self.estimated_emmiter_params = [] 
+        self.estimated_emmiter_params_covariances = [] 
 
         self.outlier_indicies = np.array([], dtype=int)
 
 
         self.measurement_locations = []
-        self.aoa_measurement_values = []
+        self.measurement_values = []
 
         self.inlier_mask = None
         self.group_lists = []
 
-        self.mahalonobis_distance_inlier_threshold = 4
+        self.mahalonobis_distance_inlier_threshold = 2
     
 
-    def fit_ransac_model(self, measurement_locations, aoa_values, original_index):
-        if len(aoa_values) > 2:
-            regressionModel = NonlinearEstimator(self.angle_measurement_std_dev**2)
-            ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,residual_threshold=.01)
-            ransacRegressor.fit(np.array(measurement_locations), np.array(aoa_values).reshape((-1,1)))
-            self.estimated_emmiter_locations.append(ransacRegressor.estimator_.get_estimate_emmitor_location())
-            self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
-            self.estimated_emmiter_location_covariances.append(ransacRegressor.estimator_.compute_emmitor_estimate_covariance(np.array(self.measurement_locations)[self.group_lists[-1]], np.array(self.aoa_measurement_values)[self.group_lists[-1]], self.angle_measurement_std_dev**2))
-            for ind in original_index[ransacRegressor.inlier_mask_== True]:
-                self.outlier_indicies = np.delete(self.outlier_indicies, np.argwhere(self.outlier_indicies == ind))
-                
+    def fit_ransac_model(self, measurement_locations, measurements, original_index):
+        if len(measurements) > 1:
+            try:
+                regressionModel = NonlinearEstimator(self.measurement_cov)
+                ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,residual_threshold=.05)
+                ransacRegressor.fit(np.array(measurement_locations), np.array(measurements))
+                self.estimated_emmiter_params.append(ransacRegressor.estimator_.get_estimate_emmitor_params())
+                self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
+                self.estimated_emmiter_params_covariances.append(ransacRegressor.estimator_.compute_emmitor_estimate_covariance(np.array(self.measurement_locations)[self.group_lists[-1]], np.array(self.measurement_values)[self.group_lists[-1]]))
+                for ind in original_index[ransacRegressor.inlier_mask_== True]:
+                    self.outlier_indicies = np.delete(self.outlier_indicies, np.argwhere(self.outlier_indicies == ind))
+            except:
+                pass
+    
+    def minimized_angle(self, angle):
+        while angle < -np.pi:
+            angle += 2*np.pi
+        
+        while angle > np.pi:
+            angle -= 2*np.pi
+        return angle
 
-    def ekf_update(self, aoa_measurement_pos, aoa_measurement_value, aoa_measurement_cov, x_prev, sigma_prev):
+    def ekf_update(self, measurement_pos, measurement_value, measurement_cov, x_prev, sigma_prev):
         xem = x_prev[0]
         yem = x_prev[1]
-        x = aoa_measurement_pos[0]
-        y = aoa_measurement_pos[1]
+        pem = x_prev[2]
+        x = measurement_pos[0]
+        y = measurement_pos[1]
 
-        H = self.measurement_jacobian(xem, yem, x, y)
-        K = sigma_prev @ H.T @ np.linalg.inv(H@sigma_prev@H.T + np.array([[aoa_measurement_cov]]))
-        xHat = x_prev + (K@(aoa_measurement_value - self.measurement_model(xem, yem, x, y))).reshape((-1,))
-        sigmaHat = (np.eye(2) - K@H)@sigma_prev
+        H = self.measurement_jacobian(xem, yem, pem, x, y)
+        K = sigma_prev @ H.T @ np.linalg.inv(H@sigma_prev@H.T + measurement_cov)
+        zHat = self.measurement_model(xem, yem, pem, x, y)
+        inovation = np.zeros_like(zHat)
+        inovation[0] = self.minimized_angle(measurement_value[0] - zHat[0][0])
+        inovation[1] = measurement_value[1] - zHat[1][0]
+
+        xHat = x_prev + K@(inovation).reshape((-1,))
+        sigmaHat = (np.eye(3) - K@H)@sigma_prev
         return xHat, sigmaHat
 
-    def mahalonobis_distance(self, aoa_value, measurement_location, estimated_emitter_location, emitter_location_covariance):
-        z_hat = self.measurement_model(estimated_emitter_location[0], estimated_emitter_location[1], measurement_location[0], measurement_location[1])
-        measurement_jacobian = self.measurement_jacobian(estimated_emitter_location[0], estimated_emitter_location[1], measurement_location[0], measurement_location[1])
+    def mahalonobis_distance(self, measurement_value, measurement_location, estimated_emitter_params, emitter_params_covariance):
+        z_hat = self.measurement_model(estimated_emitter_params[0], estimated_emitter_params[1], estimated_emitter_params[2], measurement_location[0], measurement_location[1])
+        measurement_jacobian = self.measurement_jacobian(estimated_emitter_params[0], estimated_emitter_params[1], estimated_emitter_params[2], measurement_location[0], measurement_location[1])
 
-        z_hat_cov = measurement_jacobian @ emitter_location_covariance @ measurement_jacobian.T
+        z_hat_cov = measurement_jacobian @ emitter_params_covariance @ measurement_jacobian.T
+
+        aoa_value = measurement_value[0]
+        power_value = measurement_value[1]
         
-        diff_square = min((aoa_value - z_hat)**2, min((aoa_value - (z_hat + 2*np.pi))**2, (aoa_value - (z_hat - 2 * np.pi))**2))
-        return np.sqrt(diff_square * (1/ z_hat_cov))[0][0]
+        diff_square_aoa = min((aoa_value - z_hat[0][0])**2, min((aoa_value - (z_hat[0][0] + 2*np.pi))**2, (aoa_value - (z_hat[0][0] - 2 * np.pi))**2))
+        diff_square_power = (power_value - z_hat[1][0])**2
+        diff_square = np.array([[diff_square_aoa],[diff_square_power]])
+        return np.sqrt(diff_square.T @ np.linalg.inv(z_hat_cov) @ diff_square)[0][0]
     
     def get_linear_model_from_aoa_measurement(self, aoa_value, measurement_location):
         m = np.tan(aoa_value)
@@ -144,32 +172,37 @@ class MultipleEmitterBatchLocationEstimator:
         mahalonobis_distance_squared = ((x-mean).T@inv_cov@(x-mean))[0][0]
         return np.sqrt(mahalonobis_distance_squared)
     
-    def measurement_model(self, xem, yem, x, y):
-        return np.array([[np.arctan2(yem-y, xem-x)]])
+    def measurement_model(self, xem, yem, pem, x, y):
+        return np.array([[np.arctan2(yem-y, xem-x)], [pem/((xem-x)**2 + (yem-y)**2)]])
+    def measurement_jacobian(self, xem, yem, pem, x, y):
+        d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
+        d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
+        d_h1_d_p_emmitter = 0
 
-    def measurement_jacobian(self, xem, yem, x, y):
-        d_h_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
-        d_h_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
-        return np.array([[d_h_d_x_emmitter, d_h_d_y_emmitter]])
+        d_h2_d_x_emmitter = -(2*pem*(xem-x))/((xem-x)**2+(yem-y)**2)**2
+        d_h2_d_y_emmitter = -(2*pem*(yem-y))/((yem-y)**2+(xem-x)**2)**2
+        d_h2_d_p_emmitter = 1/((yem-y)**2+(xem-x)**2)
 
-    def add_measurement(self, measurement_location, aoa_value, measurement_var):
+        return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
+
+    def add_measurement(self, measurement_location, measurement_value):
         # self.estimated_emmiter_locations = [] 
         # self.estimated_emmiter_location_covariances = [] 
         # self.group_lists = []
         # self.outlier_indicies = []
         self.measurement_locations.append(measurement_location)
-        self.aoa_measurement_values.append(aoa_value)
-        if len(self.aoa_measurement_values) > 2:
+        self.measurement_values.append(measurement_value)
+        if len(self.measurement_values) > 2:
             updated_using_ekf = False
             minimum_mal_dist = 10000
             minimum_mal_dist_index = -1
-            for i,emitter_location in enumerate(self.estimated_emmiter_locations):
+            for i,emitter_param in enumerate(self.estimated_emmiter_params):
                 # measurement_mahalonobis_distance = self.mahalonobis_distance(aoa_value, self.measurement_model(emitter_location[0], emitter_location[1], measurement_location[0], measurement_location[1])[0][0], measurement_var)
-                measurement_mahalonobis_distance = self.mahalonobis_distance(aoa_value, measurement_location, emitter_location, self.estimated_emmiter_location_covariances[i])
-                measurement_mahalonobis_distance_in_x_y = self.mahalonobis_distance_in_x_y_space(aoa_value, measurement_location, emitter_location, self.estimated_emmiter_location_covariances[i])
-                combined_mahalanobis_distance = measurement_mahalonobis_distance_in_x_y + measurement_mahalonobis_distance
+                measurement_mahalonobis_distance = self.mahalonobis_distance(measurement_value, measurement_location, emitter_param, self.estimated_emmiter_params_covariances[i])
+                # measurement_mahalonobis_distance_in_x_y = self.mahalonobis_distance_in_x_y_space(aoa_value, measurement_location, emitter_location, self.estimated_emmiter_location_covariances[i])
+                # combined_mahalanobis_distance = measurement_mahalonobis_distance_in_x_y + measurement_mahalonobis_distance
                 print("measurement_mahalonobis_distance",measurement_mahalonobis_distance)
-                print("measurement_mahalonobis_distance_in_x_y",measurement_mahalonobis_distance_in_x_y)
+                # print("measurement_mahalonobis_distance_in_x_y",measurement_mahalonobis_distance_in_x_y)
                 if measurement_mahalonobis_distance < minimum_mal_dist:
                     minimum_mal_dist  = measurement_mahalonobis_distance
                     minimum_mal_dist_index = i
@@ -181,20 +214,27 @@ class MultipleEmitterBatchLocationEstimator:
                 #     minimum_mal_dist_index = i
 
             if minimum_mal_dist < self.mahalonobis_distance_inlier_threshold:
+                
+                estimated_emmiter_param,  estimated_emmiter_params_covariances = self.ekf_update(measurement_location, measurement_value, self.measurement_cov, self.estimated_emmiter_params[minimum_mal_dist_index], self.estimated_emmiter_params_covariances[minimum_mal_dist_index])
+                if estimated_emmiter_param[2] < 0:
+                    print("estimated power level too small")
+                    updated_using_ekf = False
+                else:
+                    self.estimated_emmiter_params[minimum_mal_dist_index] = estimated_emmiter_param
+                    self.estimated_emmiter_params_covariances[minimum_mal_dist_index] = estimated_emmiter_params_covariances
+                    self.group_lists[minimum_mal_dist_index] = np.append(self.group_lists[minimum_mal_dist_index],(len(self.measurement_values)-1))
+                    updated_using_ekf = True
 
-                self.estimated_emmiter_locations[minimum_mal_dist_index],  self.estimated_emmiter_location_covariances[minimum_mal_dist_index] = self.ekf_update(measurement_location, aoa_value, measurement_var, self.estimated_emmiter_locations[minimum_mal_dist_index], self.estimated_emmiter_location_covariances[minimum_mal_dist_index])
-                self.group_lists[minimum_mal_dist_index] = np.append(self.group_lists[minimum_mal_dist_index],(len(self.aoa_measurement_values)-1))
-
-            else:
-                self.outlier_indicies = np.append(self.outlier_indicies, len(self.aoa_measurement_values)-1)
+            if not updated_using_ekf:
+                self.outlier_indicies = np.append(self.outlier_indicies, len(self.measurement_values)-1)
                 # try:
-                self.fit_ransac_model(np.array(self.measurement_locations)[self.outlier_indicies], np.array(self.aoa_measurement_values)[self.outlier_indicies], self.outlier_indicies)
+                self.fit_ransac_model(np.array(self.measurement_locations)[self.outlier_indicies], np.array(self.measurement_values)[self.outlier_indicies], self.outlier_indicies)
                 # except:
                 #     print("no model found")
-            print("ransac prediction", self.estimated_emmiter_locations)
+            print("ransac prediction", self.estimated_emmiter_params)
             print("group lists", self.group_lists)
             print("outliers", self.outlier_indicies)
-        elif len(self.aoa_measurement_values) == 2:
+        elif len(self.measurement_values) == 2:
             self.outlier_indicies = np.append(self.outlier_indicies, 1)
         else:
             self.outlier_indicies = np.append(self.outlier_indicies, 0)
@@ -203,15 +243,16 @@ class MultipleEmitterBatchLocationEstimator:
         color_list = ['tab:blue','tab:orange','tab:green','tab:purple', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
 
         for i,angle_indicies in enumerate([self.outlier_indicies]):
-            self.plot_angle_of_arrival_measurements(ax, 'r', np.array(self.measurement_locations)[angle_indicies], np.array(self.aoa_measurement_values)[angle_indicies])
-        if len(self.estimated_emmiter_locations) > 0:
+            if angle_indicies.size > 0:
+                self.plot_angle_of_arrival_measurements(ax, 'r', np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
+        if len(self.estimated_emmiter_params) > 0:
             for i,angle_indicies in enumerate(self.group_lists):
-                self.plot_angle_of_arrival_measurements(ax, color_list[i], np.array(self.measurement_locations)[angle_indicies], np.array(self.aoa_measurement_values)[angle_indicies])
+                self.plot_angle_of_arrival_measurements(ax, color_list[i], np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
             
 
-            for i,estimated_emmiter_location in enumerate(self.estimated_emmiter_locations):
-                ax.scatter(estimated_emmiter_location[0], estimated_emmiter_location[1], marker='x', c = 'm')
-                c = self.plot_esimate_1_sigma_bounds(ax, estimated_emmiter_location, self.estimated_emmiter_location_covariances[i])
+            for i,estimated_emmiter_params in enumerate(self.estimated_emmiter_params):
+                ax.scatter(estimated_emmiter_params[0], estimated_emmiter_params[1], marker='x', c = 'm')
+                c = self.plot_esimate_1_sigma_bounds(ax, estimated_emmiter_params, self.estimated_emmiter_params_covariances[i])
             return c
             
     def plot_angle_of_arrival_measurements(self, ax, color, measurement_locations, measurement_angle_of_arrival_values):
@@ -229,8 +270,8 @@ class MultipleEmitterBatchLocationEstimator:
             end_y = start_y + self.sensing_range * np.sin(angle-self.angle_measurement_std_dev)
             ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c=color, linewidth = line_width)
 
-    def plot_esimate_1_sigma_bounds(self, ax, estimated_emmiter_location, estimated_emmiter_location_cov):
-        invCovariance = np.linalg.inv(estimated_emmiter_location_cov)
+    def plot_esimate_1_sigma_bounds(self, ax, estimated_emmiter_params, estimated_emmiter_params_cov):
+        invCovariance = np.linalg.inv(estimated_emmiter_params_cov[0:2,0:2])
         
         # x = np.linspace(mean_1-3*sigma_1, mean_1+3*sigma_1, num=100)
         # y = np.linspace(mean_2-3*sigma_2, mean_2+3*sigma_2, num=100)
@@ -240,7 +281,7 @@ class MultipleEmitterBatchLocationEstimator:
         malhanobisDist = np.zeros(X.shape)
         for i in range(X.shape[0]):
             for j in range(X.shape[1]):
-                malhanobisDist[i,j] = (np.array([[X[i,j], Y[i,j]]]) - np.array([[estimated_emmiter_location[0], estimated_emmiter_location[1]]])) @ invCovariance @(np.array([[X[i,j], Y[i,j]]]) - np.array([[estimated_emmiter_location[0], estimated_emmiter_location[1]]])).T
+                malhanobisDist[i,j] = (np.array([[X[i,j], Y[i,j]]]) - np.array([[estimated_emmiter_params[0], estimated_emmiter_params[1]]])) @ invCovariance @(np.array([[X[i,j], Y[i,j]]]) - np.array([[estimated_emmiter_params[0], estimated_emmiter_params[1]]])).T
 
         c = ax.contourf(X, Y, malhanobisDist, cmap='viridis',levels = [ 0,1,2,3])
         return c
