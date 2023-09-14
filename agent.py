@@ -4,14 +4,16 @@ import matplotlib.pyplot as plt
 
 
 class Agent:
-    def __init__(self, initial_position, sensing_range = 900):
+    def __init__(self, initial_position, num_radar, sensing_range = 900):
         self.position = initial_position #x,y,heading
         self.sensing_range = sensing_range
         self.measurement_power_values = []
         self.measurement_angle_of_arrival_values = []
         self.measurement_locations = []
-        self.power_measurement_std_dev = .01
+        self.power_measurement_std_dev = .001
         self.angle_measurement_std_dev = (3*np.pi/180.0)
+
+        self.truth_measurement_emitter_correspondance = [[] for i in range(num_radar)]
         
         
         
@@ -38,6 +40,7 @@ class Agent:
         angle_of_arrivals = []
         power_measurements = []
         radar_distances = []
+        radar_indecies = []
         for i,radar in enumerate(radar_list):
             dist = self.get_distance(radar.position, self.position[0:2])
             if dist < self.sensing_range:
@@ -47,6 +50,7 @@ class Agent:
                 radar_angle = self.map_angle_minus_pi_to_pi(radar.current_angle)
                 if angle_between_radar_and_agent < radar_angle + radar.beamwidth/2 and angle_between_radar_and_agent > radar_angle - radar.beamwidth/2:
                     radar_distances.append(dist)
+                    radar_indecies.append(i)
                     # print("radar angle", radar.current_angle)
                     # print("angle",angle_between_radar_and_agent)
                     power_measurements.append(radar.output_power / dist**2) #+ np.random.normal(0,self.power_measurement_std_dev)**2
@@ -62,11 +66,16 @@ class Agent:
             self.measurement_power_values.append(power_measurements[0])
             self.measurement_locations.append(self.position[0:2])
             self.measurement_angle_of_arrival_values.append(angle_of_arrivals[0])
+            self.truth_measurement_emitter_correspondance[radar_indecies[0]].append(len(self.measurement_locations)-1)
+            print("truth group lists",self.truth_measurement_emitter_correspondance)
         elif len(angle_of_arrivals) > 1:
             closest_radar_index = radar_distances.index(min(radar_distances))
             self.measurement_power_values.append(power_measurements[closest_radar_index])
             self.measurement_locations.append(self.position[0:2])
             self.measurement_angle_of_arrival_values.append(angle_of_arrivals[closest_radar_index])
+            self.truth_measurement_emitter_correspondance[radar_indecies[closest_radar_index]].append(len(self.measurement_locations)-1)
+            print("truth group lists",self.truth_measurement_emitter_correspondance)
+        
 
     def plot_power_measurements(self, ax):
         if len(self.measurement_locations) > 0:
