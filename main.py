@@ -120,7 +120,7 @@ def main():
 
 
     
-    t_end = 20
+    t_end = 40
     dt = .1
     t_current = 0
     plt_index = 0
