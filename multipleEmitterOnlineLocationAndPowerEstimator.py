@@ -16,9 +16,10 @@ class NonlinearEstimator():
         return np.array([self.measurement_model(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1]) for loc in measurement_locations]).reshape((-1,)) - np.array(measurements).reshape((-1,))
 
     def fit(self, X, y):
-        x0 = np.array([500,500,100])
-        # sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(y,X), bounds=([0,0,10],[2000,2000,np.inf]))
-        sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(y,X), bounds=([-np.inf,-np.inf,10],[np.inf,np.inf,np.inf]))
+        # x0 = np.array([500,500,100])
+        x0 = np.array([600,600,1000])
+        sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(y,X), bounds=([0,0,10],[2000,2000,np.inf]))
+        # sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(y,X), bounds=([-np.inf,-np.inf,10],[np.inf,np.inf,np.inf]))
         self.estimated_emmiter_params = sol.x
         # self.estimated_emmiter_location_covariances = self.compute_emmitor_estimate_covariance(X, y, self.measurement_variance)
 
@@ -88,14 +89,46 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.inlier_mask = None
         self.group_lists = []
 
-        self.mahalonobis_distance_inlier_threshold = 2
+        self.mahalonobis_distance_inlier_threshold = 3
+        self.mal_dist_opt_point = None
+    
+    def delete_lowest_probability_model(self):
+        remove_indicies = []
+        min_num_measurements = 100000
+        for i,g_list in enumerate(self.group_lists):
+            num_measurements = len(g_list)
+            if num_measurements < min_num_measurements:
+                min_num_measurements = num_measurements
+        
+        if min_num_measurements < 5:
+            for i,g_list in enumerate(self.group_lists):
+                num_measurements = len(g_list)
+                if num_measurements == min_num_measurements:
+                    remove_indicies.append(i)
+                    print("deleting model", i)
+                    for ind in g_list:
+                        self.outlier_indicies = np.append(self.outlier_indicies, ind)
+
+            self.estimated_emmiter_params = [i for j,i in enumerate(self.estimated_emmiter_params) if j not in remove_indicies]
+            self.estimated_emmiter_params_covariances = [i for j,i in enumerate(self.estimated_emmiter_params_covariances) if j not in remove_indicies]
+            self.group_lists = [i for j,i in enumerate(self.group_lists) if j not in remove_indicies]
+        # self.estimated_emmiter_params_covariances.pop(i)
+        # self.group_lists.pop(i)
     
 
     def fit_ransac_model(self, measurement_locations, measurements, original_index):
-        if len(measurements) > 1:
+        if len(measurements) > 2:
             try:
+                def loss(y_true, y_pred, X, estimator):
+                    # print("In loss")
+                    # nonlocal measurements, measurement_locations
+                    mean = estimator.get_estimate_emmitor_params()
+                    cov = estimator.compute_emmitor_estimate_covariance(X, y_true)
+                    # print("HERE")
+                    return np.array([self.mahalonobis_distance(y, X[i], mean, cov) for i,y in enumerate(y_true)])
                 regressionModel = NonlinearEstimator(self.measurement_cov)
-                ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,residual_threshold=.05)
+                # ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = 'squared_error')#,residual_threshold=.09)
+                ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = loss, residual_threshold=.5)#,residual_threshold=.09)
                 ransacRegressor.fit(np.array(measurement_locations), np.array(measurements))
                 self.estimated_emmiter_params.append(ransacRegressor.estimator_.get_estimate_emmitor_params())
                 self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
@@ -104,6 +137,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                     self.outlier_indicies = np.delete(self.outlier_indicies, np.argwhere(self.outlier_indicies == ind))
             except:
                 pass
+            self.fit_ransac_model(measurement_locations[ransacRegressor.inlier_mask_== False],measurements[ransacRegressor.inlier_mask_== False], original_index[ransacRegressor.inlier_mask_== False])
     
     def minimized_angle(self, angle):
         while angle < -np.pi:
@@ -144,6 +178,34 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         diff_square_power = (power_value - z_hat[1][0])**2
         diff_square = np.array([[diff_square_aoa],[diff_square_power]])
         return np.sqrt(diff_square.T @ np.linalg.inv(z_hat_cov) @ diff_square)[0][0]
+
+
+    def get_linear_model_from_aoa_measurement(self, aoa_value, measurement_location):
+        m = np.tan(aoa_value)
+        b = measurement_location[1] - m * measurement_location[0]
+        return m,b
+
+    # def mahalonobis_distance_in_x_y_space(self, aoa_value, measurement_location, mean, covariance):
+    #     mean = mean.reshape((2,1))
+    #     m,b = self.get_linear_model_from_aoa_measurement(aoa_value, measurement_location)
+        
+    #     A = np.array([m,-1])
+    #     C = np.zeros((3,3))
+    #     inv_cov = np.linalg.inv(covariance)
+    #     C[0:2,0:2] = 2*inv_cov
+    #     C[0:2,2] = A.T
+    #     C[2,0:2] = A
+    #     D = np.zeros((3,1))
+    #     D[0:2,0] = 2*mean.T@inv_cov
+    #     D[2,0] = -b
+    #     # D = np.array([[-mean[0]],[-mean[1]],[-b]])
+
+        
+    #     opt = np.linalg.solve(C, D)
+    #     x = opt[0:2]
+        
+    #     mahalonobis_distance_squared = ((x-mean).T@inv_cov@(x-mean))[0][0]
+    #     return np.sqrt(mahalonobis_distance_squared)
     
     def get_linear_model_from_aoa_measurement(self, aoa_value, measurement_location):
         m = np.tan(aoa_value)
@@ -168,6 +230,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         
         opt = np.linalg.solve(C, D)
         x = opt[0:2]
+        self.mal_dist_opt_point = x
         
         mahalonobis_distance_squared = ((x-mean).T@inv_cov@(x-mean))[0][0]
         return np.sqrt(mahalonobis_distance_squared)
@@ -199,10 +262,10 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             for i,emitter_param in enumerate(self.estimated_emmiter_params):
                 # measurement_mahalonobis_distance = self.mahalonobis_distance(aoa_value, self.measurement_model(emitter_location[0], emitter_location[1], measurement_location[0], measurement_location[1])[0][0], measurement_var)
                 measurement_mahalonobis_distance = self.mahalonobis_distance(measurement_value, measurement_location, emitter_param, self.estimated_emmiter_params_covariances[i])
-                # measurement_mahalonobis_distance_in_x_y = self.mahalonobis_distance_in_x_y_space(aoa_value, measurement_location, emitter_location, self.estimated_emmiter_location_covariances[i])
-                # combined_mahalanobis_distance = measurement_mahalonobis_distance_in_x_y + measurement_mahalonobis_distance
+                measurement_mahalonobis_distance_in_x_y = self.mahalonobis_distance_in_x_y_space(measurement_value[0], measurement_location, emitter_param[0:2], self.estimated_emmiter_params_covariances[i][0:2,0:2])
+                combined_mahalanobis_distance = measurement_mahalonobis_distance_in_x_y + measurement_mahalonobis_distance
                 print("measurement_mahalonobis_distance",measurement_mahalonobis_distance)
-                # print("measurement_mahalonobis_distance_in_x_y",measurement_mahalonobis_distance_in_x_y)
+                print("measurement_mahalonobis_distance_in_x_y",measurement_mahalonobis_distance_in_x_y)
                 if measurement_mahalonobis_distance < minimum_mal_dist:
                     minimum_mal_dist  = measurement_mahalonobis_distance
                     minimum_mal_dist_index = i
@@ -231,9 +294,11 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                 self.fit_ransac_model(np.array(self.measurement_locations)[self.outlier_indicies], np.array(self.measurement_values)[self.outlier_indicies], self.outlier_indicies)
                 # except:
                 #     print("no model found")
+            self.delete_lowest_probability_model()
             print("ransac prediction", self.estimated_emmiter_params)
             print("group lists", self.group_lists)
             print("outliers", self.outlier_indicies)
+            print()
         elif len(self.measurement_values) == 2:
             self.outlier_indicies = np.append(self.outlier_indicies, 1)
         else:
@@ -241,6 +306,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             
     def plot(self, ax):
         color_list = ['tab:blue','tab:orange','tab:green','tab:purple', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
+        c = None
 
         for i,angle_indicies in enumerate([self.outlier_indicies]):
             if angle_indicies.size > 0:
@@ -253,7 +319,11 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             for i,estimated_emmiter_params in enumerate(self.estimated_emmiter_params):
                 ax.scatter(estimated_emmiter_params[0], estimated_emmiter_params[1], marker='x', c = 'm')
                 c = self.plot_esimate_1_sigma_bounds(ax, estimated_emmiter_params, self.estimated_emmiter_params_covariances[i])
-            return c
+        if self.mal_dist_opt_point is not None:
+            ax.scatter(self.mal_dist_opt_point[0], self.mal_dist_opt_point[1])
+            # self.mal_dist_opt_point = None
+
+        return c
             
     def plot_angle_of_arrival_measurements(self, ax, color, measurement_locations, measurement_angle_of_arrival_values):
         line_width = 1

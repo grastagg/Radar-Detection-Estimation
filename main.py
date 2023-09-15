@@ -24,8 +24,10 @@ def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator
         # c = gp.plot(ax)
         # if c is not None:
             # plt.colorbar(c)
+        num_measurements = 0
         for agent in agent_list:
             agent.plot_agent(ax)
+            num_measurements += len(agent.measurement_power_values)
         if emmitterLocationEstimator is not None:
             c = emmitterLocationEstimator.plot(ax, False)
         # if c is not None:
@@ -39,12 +41,31 @@ def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator
         #     plt.colorbar(c)
         if batchEmitterLocationAndPowerEstimator is not None:
             batchEmitterLocationAndPowerEstimator.plot(ax, plot_var = True)
-        multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
+        c = multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
+        if c is not None:
+            plt.colorbar(c)
             
         for radar in radar_list:
             radar.plot_view_area(ax)
+        plt.title(num_measurements-1)
         plt.savefig('images/'+str(plt_index)+'.png')
         plt.close()
+
+def check_if_all_measurements_are_assinged_to_correct_radar(truth_group_lists, estimate_group_lists):
+    found_all_arrays = True
+    for t_group_list in truth_group_lists:
+        found_array = False
+        for e_group_list in estimate_group_lists:
+            if len(t_group_list) > 0:
+                if not found_array and len(e_group_list) == len(t_group_list):
+                    if np.all(e_group_list == t_group_list):
+                        found_array = True
+        if found_all_arrays and not found_array:
+            found_all_arrays = False
+    
+    return found_all_arrays
+            
+            
 
 def main():
     radar_list = []
@@ -57,13 +78,13 @@ def main():
     
     
     radar_list.append(radar)
-    # radar_list.append(radar2)
+    radar_list.append(radar2)
     radar_list.append(radar3)
     radar_list.append(radar4)
     # radar_list.append(radar5)
 
 
-    agent = Agent([600,10,0], num_radar=len(radar_list))
+    agent = Agent([10,10,0], num_radar=len(radar_list))
     agent_list.append(agent)
     bounds = (1200,1200)
 
@@ -113,15 +134,18 @@ def main():
         for radar in radar_list:
             radar.update(dt)
         for agent in agent_list:
-            agent.update(120,.25,dt,radar_list)
+            agent.update(50,0,dt,radar_list)
         if len(agent.measurement_angle_of_arrival_values) != current_number_of_aoa_measurements:
             print("adding measurement:", current_number_of_aoa_measurements)
+            print("truth group lists",agent.truth_measurement_emitter_correspondance)
             current_number_of_aoa_measurements += 1
             # emmitterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             # batchEmmiterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             # multipleRadarLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             # batchEmiterAndPowerEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.measurement_power_values[-1])
             multipleEmitterOnlineLocationAndPowerEstimator.add_measurement(agent.measurement_locations[-1], [agent.measurement_angle_of_arrival_values[-1], agent.measurement_power_values[-1]])
+
+            # check_if_all_measurements_are_assinged_to_correct_radar(agent.truth_measurement_emitter_correspondance, multipleEmitterOnlineLocationAndPowerEstimator.group_lists)
 
             # if len(multipleRadarLocationEstimator.estimated_emmiter_locations) > 0:
             #     multipleEmitterPowerParametricEstimator.fit(multipleRadarLocationEstimator.measurement_locations, agent.measurement_power_values, multipleRadarLocationEstimator.estimated_emmiter_locations, multipleRadarLocationEstimator.group_lists)

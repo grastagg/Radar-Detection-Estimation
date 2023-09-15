@@ -11,7 +11,7 @@ class Agent:
         self.measurement_angle_of_arrival_values = []
         self.measurement_locations = []
         self.power_measurement_std_dev = .001
-        self.angle_measurement_std_dev = (3*np.pi/180.0)
+        self.angle_measurement_std_dev = (2*np.pi/180.0)
 
         self.truth_measurement_emitter_correspondance = [[] for i in range(num_radar)]
         
@@ -55,7 +55,7 @@ class Agent:
                     # print("angle",angle_between_radar_and_agent)
                     power_measurements.append(radar.output_power / dist**2) #+ np.random.normal(0,self.power_measurement_std_dev)**2
                     #aoa measured in global frame
-                    angle_of_arrivals.append(self.map_angle_minus_pi_to_pi(angle_between_radar_and_agent + np.pi) + np.random.normal(0,self.angle_measurement_std_dev))
+                    angle_of_arrivals.append(self.map_angle_minus_pi_to_pi(angle_between_radar_and_agent + np.pi + np.random.normal(0,self.angle_measurement_std_dev)))
                     # print("AOA", angle_of_arrival)
 
                 else:
@@ -67,14 +67,13 @@ class Agent:
             self.measurement_locations.append(self.position[0:2])
             self.measurement_angle_of_arrival_values.append(angle_of_arrivals[0])
             self.truth_measurement_emitter_correspondance[radar_indecies[0]].append(len(self.measurement_locations)-1)
-            print("truth group lists",self.truth_measurement_emitter_correspondance)
+            # print("truth group lists",self.truth_measurement_emitter_correspondance)
         elif len(angle_of_arrivals) > 1:
             closest_radar_index = radar_distances.index(min(radar_distances))
             self.measurement_power_values.append(power_measurements[closest_radar_index])
             self.measurement_locations.append(self.position[0:2])
             self.measurement_angle_of_arrival_values.append(angle_of_arrivals[closest_radar_index])
             self.truth_measurement_emitter_correspondance[radar_indecies[closest_radar_index]].append(len(self.measurement_locations)-1)
-            print("truth group lists",self.truth_measurement_emitter_correspondance)
         
 
     def plot_power_measurements(self, ax):
