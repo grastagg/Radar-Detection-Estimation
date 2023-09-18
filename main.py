@@ -68,13 +68,26 @@ def check_if_all_measurements_are_assinged_to_correct_radar(truth_group_lists, e
             
 
 def main():
+    bounds = (1200,1200)
+    numTestPoints = 60
+    
+    x_test = np.linspace(0,bounds[0],numTestPoints)
+    y_test = np.linspace(0,bounds[1],numTestPoints)
+
+    X_test = []
+    
+    for i in range(numTestPoints):
+        for j in range(numTestPoints):
+            X_test.append(np.array([x_test[i],y_test[j]]))
+
+
     radar_list = []
     agent_list = []
     radar = RadarCircularPattern(position=[200,800])
-    radar2 = RadarCircularPattern(position=[500,800], phase=np.pi, angular_rate=2.5)
+    radar2 = RadarCircularPattern(position=[500,600], phase=np.pi, angular_rate=2.5)
     radar3 = RadarCircularPattern(position=[800,800], phase=np.pi/2, angular_rate=3.5)
-    radar4 = RadarCircularPattern(position=[1100,800], phase=np.pi/3, angular_rate=4)
-    # radar5 = RadajCircularPattern(position=[1000,200], phase=2*np.pi/3, angular_rate=2.75)
+    radar4 = RadarCircularPattern(position=[1100,600], phase=np.pi/3, angular_rate=4)
+    # radar5 = RadarCircularPattern(position=[1000,200], phase=2*np.pi/3, angular_rate=2.75)
     
     
     radar_list.append(radar)
@@ -86,7 +99,6 @@ def main():
 
     agent = Agent([10,10,0], num_radar=len(radar_list))
     agent_list.append(agent)
-    bounds = (1200,1200)
 
 
     # emmitterLocationEstimator = EmmitterLocationEstimator(groundTruth=np.array([[600,600]]))
@@ -100,20 +112,10 @@ def main():
     # multipleEmitterPowerParametricEstimator = MultipleEmittorPowerParametricEstimator(X_test)
     multipleEmitterPowerParametricEstimator = None
 
-    multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=agent.sensing_range, angle_measurement_std_dev=agent.angle_measurement_std_dev, measurement_cov=np.array([[agent.angle_measurement_std_dev**2,0],[0,agent.power_measurement_std_dev**2]]))
+    multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=agent.sensing_range, angle_measurement_std_dev=agent.angle_measurement_std_dev, measurement_cov=np.array([[agent.angle_measurement_std_dev**2,0],[0,agent.power_measurement_std_dev**2]]), X_test=X_test)
 
 
 
-    numTestPoints = 60
-    
-    x_test = np.linspace(0,bounds[0],numTestPoints)
-    y_test = np.linspace(0,bounds[1],numTestPoints)
-
-    X_test = []
-    
-    for i in range(numTestPoints):
-        for j in range(numTestPoints):
-            X_test.append(np.array([x_test[i],y_test[j]]))
     
     # gp = GaussianProcess(X_test)
     gp = None 
