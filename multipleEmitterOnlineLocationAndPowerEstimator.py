@@ -7,7 +7,7 @@ from matplotlib import colors
 from sklearn.linear_model import RANSACRegressor
 
 class MultipleEmitterOnlineLocationAndPowerEstimator:
-    def __init__(self, sensing_range, angle_measurement_std_dev, measurement_cov, X_test):
+    def __init__(self, sensing_range, angle_measurement_std_dev, measurement_cov, X_test, radar_measurement_coeff):
         self.ekf_list = []
         self.sensing_range = sensing_range
         self.angle_measurement_std_dev = angle_measurement_std_dev
@@ -28,6 +28,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
 
         self.mahalonobis_distance_inlier_threshold = 3
         self.mal_dist_opt_point = None
+        
+        self.radar_measurement_coeff = radar_measurement_coeff       
     
     def delete_lowest_probability_model(self):
         remove_indicies = []
@@ -58,7 +60,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                     mean = estimator.get_estimate_emmitor_params()
                     cov = estimator.compute_emmitor_estimate_covariance(X, y_true)
                     return np.array([self.mahalonobis_distance(y, X[i], mean, cov) for i,y in enumerate(y_true)])
-                regressionModel = NonlinearEstimator(self.measurement_cov)
+                regressionModel = NonlinearEstimator(self.measurement_cov, self.radar_measurement_coeff)
                 # ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = 'squared_error')#,residual_threshold=.09)
                 ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = loss, residual_threshold=.5)#,residual_threshold=.09)
                 ransacRegressor.fit(np.array(measurement_locations), np.array(measurements))
@@ -82,13 +84,13 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
     def ekf_update(self, measurement_pos, measurement_value, measurement_cov, x_prev, sigma_prev):
         xem = x_prev[0]
         yem = x_prev[1]
-        pem = x_prev[2]
+        erp = x_prev[2]
         x = measurement_pos[0]
         y = measurement_pos[1]
 
-        H = self.measurement_jacobian(xem, yem, pem, x, y)
+        H = self.measurement_jacobian(xem, yem, erp, x, y)
         K = sigma_prev @ H.T @ np.linalg.inv(H@sigma_prev@H.T + measurement_cov)
-        zHat = self.measurement_model(xem, yem, pem, x, y)
+        zHat = self.measurement_model(xem, yem, erp, x, y)
         inovation = np.zeros_like(zHat)
         inovation[0] = self.minimized_angle(measurement_value[0] - zHat[0][0])
         inovation[1] = measurement_value[1] - zHat[1][0]
@@ -144,16 +146,18 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         mahalonobis_distance_squared = ((x-mean).T@inv_cov@(x-mean))[0][0]
         return np.sqrt(mahalonobis_distance_squared)
     
-    def measurement_model(self, xem, yem, pem, x, y):
-        return np.array([[np.arctan2(yem-y, xem-x)], [pem/((xem-x)**2 + (yem-y)**2)]])
-    def measurement_jacobian(self, xem, yem, pem, x, y):
+    def measurement_model(self, xem, yem, erp, x, y):
+        return np.array([[np.arctan2(yem-y, xem-x)], [(erp*self.radar_measurement_coeff)/((xem-x)**2 + (yem-y)**2)]])
+
+
+    def measurement_jacobian(self, xem, yem, erp, x, y):
         d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
         d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
         d_h1_d_p_emmitter = 0
 
-        d_h2_d_x_emmitter = -(2*pem*(xem-x))/((xem-x)**2+(yem-y)**2)**2
-        d_h2_d_y_emmitter = -(2*pem*(yem-y))/((yem-y)**2+(xem-x)**2)**2
-        d_h2_d_p_emmitter = 1/((yem-y)**2+(xem-x)**2)
+        d_h2_d_x_emmitter = -(2*erp*self.radar_measurement_coeff*(xem-x))/((xem-x)**2+(yem-y)**2)**2 
+        d_h2_d_y_emmitter = -(2*erp*self.radar_measurement_coeff*(yem-y))/((yem-y)**2+(xem-x)**2)**2 
+        d_h2_d_p_emmitter = self.radar_measurement_coeff/((yem-y)**2+(xem-x)**2)
 
         return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
 
@@ -206,7 +210,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             self.outlier_indicies = np.append(self.outlier_indicies, 0)
     
     def power_basis_function(self, radial_distance):
-        return 1/radial_distance**2
+        return self.radar_measurement_coeff/radial_distance**2
 
     def create_power_basis_function_matrix(self, measurment_locations, center):
         A = np.zeros((len(measurment_locations),1))
@@ -285,17 +289,18 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
 
             # c = ax.pcolormesh(X_test[:,0].reshape((self.num_test_points,self.num_test_points)), X_test[:,1].reshape((self.num_test_points,self.num_test_points)), np.log10(self.predictive_mean).reshape((self.num_test_points,self.num_test_points)),vmin = -5, vmax =.5)
             Z = predictive_mean.reshape((num_test_points,num_test_points))
-            c = ax.pcolormesh(X_test[:,0].reshape((num_test_points,num_test_points)), X_test[:,1].reshape((num_test_points,num_test_points)), Z, norm=colors.SymLogNorm(linthresh = 0.0001, vmin = 0,vmax = 2, base=10))
+            c = ax.pcolormesh(X_test[:,0].reshape((num_test_points,num_test_points)), X_test[:,1].reshape((num_test_points,num_test_points)), Z, norm=colors.SymLogNorm(linthresh = 0.0000001, vmin = 0,vmax = 1, base=10))
             # c = ax.pcolormesh(X_test[:,0].reshape((self.num_test_points,self.num_test_points)), X_test[:,1].reshape((self.num_test_points,self.num_test_points)), np.log10(self.predictive_mean).reshape((self.num_test_points,self.num_test_points)))
             return c
         else:
             return None
 
 class NonlinearEstimator():
-    def __init__(self, measurement_cov):
+    def __init__(self, measurement_cov, radar_measurement_coeff):
         self.estimated_emmiter_params = None
         self.estimated_emmiter_params_cov = None
         self.measurement_covariance = measurement_cov
+        self.radar_measurement_coeff = radar_measurement_coeff
 
     def measurement_residual(self, emitter_params, measurements, measurement_locations):
         return np.array([self.measurement_model(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1]) for loc in measurement_locations]).reshape((-1,)) - np.array(measurements).reshape((-1,))
@@ -317,20 +322,20 @@ class NonlinearEstimator():
     def predict(self, X):
         return np.array([self.measurement_model(self.estimated_emmiter_params[0], self.estimated_emmiter_params[1], self.estimated_emmiter_params[2], loc[0], loc[1]) for loc in X]).reshape((-1,2))
 
-    def measurement_model(self, xem, yem, pem, x, y):
-        return np.array([[np.arctan2(yem-y, xem-x)], [pem/((xem-x)**2 + (yem-y)**2)]])
+    def measurement_model(self, xem, yem, erp, x, y):
+        return np.array([[np.arctan2(yem-y, xem-x)], [(self.radar_measurement_coeff * erp)/((xem-x)**2 + (yem-y)**2)]])
     
     def stack_measurement_jacobian(self, emitter_params, measurements, measurement_locations):
         return np.array([self.measurement_jacobian(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1]) for loc in measurement_locations]).reshape((2*len(measurement_locations),3))
 
-    def measurement_jacobian(self, xem, yem, pem, x, y):
+    def measurement_jacobian(self, xem, yem, erp, x, y):
         d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
         d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
         d_h1_d_p_emmitter = 0
 
-        d_h2_d_x_emmitter = -(2*pem*(xem-x))/((xem-x)**2+(yem-y)**2)**2
-        d_h2_d_y_emmitter = -(2*pem*(yem-y))/((yem-y)**2+(xem-x)**2)**2
-        d_h2_d_p_emmitter = 1/((yem-y)**2+(xem-x)**2)
+        d_h2_d_x_emmitter = -(2*erp*self.radar_measurement_coeff*(xem-x))/((xem-x)**2+(yem-y)**2)**2
+        d_h2_d_y_emmitter = -(2*erp*self.radar_measurement_coeff*(yem-y))/((yem-y)**2+(xem-x)**2)**2
+        d_h2_d_p_emmitter = self.radar_measurement_coeff/((yem-y)**2+(xem-x)**2)
 
         return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
 
@@ -350,7 +355,7 @@ class NonlinearEstimator():
 
     def get_params(self, deep=False):
         # return {"position": self.estimated_emmiter_location}
-        return {"measurement_cov": self.measurement_covariance}
+        return {"measurement_cov": self.measurement_covariance, "radar_measurement_coeff":self.radar_measurement_coeff}
     
 
     

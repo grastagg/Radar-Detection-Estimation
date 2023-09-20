@@ -16,6 +16,10 @@ class Agent:
         self.truth_measurement_emitter_correspondance = [[] for i in range(num_radar)]
         
         
+        self.elint_antennea_gain = 1
+        self.elint_system_loss = 1
+        self.emittor_signal_wavelength = 0.003
+        self.radar_measurement_coeff = (self.elint_antennea_gain * self.emittor_signal_wavelength**2)/((4*np.pi)**2 * self.elint_system_loss)
         
         
         
@@ -53,7 +57,7 @@ class Agent:
                     radar_indecies.append(i)
                     # print("radar angle", radar.current_angle)
                     # print("angle",angle_between_radar_and_agent)
-                    power_measurements.append(radar.output_power / dist**2) #+ np.random.normal(0,self.power_measurement_std_dev)**2
+                    power_measurements.append((self.radar_measurement_coeff * radar.output_power) / dist**2) #+ np.random.normal(0,self.power_measurement_std_dev)**2
                     #aoa measured in global frame
                     angle_of_arrivals.append(self.map_angle_minus_pi_to_pi(angle_between_radar_and_agent + np.pi + np.random.normal(0,self.angle_measurement_std_dev)))
                     # print("AOA", angle_of_arrival)

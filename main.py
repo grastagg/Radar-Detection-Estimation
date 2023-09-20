@@ -112,7 +112,7 @@ def main():
     # multipleEmitterPowerParametricEstimator = MultipleEmittorPowerParametricEstimator(X_test)
     multipleEmitterPowerParametricEstimator = None
 
-    multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=agent.sensing_range, angle_measurement_std_dev=agent.angle_measurement_std_dev, measurement_cov=np.array([[agent.angle_measurement_std_dev**2,0],[0,agent.power_measurement_std_dev**2]]), X_test=X_test)
+    multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=agent.sensing_range, angle_measurement_std_dev=agent.angle_measurement_std_dev, measurement_cov=np.array([[agent.angle_measurement_std_dev**2,0],[0,agent.power_measurement_std_dev**2]]), X_test=X_test, radar_measurement_coeff=agent.radar_measurement_coeff)
 
 
 
