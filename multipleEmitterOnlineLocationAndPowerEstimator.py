@@ -289,7 +289,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
 
             # c = ax.pcolormesh(X_test[:,0].reshape((self.num_test_points,self.num_test_points)), X_test[:,1].reshape((self.num_test_points,self.num_test_points)), np.log10(self.predictive_mean).reshape((self.num_test_points,self.num_test_points)),vmin = -5, vmax =.5)
             Z = predictive_mean.reshape((num_test_points,num_test_points))
-            c = ax.pcolormesh(X_test[:,0].reshape((num_test_points,num_test_points)), X_test[:,1].reshape((num_test_points,num_test_points)), Z, norm=colors.SymLogNorm(linthresh = 0.00001, vmin = 0,vmax = .1, base=10))
+            c = ax.pcolormesh(X_test[:,0].reshape((num_test_points,num_test_points)), X_test[:,1].reshape((num_test_points,num_test_points)), Z, norm=colors.SymLogNorm(linthresh = 0.00001, vmin = 0,vmax = np.max(Z), base=10))
             # c = ax.pcolormesh(X_test[:,0].reshape((self.num_test_points,self.num_test_points)), X_test[:,1].reshape((self.num_test_points,self.num_test_points)), np.log10(self.predictive_mean).reshape((self.num_test_points,self.num_test_points)))
             return c
         else:
