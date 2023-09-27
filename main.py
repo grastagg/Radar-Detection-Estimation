@@ -13,10 +13,11 @@ from gp import GaussianProcess
 from multipleEmitterPowerParametricEstimator import MultipleEmittorPowerParametricEstimator
 from batchEmitterLocationAndPowerEstimator import BatchEmitterLocationAndPowerEstimator
 from multipleEmitterOnlineLocationAndPowerEstimator import MultipleEmitterOnlineLocationAndPowerEstimator
+from riskMap import RiskMap
 
 # np.random.seed(12342)
 
-def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleEmmiterLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmitterLocationAndPowerEstimator, multipleEmitterOnlineLocationAndPowerEstimator):
+def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleEmmiterLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmitterLocationAndPowerEstimator, multipleEmitterOnlineLocationAndPowerEstimator, riskMap):
         fig,ax = plt.subplots()
         ax.set_xlim((0,bounds[0]))
         ax.set_ylim((0,bounds[1]))
@@ -41,7 +42,12 @@ def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator
         #     plt.colorbar(c)
         if batchEmitterLocationAndPowerEstimator is not None:
             batchEmitterLocationAndPowerEstimator.plot(ax, plot_var = True)
-        c = multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
+
+        if multipleEmitterOnlineLocationAndPowerEstimator is not None:
+            multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
+            # c = multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
+        if riskMap is not None:
+            c = riskMap.plot(ax)
         if c is not None:
             plt.colorbar(c)
             
@@ -113,6 +119,7 @@ def main():
     multipleEmitterPowerParametricEstimator = None
 
     multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=agent.sensing_range, angle_measurement_std_dev=agent.angle_measurement_std_dev, measurement_cov=np.array([[agent.angle_measurement_std_dev**2,0],[0,agent.power_measurement_std_dev**2]]), X_test=X_test, radar_measurement_coeff=agent.radar_measurement_coeff)
+    riskMap = RiskMap(bounds)
 
 
 
@@ -132,7 +139,7 @@ def main():
     inlier_mask = None
     
     while t_current < t_end:
-        plot_scene(radar_list, agent_list, bounds, plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleRadarLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmiterAndPowerEstimator, multipleEmitterOnlineLocationAndPowerEstimator)
+        plot_scene(radar_list, agent_list, bounds, plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleRadarLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmiterAndPowerEstimator, multipleEmitterOnlineLocationAndPowerEstimator, riskMap)
         for radar in radar_list:
             radar.update(dt)
         for agent in agent_list:
@@ -146,6 +153,7 @@ def main():
             # multipleRadarLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             # batchEmiterAndPowerEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.measurement_power_values[-1])
             multipleEmitterOnlineLocationAndPowerEstimator.add_measurement(agent.measurement_locations[-1], [agent.measurement_angle_of_arrival_values[-1], agent.measurement_power_values[-1]])
+            riskMap.update(np.array(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params))
 
             # check_if_all_measurements_are_assinged_to_correct_radar(agent.truth_measurement_emitter_correspondance, multipleEmitterOnlineLocationAndPowerEstimator.group_lists)
 
