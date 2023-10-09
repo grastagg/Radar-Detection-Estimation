@@ -14,10 +14,11 @@ from multipleEmitterPowerParametricEstimator import MultipleEmittorPowerParametr
 from batchEmitterLocationAndPowerEstimator import BatchEmitterLocationAndPowerEstimator
 from multipleEmitterOnlineLocationAndPowerEstimator import MultipleEmitterOnlineLocationAndPowerEstimator
 from riskMap import RiskMap
+import params
 
 # np.random.seed(12342)
 
-def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleEmmiterLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmitterLocationAndPowerEstimator, multipleEmitterOnlineLocationAndPowerEstimator, riskMap):
+def plot_scene(radarList, agentList,bounds,plotIndex,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleEmmiterLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmitterLocationAndPowerEstimator, multipleEmitterOnlineLocationAndPowerEstimator, riskMap):
         fig,ax = plt.subplots()
         ax.set_xlim((0,bounds[0]))
         ax.set_ylim((0,bounds[1]))
@@ -25,10 +26,10 @@ def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator
         # c = gp.plot(ax)
         # if c is not None:
             # plt.colorbar(c)
-        num_measurements = 0
-        for agent in agent_list:
+        numMeasurements = 0
+        for agent in agentList:
             agent.plot_agent(ax)
-            num_measurements += len(agent.measurement_power_values)
+            numMeasurements += len(agent.measurement_power_values)
         if emmitterLocationEstimator is not None:
             c = emmitterLocationEstimator.plot(ax, False)
         # if c is not None:
@@ -51,60 +52,24 @@ def plot_scene(radar_list, agent_list,bounds,plt_index,emmitterLocationEstimator
         if c is not None:
             plt.colorbar(c)
             
-        for radar in radar_list:
+        for radar in radarList:
             radar.plot_view_area(ax)
-        plt.title(num_measurements-1)
-        plt.savefig('images/'+str(plt_index)+'.png')
+        plt.title(numMeasurements-1)
+        plt.savefig('images/'+str(plotIndex)+'.png')
         plt.close()
 
-def check_if_all_measurements_are_assinged_to_correct_radar(truth_group_lists, estimate_group_lists):
-    found_all_arrays = True
-    for t_group_list in truth_group_lists:
-        found_array = False
-        for e_group_list in estimate_group_lists:
-            if len(t_group_list) > 0:
-                if not found_array and len(e_group_list) == len(t_group_list):
-                    if np.all(e_group_list == t_group_list):
-                        found_array = True
-        if found_all_arrays and not found_array:
-            found_all_arrays = False
-    
-    return found_all_arrays
-            
-            
 
 def main():
-    bounds = (1200,1200)
-    numTestPoints = 60
+    bounds = params.bounds 
+    numTestPoints = params.numTestPoints
+    X_test = params.create_test_points(numTestPoints, bounds)
     
-    x_test = np.linspace(0,bounds[0],numTestPoints)
-    y_test = np.linspace(0,bounds[1],numTestPoints)
-
-    X_test = []
-    
-    for i in range(numTestPoints):
-        for j in range(numTestPoints):
-            X_test.append(np.array([x_test[i],y_test[j]]))
 
 
-    radar_list = []
-    agent_list = []
-    radar = RadarCircularPattern(position=[200,800])
-    radar2 = RadarCircularPattern(position=[500,600], phase=np.pi, angular_rate=2.5)
-    radar3 = RadarCircularPattern(position=[800,800], phase=np.pi/2, angular_rate=3.5)
-    radar4 = RadarCircularPattern(position=[1100,600], phase=np.pi/3, angular_rate=4)
-    # radar5 = RadarCircularPattern(position=[1000,200], phase=2*np.pi/3, angular_rate=2.75)
-    
-    
-    radar_list.append(radar)
-    radar_list.append(radar2)
-    radar_list.append(radar3)
-    radar_list.append(radar4)
-    # radar_list.append(radar5)
+    radarList = params.radarList
+    agentList = params.agentList
 
 
-    agent = Agent([10,10,0], num_radar=len(radar_list))
-    agent_list.append(agent)
 
 
     # emmitterLocationEstimator = EmmitterLocationEstimator(groundTruth=np.array([[600,600]]))
@@ -118,7 +83,7 @@ def main():
     # multipleEmitterPowerParametricEstimator = MultipleEmittorPowerParametricEstimator(X_test)
     multipleEmitterPowerParametricEstimator = None
 
-    multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=agent.sensing_range, angle_measurement_std_dev=agent.angle_measurement_std_dev, measurement_cov=np.array([[agent.angle_measurement_std_dev**2,0],[0,agent.power_measurement_std_dev**2]]), X_test=X_test, radar_measurement_coeff=agent.radar_measurement_coeff)
+    multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=params.agentSensingRange, angle_measurement_std_dev=params.agentAngleMeasurementStdDev, measurement_cov=np.array([[params.agentAngleMeasurementStdDev**2,0],[0,params.agentPowerMeasurementStdDev**2]]), X_test=X_test, radar_measurement_coeff=params.radarMeasurementCoeff)
     riskMap = RiskMap(bounds)
 
 
@@ -129,25 +94,24 @@ def main():
 
 
     
-    t_end = 40
-    dt = .1
-    t_current = 0
-    plt_index = 0
+    tEnd = params.simulationEndTime
+    dt = params.simulationTimestep
+    tCurrent = 0
+    plotIndex = 0
 
-    current_number_of_aoa_measurements = 0
+    currentNumberOfMeasurements = 0
 
-    inlier_mask = None
     
-    while t_current < t_end:
-        plot_scene(radar_list, agent_list, bounds, plt_index,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleRadarLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmiterAndPowerEstimator, multipleEmitterOnlineLocationAndPowerEstimator, riskMap)
-        for radar in radar_list:
+    while tCurrent < tEnd:
+        plot_scene(radarList, agentList, bounds, plotIndex,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleRadarLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmiterAndPowerEstimator, multipleEmitterOnlineLocationAndPowerEstimator, riskMap)
+        for radar in radarList:
             radar.update(dt)
-        for agent in agent_list:
-            agent.update(50,0,dt,radar_list)
-        if len(agent.measurement_angle_of_arrival_values) != current_number_of_aoa_measurements:
-            print("adding measurement:", current_number_of_aoa_measurements)
+        for agent in agentList:
+            agent.update(50,0,dt,radarList)
+        if len(agent.measurement_angle_of_arrival_values) != currentNumberOfMeasurements:
+            print("adding measurement:", currentNumberOfMeasurements)
             print("truth group lists",agent.truth_measurement_emitter_correspondance)
-            current_number_of_aoa_measurements += 1
+            currentNumberOfMeasurements += 1
             # emmitterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             # batchEmmiterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             # multipleRadarLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
@@ -155,7 +119,6 @@ def main():
             multipleEmitterOnlineLocationAndPowerEstimator.add_measurement(agent.measurement_locations[-1], [agent.measurement_angle_of_arrival_values[-1], agent.measurement_power_values[-1]])
             riskMap.update(np.array(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params))
 
-            # check_if_all_measurements_are_assinged_to_correct_radar(agent.truth_measurement_emitter_correspondance, multipleEmitterOnlineLocationAndPowerEstimator.group_lists)
 
             # if len(multipleRadarLocationEstimator.estimated_emmiter_locations) > 0:
             #     multipleEmitterPowerParametricEstimator.fit(multipleRadarLocationEstimator.measurement_locations, agent.measurement_power_values, multipleRadarLocationEstimator.estimated_emmiter_locations, multipleRadarLocationEstimator.group_lists)
@@ -167,8 +130,8 @@ def main():
             # if len(agent.measurement_angle_of_arrival_values) > 2:
             #     emmitterLocationEstimator.ekf_update(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
 
-        plt_index += 1
-        t_current += dt
+        plotIndex += 1
+        tCurrent += dt
 
     
     # plt.figure()

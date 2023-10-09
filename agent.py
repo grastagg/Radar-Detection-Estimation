@@ -4,21 +4,21 @@ import matplotlib.pyplot as plt
 
 
 class Agent:
-    def __init__(self, initial_position, num_radar, sensing_range = 900):
-        self.position = initial_position #x,y,heading
-        self.sensing_range = sensing_range
+    def __init__(self, initialPosition, numRadar, sensingRange, powerMeasurementStdDev, angleMeasurementStdDev, elintAntenneaGain, elintSystemLoss, emittorWavelength):
+        self.position = initialPosition #x,y,heading
+        self.sensing_range = sensingRange
         self.measurement_power_values = []
         self.measurement_angle_of_arrival_values = []
         self.measurement_locations = []
-        self.power_measurement_std_dev = .001
-        self.angle_measurement_std_dev = (2*np.pi/180.0)
+        self.power_measurement_std_dev = powerMeasurementStdDev
+        self.angle_measurement_std_dev = angleMeasurementStdDev
 
-        self.truth_measurement_emitter_correspondance = [[] for i in range(num_radar)]
+        self.truth_measurement_emitter_correspondance = [[] for i in range(numRadar)]
         
         
-        self.elint_antennea_gain = 1
-        self.elint_system_loss = 1
-        self.emittor_signal_wavelength = 0.003
+        self.elint_antennea_gain = elintAntenneaGain
+        self.elint_system_loss = elintSystemLoss
+        self.emittor_signal_wavelength = emittorWavelength
         self.radar_measurement_coeff = (self.elint_antennea_gain * self.emittor_signal_wavelength**2)/((4*np.pi)**2 * self.elint_system_loss)
         
         
