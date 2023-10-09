@@ -6,20 +6,20 @@ import matplotlib.pyplot as plt
 class Agent:
     def __init__(self, initialPosition, numRadar, sensingRange, powerMeasurementStdDev, angleMeasurementStdDev, elintAntenneaGain, elintSystemLoss, emittorWavelength):
         self.position = initialPosition #x,y,heading
-        self.sensing_range = sensingRange
-        self.measurement_power_values = []
-        self.measurement_angle_of_arrival_values = []
-        self.measurement_locations = []
-        self.power_measurement_std_dev = powerMeasurementStdDev
-        self.angle_measurement_std_dev = angleMeasurementStdDev
+        self.sensingRange = sensingRange
+        self.measurementPowerValues = []
+        self.measurementAngleOfArrivalValues = []
+        self.measurementLocations = []
+        self.powerMeasurementStdDev = powerMeasurementStdDev
+        self.angelMeasurementStdDev = angleMeasurementStdDev
 
-        self.truth_measurement_emitter_correspondance = [[] for i in range(numRadar)]
+        self.truthEmitterCorrespondence = [[] for i in range(numRadar)]
         
         
-        self.elint_antennea_gain = elintAntenneaGain
-        self.elint_system_loss = elintSystemLoss
+        self.elintAntenneaGain = elintAntenneaGain
+        self.elsintSystemLoss = elintSystemLoss
         self.emittor_signal_wavelength = emittorWavelength
-        self.radar_measurement_coeff = (self.elint_antennea_gain * self.emittor_signal_wavelength**2)/((4*np.pi)**2 * self.elint_system_loss)
+        self.radarMeasurementCoeff = (self.elintAntenneaGain * self.emittor_signal_wavelength**2)/((4*np.pi)**2 * self.elsintSystemLoss)
         
         
         
@@ -47,7 +47,7 @@ class Agent:
         radar_indecies = []
         for i,radar in enumerate(radar_list):
             dist = self.get_distance(radar.position, self.position[0:2])
-            if dist < self.sensing_range:
+            if dist < self.sensingRange:
                 angle_between_radar_and_agent = np.arctan2(self.position[1]-radar.position[1], self.position[0]-radar.position[0])
                 # print("angle",angle_between_radar_and_agent)
                 # print("radar angle", radar.current_angle)
@@ -57,9 +57,9 @@ class Agent:
                     radar_indecies.append(i)
                     # print("radar angle", radar.current_angle)
                     # print("angle",angle_between_radar_and_agent)
-                    power_measurements.append((self.radar_measurement_coeff * radar.output_power) / dist**2) #+ np.random.normal(0,self.power_measurement_std_dev)**2
+                    power_measurements.append((self.radarMeasurementCoeff * radar.output_power) / dist**2) #+ np.random.normal(0,self.powerMeasurementStdDev)**2
                     #aoa measured in global frame
-                    angle_of_arrivals.append(self.map_angle_minus_pi_to_pi(angle_between_radar_and_agent + np.pi + np.random.normal(0,self.angle_measurement_std_dev)))
+                    angle_of_arrivals.append(self.map_angle_minus_pi_to_pi(angle_between_radar_and_agent + np.pi + np.random.normal(0,self.angelMeasurementStdDev)))
                     # print("AOA", angle_of_arrival)
 
                 else:
@@ -67,43 +67,43 @@ class Agent:
             else:
                 z = None
         if len(angle_of_arrivals) == 1:
-            self.measurement_power_values.append(power_measurements[0])
-            self.measurement_locations.append(self.position[0:2])
-            self.measurement_angle_of_arrival_values.append(angle_of_arrivals[0])
-            self.truth_measurement_emitter_correspondance[radar_indecies[0]].append(len(self.measurement_locations)-1)
-            # print("truth group lists",self.truth_measurement_emitter_correspondance)
+            self.measurementPowerValues.append(power_measurements[0])
+            self.measurementLocations.append(self.position[0:2])
+            self.measurementAngleOfArrivalValues.append(angle_of_arrivals[0])
+            self.truthEmitterCorrespondence[radar_indecies[0]].append(len(self.measurementLocations)-1)
+            # print("truth group lists",self.truthEmitterCorrespondence)
         elif len(angle_of_arrivals) > 1:
             closest_radar_index = radar_distances.index(min(radar_distances))
-            self.measurement_power_values.append(power_measurements[closest_radar_index])
-            self.measurement_locations.append(self.position[0:2])
-            self.measurement_angle_of_arrival_values.append(angle_of_arrivals[closest_radar_index])
-            self.truth_measurement_emitter_correspondance[radar_indecies[closest_radar_index]].append(len(self.measurement_locations)-1)
+            self.measurementPowerValues.append(power_measurements[closest_radar_index])
+            self.measurementLocations.append(self.position[0:2])
+            self.measurementAngleOfArrivalValues.append(angle_of_arrivals[closest_radar_index])
+            self.truthEmitterCorrespondence[radar_indecies[closest_radar_index]].append(len(self.measurementLocations)-1)
         
 
     def plot_power_measurements(self, ax):
-        if len(self.measurement_locations) > 0:
-            data = np.array(self.measurement_locations)
-            ax.scatter(data[:,0],data[:,1],c=np.log10(np.array(self.measurement_power_values)),vmin = -5, vmax =.5)
-            # ax.scatter(data[:,0],data[:,1],c=np.log10(np.array(self.measurement_power_values)))
+        if len(self.measurementLocations) > 0:
+            data = np.array(self.measurementLocations)
+            ax.scatter(data[:,0],data[:,1],c=np.log10(np.array(self.measurementPowerValues)),vmin = -5, vmax =.5)
+            # ax.scatter(data[:,0],data[:,1],c=np.log10(np.array(self.measurementPowerValues)))
         
     def plot_angle_of_arrival_measurements(self, ax, inlier_mask):
         color = 'g'
-        for i,angle in enumerate(self.measurement_angle_of_arrival_values):
+        for i,angle in enumerate(self.measurementAngleOfArrivalValues):
             if inlier_mask is not None:
                 if not inlier_mask[i]:
                     color = 'r'
                 else:
                     color = 'g'
-            start_x = self.measurement_locations[i][0]
-            start_y = self.measurement_locations[i][1]
-            end_x = start_x + self.sensing_range * np.cos(angle)
-            end_y = start_y + self.sensing_range * np.sin(angle)
+            start_x = self.measurementLocations[i][0]
+            start_y = self.measurementLocations[i][1]
+            end_x = start_x + self.sensingRange * np.cos(angle)
+            end_y = start_y + self.sensingRange * np.sin(angle)
             ax.plot([start_x,end_x],[start_y,end_y], c=color)
-            end_x = start_x + self.sensing_range * np.cos(angle+self.angle_measurement_std_dev)
-            end_y = start_y + self.sensing_range * np.sin(angle+self.angle_measurement_std_dev)
+            end_x = start_x + self.sensingRange * np.cos(angle+self.angelMeasurementStdDev)
+            end_y = start_y + self.sensingRange * np.sin(angle+self.angelMeasurementStdDev)
             ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c = color)
-            end_x = start_x + self.sensing_range * np.cos(angle-self.angle_measurement_std_dev)
-            end_y = start_y + self.sensing_range * np.sin(angle-self.angle_measurement_std_dev)
+            end_x = start_x + self.sensingRange * np.cos(angle-self.angelMeasurementStdDev)
+            end_y = start_y + self.sensingRange * np.sin(angle-self.angelMeasurementStdDev)
             ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c=color)
         
     def plot_agent(self,ax, inlier_mask = None):

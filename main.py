@@ -29,7 +29,7 @@ def plot_scene(radarList, agentList,bounds,plotIndex,emmitterLocationEstimator, 
         numMeasurements = 0
         for agent in agentList:
             agent.plot_agent(ax)
-            numMeasurements += len(agent.measurement_power_values)
+            numMeasurements += len(agent.measurementPowerValues)
         if emmitterLocationEstimator is not None:
             c = emmitterLocationEstimator.plot(ax, False)
         # if c is not None:
@@ -108,15 +108,15 @@ def main():
             radar.update(dt)
         for agent in agentList:
             agent.update(50,0,dt,radarList)
-        if len(agent.measurement_angle_of_arrival_values) != currentNumberOfMeasurements:
+        if len(agent.measurementAngleOfArrivalValues) != currentNumberOfMeasurements:
             print("adding measurement:", currentNumberOfMeasurements)
-            print("truth group lists",agent.truth_measurement_emitter_correspondance)
+            print("truth group lists",agent.truthEmitterCorrespondence)
             currentNumberOfMeasurements += 1
             # emmitterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             # batchEmmiterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             # multipleRadarLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             # batchEmiterAndPowerEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.measurement_power_values[-1])
-            multipleEmitterOnlineLocationAndPowerEstimator.add_measurement(agent.measurement_locations[-1], [agent.measurement_angle_of_arrival_values[-1], agent.measurement_power_values[-1]])
+            multipleEmitterOnlineLocationAndPowerEstimator.add_measurement(agent.measurementLocations[-1], [agent.measurementAngleOfArrivalValues[-1], agent.measurementPowerValues[-1]])
             riskMap.update(np.array(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params))
 
 
