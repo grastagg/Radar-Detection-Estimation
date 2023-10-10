@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 
 class Agent:
-    def __init__(self, initialPosition, numRadar, sensingRange, powerMeasurementStdDev, angleMeasurementStdDev, elintAntenneaGain, elintSystemLoss, emittorWavelength):
+    def __init__(self, initialPosition, numRadar, sensingRange, powerMeasurementStdDev, angleMeasurementStdDev, elintAntenneaGain, elintSystemLoss, emittorWavelength, radarCrossSection):
         self.position = initialPosition #x,y,heading
         self.sensingRange = sensingRange
         self.measurementPowerValues = []
@@ -12,6 +12,7 @@ class Agent:
         self.measurementLocations = []
         self.powerMeasurementStdDev = powerMeasurementStdDev
         self.angelMeasurementStdDev = angleMeasurementStdDev
+        self.radarCrossSection = radarCrossSection
 
         self.truthEmitterCorrespondence = [[] for i in range(numRadar)]
         

@@ -2,19 +2,19 @@ import numpy as np
 from radar import RadarCircularPattern
 from agent import Agent
 
-def create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutputPower, radarTransmitGain):
+def create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm):
     radarList = []
     
     for i in range(len(radarPositions)):
-        radarList.append(RadarCircularPattern(position=radarPositions[i], phase=radarPhases[i], angular_rate=radarAngularRates[i], outputPower=radarOutputPower, transmitGain = radarTransmitGain))
+        radarList.append(RadarCircularPattern(position=radarPositions[i], phase=radarPhases[i], angular_rate=radarAngularRates[i], outputPower=radarOutputPower, transmitGain = radarTransmitGain, recieveGain = radarRecieveGain, wavelength = radarWavelength, pulseWidth = radarPulseWidth, systemTemperature = radarSystemTemperature, probabilityOfFalseAlarm=radarProbabilityOfFalseAlarm))
         
     return radarList
 
 
-def create_agent_list(agentInitialStates, numRadar, agentSensingRange, agentPowerMeasurementStdDev, agentAngleMeasurementStdDev, agentELINTAnteneaGain, agentELINTSystemLoss, radarWavelength):
+def create_agent_list(agentInitialStates, numRadar, agentSensingRange, agentPowerMeasurementStdDev, agentAngleMeasurementStdDev, agentELINTAnteneaGain, agentELINTSystemLoss, radarWavelength, radarCrossSection):
     agentList =[]
     for i in range(len(agentInitialStates)):
-        agentList.append(Agent(initialPosition=agentInitialStates[i], numRadar = numRadar, sensingRange = agentSensingRange, powerMeasurementStdDev=agentPowerMeasurementStdDev,angleMeasurementStdDev=agentAngleMeasurementStdDev, elintAntenneaGain=agentELINTAnteneaGain, elintSystemLoss=agentELINTSystemLoss, emittorWavelength=radarWavelength))
+        agentList.append(Agent(initialPosition=agentInitialStates[i], numRadar = numRadar, sensingRange = agentSensingRange, powerMeasurementStdDev=agentPowerMeasurementStdDev,angleMeasurementStdDev=agentAngleMeasurementStdDev, elintAntenneaGain=agentELINTAnteneaGain, elintSystemLoss=agentELINTSystemLoss, emittorWavelength=radarWavelength, radarCrossSection = radarCrossSection))
     
     return agentList
         
@@ -32,11 +32,14 @@ simulationTimestep = .1
 radarPositions = [(200,800), (500,600), (800,800), (1100,600)]
 radarPhases = [0,np.pi, np.pi/2, np.pi/3]
 radarAngularRates = [3,2.5,3.5,4]
-radarOutputPower = 1000
+radarOutputPower = 100000
 radarTransmitGain = 1
 radarRecieveGain = 1
-radarList = create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutputPower, radarTransmitGain)
 radarWavelength = 0.003
+radarProbabilityOfFalseAlarm = 1e-6
+radarPulseWidth = 1.1e-5
+radarSystemTemperature = 745.4148
+radarList = create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm)
 
 
 #agent parameters
@@ -46,10 +49,9 @@ agentPowerMeasurementStdDev = 0.001
 agentAngleMeasurementStdDev = (2*np.pi/180)
 agentELINTAnteneaGain = 1
 agentELINTSystemLoss = 1
-agentList = create_agent_list(agentInitialStates, len(radarList), agentSensingRange, agentPowerMeasurementStdDev, agentAngleMeasurementStdDev, agentELINTAnteneaGain, agentELINTSystemLoss, radarWavelength)
-
 radarMeasurementCoeff = (agentELINTAnteneaGain * radarWavelength**2)/((4*np.pi)**2 * agentELINTSystemLoss)
-
+agentRadarCrossSection = 1
+agentList = create_agent_list(agentInitialStates, len(radarList), agentSensingRange, agentPowerMeasurementStdDev, agentAngleMeasurementStdDev, agentELINTAnteneaGain, agentELINTSystemLoss, radarWavelength, agentRadarCrossSection)
 
 
 def create_test_points(numTestPoints, bounds):

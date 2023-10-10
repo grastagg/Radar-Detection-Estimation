@@ -13,12 +13,12 @@ from gp import GaussianProcess
 from multipleEmitterPowerParametricEstimator import MultipleEmittorPowerParametricEstimator
 from batchEmitterLocationAndPowerEstimator import BatchEmitterLocationAndPowerEstimator
 from multipleEmitterOnlineLocationAndPowerEstimator import MultipleEmitterOnlineLocationAndPowerEstimator
-from riskMap import RiskMap
+from probabilityOfDetectionMap import ProbabilityOfDetectionMap
 import params
 
 # np.random.seed(12342)
 
-def plot_scene(radarList, agentList,bounds,plotIndex,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleEmmiterLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmitterLocationAndPowerEstimator, multipleEmitterOnlineLocationAndPowerEstimator, riskMap):
+def plot_scene(radarList, agentList,bounds,plotIndex,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleEmmiterLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmitterLocationAndPowerEstimator, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap):
         fig,ax = plt.subplots()
         ax.set_xlim((0,bounds[0]))
         ax.set_ylim((0,bounds[1]))
@@ -47,8 +47,8 @@ def plot_scene(radarList, agentList,bounds,plotIndex,emmitterLocationEstimator, 
         if multipleEmitterOnlineLocationAndPowerEstimator is not None:
             multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
             # c = multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
-        if riskMap is not None:
-            c = riskMap.plot(ax)
+        if probabilityOfDetectionMap is not None:
+            c = probabilityOfDetectionMap.plot(ax)
         if c is not None:
             plt.colorbar(c)
             
@@ -84,7 +84,7 @@ def main():
     multipleEmitterPowerParametricEstimator = None
 
     multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=params.agentSensingRange, angle_measurement_std_dev=params.agentAngleMeasurementStdDev, measurement_cov=np.array([[params.agentAngleMeasurementStdDev**2,0],[0,params.agentPowerMeasurementStdDev**2]]), X_test=X_test, radar_measurement_coeff=params.radarMeasurementCoeff)
-    riskMap = RiskMap(bounds)
+    probabilityOfDetectionMap = ProbabilityOfDetectionMap(X_test)
 
 
 
@@ -103,7 +103,7 @@ def main():
 
     
     while tCurrent < tEnd:
-        plot_scene(radarList, agentList, bounds, plotIndex,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleRadarLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmiterAndPowerEstimator, multipleEmitterOnlineLocationAndPowerEstimator, riskMap)
+        plot_scene(radarList, agentList, bounds, plotIndex,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleRadarLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmiterAndPowerEstimator, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap)
         for radar in radarList:
             radar.update(dt)
         for agent in agentList:
@@ -117,7 +117,8 @@ def main():
             # multipleRadarLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
             # batchEmiterAndPowerEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.measurement_power_values[-1])
             multipleEmitterOnlineLocationAndPowerEstimator.add_measurement(agent.measurementLocations[-1], [agent.measurementAngleOfArrivalValues[-1], agent.measurementPowerValues[-1]])
-            riskMap.update(np.array(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params))
+            if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
+                probabilityOfDetectionMap.compute_probability_of_detection_at_points(X_test, radarList[0], multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params[0], agentList[0])
 
 
             # if len(multipleRadarLocationEstimator.estimated_emmiter_locations) > 0:
