@@ -2,11 +2,11 @@ import numpy as np
 from radar import RadarCircularPattern
 from agent import Agent
 
-def create_radar_list(radarPositions, radarPhases, radarAngularRates):
+def create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutputPower, radarTransmitGain):
     radarList = []
     
     for i in range(len(radarPositions)):
-        radarList.append(RadarCircularPattern(position=radarPositions[i], phase=radarPhases[i], angular_rate=radarAngularRates[i]))
+        radarList.append(RadarCircularPattern(position=radarPositions[i], phase=radarPhases[i], angular_rate=radarAngularRates[i], outputPower=radarOutputPower, transmitGain = radarTransmitGain))
         
     return radarList
 
@@ -32,7 +32,10 @@ simulationTimestep = .1
 radarPositions = [(200,800), (500,600), (800,800), (1100,600)]
 radarPhases = [0,np.pi, np.pi/2, np.pi/3]
 radarAngularRates = [3,2.5,3.5,4]
-radarList = create_radar_list(radarPositions, radarPhases, radarAngularRates)
+radarOutputPower = 1000
+radarTransmitGain = 1
+radarRecieveGain = 1
+radarList = create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutputPower, radarTransmitGain)
 radarWavelength = 0.003
 
 

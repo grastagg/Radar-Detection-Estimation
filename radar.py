@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 
 class RadarCircularPattern:
-    def __init__(self, position = (600,600), range=600, beamwidth = 15 * np.pi/180, angular_rate = 3, phase = 0, output_power = 1000):
+    def __init__(self, position = (600,600), range=600, beamwidth = 15 * np.pi/180, angular_rate = 3, phase = 0, outputPower = 1000, transmitGain = 1):
         '''
         position: location of radar transmitter and reciever 
         range: distance at which radar can detect agent
@@ -16,7 +16,8 @@ class RadarCircularPattern:
         # self.power_output = power_output
         self.beamwidth = beamwidth
         self.angular_rate = angular_rate
-        self.output_power = output_power
+        self.outputPower = outputPower
+        self.transmitGain = transmitGain
 
         
         self.current_angle = phase
