@@ -232,12 +232,12 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         color_list = ['tab:blue','tab:orange','tab:green','tab:purple', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
         c = None
 
-        # for i,angle_indicies in enumerate([self.outlier_indicies]):
-        #     if angle_indicies.size > 0:
-        #         self.plot_angle_of_arrival_measurements(ax, 'r', np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
+        for i,angle_indicies in enumerate([self.outlier_indicies]):
+            if angle_indicies.size > 0:
+                self.plot_angle_of_arrival_measurements(ax, 'r', np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
         if len(self.estimated_emmiter_params) > 0:
-            # for i,angle_indicies in enumerate(self.group_lists):
-            #     self.plot_angle_of_arrival_measurements(ax, color_list[i], np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
+            for i,angle_indicies in enumerate(self.group_lists):
+                self.plot_angle_of_arrival_measurements(ax, color_list[i], np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
             
 
             for i,estimated_emmiter_params in enumerate(self.estimated_emmiter_params):

@@ -118,7 +118,7 @@ def main():
             # batchEmiterAndPowerEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.measurement_power_values[-1])
             multipleEmitterOnlineLocationAndPowerEstimator.add_measurement(agent.measurementLocations[-1], [agent.measurementAngleOfArrivalValues[-1], agent.measurementPowerValues[-1]])
             if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
-                probabilityOfDetectionMap.compute_probability_of_detection_at_points(X_test, radarList[0], multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params[0], agentList[0])
+                probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, radarList[0], multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, agentList[0])
 
 
             # if len(multipleRadarLocationEstimator.estimated_emmiter_locations) > 0:

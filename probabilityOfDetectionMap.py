@@ -36,6 +36,21 @@ class ProbabilityOfDetectionMap():
     
         self.pdMap = pdMap
         return pdMap
+
+    def compute_probability_of_detection_at_points_multiple_radar(self, X_test, radar, estimatedRadarParamsList, agent):
+        probabilityOfNoDetection = np.ones(len(X_test))
+        
+        for j, estimatedRadarParams in enumerate(estimatedRadarParamsList):
+            radarXY = estimatedRadarParams[0:2]
+            for i,position in enumerate(X_test):
+                distance = np.linalg.norm(radarXY-position)
+                snr = self.signal_to_noise_ration(estimatedRadarParams[2], radar.recieveGain, radar.wavelength, agent.radarCrossSection, radar.pulseWidth, distance, radar.systemTemperature)
+                probabilityOfNoDetection[i] *= (1-self.probability_of_detection(radar.probabilityOfFalseAlarm, snr))
+    
+        self.pdMap = 1 - probabilityOfNoDetection 
+        return self.pdMap
+
+        
     
     def plot(self, ax):
         if self.pdMap is not None:
