@@ -50,12 +50,24 @@ def plot_scene(radarList, agentList,bounds,plotIndex,emmitterLocationEstimator, 
         if probabilityOfDetectionMap is not None:
             c = probabilityOfDetectionMap.plot(ax)
         if c is not None:
+            cb = plt.colorbar(c)
+            
+        for radar in radarList:
+            radar.plot_view_area(ax)
+        plt.title(numMeasurements-1)
+        plt.savefig('images/pd_mean/'+str(plotIndex)+'.png')
+
+        if c is not None:
+            cb.remove()
+        if probabilityOfDetectionMap is not None:
+            c = probabilityOfDetectionMap.plot_cov(ax)
+        if c is not None:
             plt.colorbar(c)
             
         for radar in radarList:
             radar.plot_view_area(ax)
         plt.title(numMeasurements-1)
-        plt.savefig('images/'+str(plotIndex)+'.png')
+        plt.savefig('images/pd_cov/'+str(plotIndex)+'.png')
         plt.close()
 
 
@@ -107,29 +119,17 @@ def main():
         for radar in radarList:
             radar.update(dt)
         for agent in agentList:
-            agent.update(50,0,dt,radarList)
+            agent.update(50,.1,dt,radarList)
         if len(agent.measurementAngleOfArrivalValues) != currentNumberOfMeasurements:
             print("adding measurement:", currentNumberOfMeasurements)
             print("truth group lists",agent.truthEmitterCorrespondence)
             currentNumberOfMeasurements += 1
-            # emmitterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
-            # batchEmmiterLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
-            # multipleRadarLocationEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
-            # batchEmiterAndPowerEstimator.add_measurement(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.measurement_power_values[-1])
             multipleEmitterOnlineLocationAndPowerEstimator.add_measurement(agent.measurementLocations[-1], [agent.measurementAngleOfArrivalValues[-1], agent.measurementPowerValues[-1]])
             if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
-                probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, radarList[0], multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, agentList[0])
+                # probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, radarList[0], multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, agentList[0])
+                probabilityOfDetectionMap.compute_probability_of_detection_at_points(X_test, radarList[0], multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params[0],multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances[0], agentList[0])
 
 
-            # if len(multipleRadarLocationEstimator.estimated_emmiter_locations) > 0:
-            #     multipleEmitterPowerParametricEstimator.fit(multipleRadarLocationEstimator.measurement_locations, agent.measurement_power_values, multipleRadarLocationEstimator.estimated_emmiter_locations, multipleRadarLocationEstimator.group_lists)
-            
-            # if emmitterLocationEstimator.alreadyComputedInitialEmitterLocation:
-            #     predictiveMean, predictiveCov = gp.gp_prediction(X_test, agent.measurement_locations, agent.measurement_power_values, emmitterLocationEstimator.xHat)
-            # if len(agent.measurement_angle_of_arrival_values) == 2:
-            #     xhat, cov = emmitterLocationEstimator.initial_emmitter_location_estimations(agent.measurement_locations[0], agent.measurement_angle_of_arrival_values[0], None, agent.angle_measurement_std_dev**2, agent.measurement_locations[1], agent.measurement_angle_of_arrival_values[1], None, agent.angle_measurement_std_dev**2)
-            # if len(agent.measurement_angle_of_arrival_values) > 2:
-            #     emmitterLocationEstimator.ekf_update(agent.measurement_locations[-1], agent.measurement_angle_of_arrival_values[-1], agent.angle_measurement_std_dev**2)
 
         plotIndex += 1
         tCurrent += dt

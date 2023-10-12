@@ -29,7 +29,8 @@ simulationEndTime = 40
 simulationTimestep = .1
 
 #radar parameters
-radarPositions = [(200,800), (500,600), (800,800), (1100,600)]
+radarPositions = [(600,600)]
+# radarPositions = [(200,800), (500,600), (800,800), (1100,600)]
 radarPhases = [0,np.pi, np.pi/2, np.pi/3]
 radarAngularRates = [3,2.5,3.5,4]
 radarOutputPower = 100000
@@ -43,7 +44,8 @@ radarList = create_radar_list(radarPositions, radarPhases, radarAngularRates, ra
 
 
 #agent parameters
-agentInitialStates = [[10,10,0]]
+# agentInitialStates = [[10,10,0]]
+agentInitialStates = [[600,10,0]]
 agentSensingRange = 900
 agentPowerMeasurementStdDev = 0.001
 agentAngleMeasurementStdDev = (2*np.pi/180)
@@ -52,6 +54,16 @@ agentELINTSystemLoss = 1
 radarMeasurementCoeff = (agentELINTAnteneaGain * radarWavelength**2)/((4*np.pi)**2 * agentELINTSystemLoss)
 agentRadarCrossSection = 1
 agentList = create_agent_list(agentInitialStates, len(radarList), agentSensingRange, agentPowerMeasurementStdDev, agentAngleMeasurementStdDev, agentELINTAnteneaGain, agentELINTSystemLoss, radarWavelength, agentRadarCrossSection)
+
+
+#unknown parameters
+radarRecieveGainPriorMean = 1
+radarRecieveGainPriorVariance = .1
+
+radarProbabilityOfFalseAlarmPriorMean = radarProbabilityOfFalseAlarm
+radarPulseWidthPriorMean = radarPulseWidth
+radarWavelengthPriorMean = radarWavelength
+radarSystemTemperaturePriorMean = radarSystemTemperature
 
 
 def create_test_points(numTestPoints, bounds):
