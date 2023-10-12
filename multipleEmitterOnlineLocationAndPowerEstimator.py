@@ -172,8 +172,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                 measurement_mahalonobis_distance = self.mahalonobis_distance(measurement_value, measurement_location, emitter_param, self.estimated_emmiter_params_covariances[i])
                 measurement_mahalonobis_distance_in_x_y = self.mahalonobis_distance_in_x_y_space(measurement_value[0], measurement_location, emitter_param[0:2], self.estimated_emmiter_params_covariances[i][0:2,0:2])
                 combined_mahalanobis_distance = measurement_mahalonobis_distance_in_x_y + measurement_mahalonobis_distance
-                print("measurement_mahalonobis_distance",measurement_mahalonobis_distance)
-                print("measurement_mahalonobis_distance_in_x_y",measurement_mahalonobis_distance_in_x_y)
+                # print("measurement_mahalonobis_distance",measurement_mahalonobis_distance)
+                # print("measurement_mahalonobis_distance_in_x_y",measurement_mahalonobis_distance_in_x_y)
                 # if measurement_mahalonobis_distance < minimum_mal_dist:
                 #     minimum_mal_dist  = measurement_mahalonobis_distance
                 #     minimum_mal_dist_index = i
@@ -188,7 +188,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                 
                 estimated_emmiter_param,  estimated_emmiter_params_covariances = self.ekf_update(measurement_location, measurement_value, self.measurement_cov, self.estimated_emmiter_params[minimum_mal_dist_index], self.estimated_emmiter_params_covariances[minimum_mal_dist_index])
                 if estimated_emmiter_param[2] < 0:
-                    print("estimated power level too small")
+                    # print("estimated power level too small")
                     updated_using_ekf = False
                 else:
                     self.estimated_emmiter_params[minimum_mal_dist_index] = estimated_emmiter_param
@@ -201,6 +201,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                 self.fit_ransac_model(np.array(self.measurement_locations)[self.outlier_indicies], np.array(self.measurement_values)[self.outlier_indicies], self.outlier_indicies)
             self.delete_lowest_probability_model()
             print("ransac prediction", self.estimated_emmiter_params)
+            print("covariance", self.estimated_emmiter_params_covariances)
             print("group lists", self.group_lists)
             print("outliers", self.outlier_indicies)
             print()
@@ -307,7 +308,7 @@ class NonlinearEstimator():
 
     def fit(self, X, y):
         # x0 = np.array([500,500,100])
-        x0 = np.array([600,600,1000])
+        x0 = np.array([600,600,100000])
         sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(y,X), bounds=([0,0,10],[2000,2000,np.inf]))
         # sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(y,X), bounds=([-np.inf,-np.inf,10],[np.inf,np.inf,np.inf]))
         self.estimated_emmiter_params = sol.x
@@ -352,7 +353,33 @@ class NonlinearEstimator():
         combined_measurment_cov = block_diag(*[self.measurement_covariance for i in X])
         emitter_params_cov = np.linalg.inv(jacobians.T@np.linalg.inv(combined_measurment_cov)@jacobians)
         return emitter_params_cov
+    def temp(self, x, X_):
+        return self.measurement_model(x[0],x[1],x[2], X_[0],X_[1]).reshape((2,))
 
+    def get_gradient_finite_diff(self,f,x,h,X_):
+        #calculate gradient using finite differencing
+        x = np.array(x)
+
+        #store the function value at x
+        fx = f(x,X_)
+
+        #initialize the jacobian matrix (# functions by # variables
+        grad = np.zeros((len(fx),len(x)))
+
+        #this loops through each column of the Jacobian
+        for i in range(len(x)):
+            #the next three lines creates a step vector where all elements are zeros except for the current step direction
+            epsilon = np.zeros(len(x))
+            step = h * (1 + abs(x[i]))
+            epsilon[i] = step
+
+            #add the step to the x vector
+            xi = x + epsilon
+
+            grad[:,i] = (f(xi,X_) - fx)/step
+            # print("grad[:,i]",grad[:,i])
+
+        return grad
     def get_params(self, deep=False):
         # return {"position": self.estimated_emmiter_location}
         return {"measurement_cov": self.measurement_covariance, "radar_measurement_coeff":self.radar_measurement_coeff}

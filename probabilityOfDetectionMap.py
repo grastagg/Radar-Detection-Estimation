@@ -26,7 +26,6 @@ class ProbabilityOfDetectionMap():
         return self.probability_of_detection(radar.probabilityOfFalseAlarm, snr)
     
     def compute_probability_of_detection_at_points(self, X_test, radar, estimatedRadarParams, estimatedRadarParamsCov, agent):
-        print("TEST", estimatedRadarParams)
         pdMap = np.zeros(len(X_test))
         pdCovMap = np.zeros(len(X_test))
         

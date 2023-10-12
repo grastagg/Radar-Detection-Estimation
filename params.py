@@ -41,15 +41,15 @@ radarProbabilityOfFalseAlarm = 1e-6
 radarPulseWidth = 1.1e-5
 radarSystemTemperature = 745.4148
 radarList = create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm)
-
+###!!!!!!!!!!!!!!CHANGE THE ANTENNEA GAINS!!!!!!!
 
 #agent parameters
 # agentInitialStates = [[10,10,0]]
 agentInitialStates = [[600,10,0]]
 agentSensingRange = 900
-agentPowerMeasurementStdDev = 0.001
+agentPowerMeasurementStdDev = 0.0001
 agentAngleMeasurementStdDev = (2*np.pi/180)
-agentELINTAnteneaGain = 1
+agentELINTAnteneaGain = 34
 agentELINTSystemLoss = 1
 radarMeasurementCoeff = (agentELINTAnteneaGain * radarWavelength**2)/((4*np.pi)**2 * agentELINTSystemLoss)
 agentRadarCrossSection = 1
