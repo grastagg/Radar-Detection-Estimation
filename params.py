@@ -1,6 +1,7 @@
 import numpy as np
 from radar import RadarCircularPattern
 from agent import Agent
+from scipy.constants import c
 
 def create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm):
     radarList = []
@@ -20,45 +21,50 @@ def create_agent_list(agentInitialStates, numRadar, agentSensingRange, agentPowe
         
 def db_to_amplitude(db):
     return 10**(db/10)
+
+def frequency_to_wavelength(freq):
+    return c/freq
         
-        
+#TODO: To make simulation more realistic compute the max range the radar can detect a UAV and the max range the UAV can detect the radar or define them probabalistically
         
 
 #simulation parameters
-bounds = (1200, 1200)
+bounds = (12000, 12000) #meters
 numTestPoints = 60
 simulationEndTime = 40
 simulationTimestep = .1
 
 #radar parameters
-radarPositions = [(600,600)]
+radarPositions = [(6000,6000)]
 # radarPositions = [(200,800), (500,600), (800,800), (1100,600)]
 radarPhases = [0,np.pi, np.pi/2, np.pi/3]
 radarAngularRates = [3,2.5,3.5,4]
-radarOutputPower = 1000
-radarTransmitGaindb = 34
-radarRecieveGaindb = 34
+radarOutputPower = 10000
+radarTransmitGaindb = 18
+radarRecieveGaindb = 18
 radarTransmitGain = db_to_amplitude(radarTransmitGaindb)
 radarRecieveGain = db_to_amplitude(radarRecieveGaindb)
-radarWavelength = 0.003
+radarFrequency = 3e9
+radarWavelength = frequency_to_wavelength(radarFrequency)
+print("radarWavelength",radarWavelength)
 radarProbabilityOfFalseAlarm = 1e-6
 radarPulseWidth = 1.1e-5
 radarSystemTemperature = 745.4148
 radarList = create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm)
-###!!!!!!!!!!!!!!CHANGE THE ANTENNEA GAINS!!!!!!!
+print("Actual ERP", radarOutputPower * radarTransmitGain)
 
 #agent parameters
 # agentInitialStates = [[10,10,0]]
-agentInitialStates = [[600,10,0]]
-agentSensingRange = 900
+agentInitialStates = [[6000,10,0]]
+agentSensingRange = 10000
 agentPowerMeasurementStdDev = 0.0001
 agentAngleMeasurementStdDev = (2*np.pi/180)
-agentELINTAnteneaGaindb = 34
+agentELINTAnteneaGaindb = 18
 agentELINTAnteneaGain = db_to_amplitude(agentELINTAnteneaGaindb)
 print(agentELINTAnteneaGain)
 agentELINTSystemLoss = 1
 radarMeasurementCoeff = (agentELINTAnteneaGain * radarWavelength**2)/((4*np.pi)**2 * agentELINTSystemLoss)
-agentRadarCrossSection = 1
+agentRadarCrossSection = .1
 agentList = create_agent_list(agentInitialStates, len(radarList), agentSensingRange, agentPowerMeasurementStdDev, agentAngleMeasurementStdDev, agentELINTAnteneaGain, agentELINTSystemLoss, radarWavelength, agentRadarCrossSection)
 
 

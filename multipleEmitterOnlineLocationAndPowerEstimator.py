@@ -3,6 +3,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.linalg import block_diag
 from matplotlib import colors
+import params
 
 from sklearn.linear_model import RANSACRegressor
 
@@ -307,9 +308,9 @@ class NonlinearEstimator():
         return np.array([self.measurement_model(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1]) for loc in measurement_locations]).reshape((-1,)) - np.array(measurements).reshape((-1,))
 
     def fit(self, X, y):
-        # x0 = np.array([500,500,100])
-        x0 = np.array([600,600,100000])
-        sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(y,X), bounds=([0,0,10],[2000,2000,np.inf]))
+        x0 = np.array([500,500,100])
+        # x0 = np.array([params.bounds[0]/2,params.bounds[1]/2,params.radarOutputPower*params.radarTransmitGain])
+        sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(y,X), bounds=([0,0,10],[params.bounds[0],params.bounds[1],np.inf]))
         # sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(y,X), bounds=([-np.inf,-np.inf,10],[np.inf,np.inf,np.inf]))
         self.estimated_emmiter_params = sol.x
         # self.estimated_emmiter_location_covariances = self.compute_emmitor_estimate_covariance(X, y, self.measurement_variance)

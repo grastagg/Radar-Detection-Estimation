@@ -119,7 +119,7 @@ def main():
         for radar in radarList:
             radar.update(dt)
         for agent in agentList:
-            agent.update(50,.1,dt,radarList)
+            agent.update(134,.025,dt,radarList)
         if len(agent.measurementAngleOfArrivalValues) != currentNumberOfMeasurements:
             print("adding measurement:", currentNumberOfMeasurements)
             print("truth group lists",agent.truthEmitterCorrespondence)
