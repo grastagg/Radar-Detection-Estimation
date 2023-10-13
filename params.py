@@ -18,6 +18,8 @@ def create_agent_list(agentInitialStates, numRadar, agentSensingRange, agentPowe
     
     return agentList
         
+def db_to_amplitude(db):
+    return 10**(db/10)
         
         
         
@@ -33,9 +35,11 @@ radarPositions = [(600,600)]
 # radarPositions = [(200,800), (500,600), (800,800), (1100,600)]
 radarPhases = [0,np.pi, np.pi/2, np.pi/3]
 radarAngularRates = [3,2.5,3.5,4]
-radarOutputPower = 100000
-radarTransmitGain = 1
-radarRecieveGain = 1
+radarOutputPower = 1000
+radarTransmitGaindb = 34
+radarRecieveGaindb = 34
+radarTransmitGain = db_to_amplitude(radarTransmitGaindb)
+radarRecieveGain = db_to_amplitude(radarRecieveGaindb)
 radarWavelength = 0.003
 radarProbabilityOfFalseAlarm = 1e-6
 radarPulseWidth = 1.1e-5
@@ -49,7 +53,9 @@ agentInitialStates = [[600,10,0]]
 agentSensingRange = 900
 agentPowerMeasurementStdDev = 0.0001
 agentAngleMeasurementStdDev = (2*np.pi/180)
-agentELINTAnteneaGain = 34
+agentELINTAnteneaGaindb = 34
+agentELINTAnteneaGain = db_to_amplitude(agentELINTAnteneaGaindb)
+print(agentELINTAnteneaGain)
 agentELINTSystemLoss = 1
 radarMeasurementCoeff = (agentELINTAnteneaGain * radarWavelength**2)/((4*np.pi)**2 * agentELINTSystemLoss)
 agentRadarCrossSection = 1
