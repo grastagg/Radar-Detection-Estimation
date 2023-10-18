@@ -58,7 +58,7 @@ class ProbabilityOfDetectionMap():
         estimatedRadarParamsJacobian = self.pd_jacobian_emittor_params(position, estimatedRadarParams)
 
         
-        return np.squeeze(estimatedRadarParamsJacobian[2:].T @ estimatedRadarParamsCov[2:,2:] @ estimatedRadarParamsJacobian[2:])
+        return np.squeeze(estimatedRadarParamsJacobian[:2].T @ estimatedRadarParamsCov[:2,:2] @ estimatedRadarParamsJacobian[:2])
         
 
 

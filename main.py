@@ -112,22 +112,26 @@ def main():
     plotIndex = 0
 
     currentNumberOfMeasurements = 0
+    currentNumberOfMeasurementsArray = np.zeros(len(agentList),dtype=int)
+
 
     
     while tCurrent < tEnd:
         plot_scene(radarList, agentList, bounds, plotIndex,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleRadarLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmiterAndPowerEstimator, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap)
         for radar in radarList:
             radar.update(dt)
-        for agent in agentList:
+        for i,agent in enumerate(agentList):
             agent.update(134,.025,dt,radarList)
-        if len(agent.measurementAngleOfArrivalValues) != currentNumberOfMeasurements:
-            print("adding measurement:", currentNumberOfMeasurements)
-            print("truth group lists",agent.truthEmitterCorrespondence)
-            currentNumberOfMeasurements += 1
-            multipleEmitterOnlineLocationAndPowerEstimator.add_measurement(agent.measurementLocations[-1], [agent.measurementAngleOfArrivalValues[-1], agent.measurementPowerValues[-1]])
-            if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
-                # probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, radarList[0], multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, agentList[0])
-                probabilityOfDetectionMap.compute_probability_of_detection_at_points(X_test, radarList[0], multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params[0],multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances[0], agentList[0])
+            if len(agent.measurementAngleOfArrivalValues) != currentNumberOfMeasurementsArray[i]:
+                print("adding measurement:", currentNumberOfMeasurementsArray[i], "from agent",i)
+                print("measurement:", currentNumberOfMeasurements)
+                print("truth group lists",agent.truthEmitterCorrespondence)
+                currentNumberOfMeasurementsArray[i] += 1
+                multipleEmitterOnlineLocationAndPowerEstimator.add_measurement(agent.measurementLocations[-1], [agent.measurementAngleOfArrivalValues[-1], agent.measurementPowerValues[-1]])
+                currentNumberOfMeasurements += 1
+                if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
+                    # probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, radarList[0], multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, agentList[0])
+                    probabilityOfDetectionMap.compute_probability_of_detection_at_points(X_test, radarList[0], multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params[0],multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances[0], agentList[0])
 
 
 

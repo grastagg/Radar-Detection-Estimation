@@ -27,7 +27,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.inlier_mask = None
         self.group_lists = []
 
-        self.mahalonobis_distance_inlier_threshold = 3
+        # self.mahalonobis_distance_inlier_threshold = 3.5
+        self.mahalonobis_distance_inlier_threshold = 10
         self.mal_dist_opt_point = None
         
         self.radar_measurement_coeff = radar_measurement_coeff       
@@ -173,8 +174,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                 measurement_mahalonobis_distance = self.mahalonobis_distance(measurement_value, measurement_location, emitter_param, self.estimated_emmiter_params_covariances[i])
                 measurement_mahalonobis_distance_in_x_y = self.mahalonobis_distance_in_x_y_space(measurement_value[0], measurement_location, emitter_param[0:2], self.estimated_emmiter_params_covariances[i][0:2,0:2])
                 combined_mahalanobis_distance = measurement_mahalonobis_distance_in_x_y + measurement_mahalonobis_distance
-                # print("measurement_mahalonobis_distance",measurement_mahalonobis_distance)
-                # print("measurement_mahalonobis_distance_in_x_y",measurement_mahalonobis_distance_in_x_y)
+                print("measurement_mahalonobis_distance",measurement_mahalonobis_distance)
+                print("measurement_mahalonobis_distance_in_x_y",measurement_mahalonobis_distance_in_x_y)
                 # if measurement_mahalonobis_distance < minimum_mal_dist:
                 #     minimum_mal_dist  = measurement_mahalonobis_distance
                 #     minimum_mal_dist_index = i
@@ -308,7 +309,7 @@ class NonlinearEstimator():
         return np.array([self.measurement_model(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1]) for loc in measurement_locations]).reshape((-1,)) - np.array(measurements).reshape((-1,))
 
     def fit(self, X, y):
-        x0 = np.array([500,500,100])
+        x0 = np.array([params.bounds[0]/2,params.bounds[1]/2,params.radarOutputPower*params.radarTransmitGain])
         # x0 = np.array([params.bounds[0]/2,params.bounds[1]/2,params.radarOutputPower*params.radarTransmitGain])
         sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(y,X), bounds=([0,0,10],[params.bounds[0],params.bounds[1],np.inf]))
         # sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(y,X), bounds=([-np.inf,-np.inf,10],[np.inf,np.inf,np.inf]))
