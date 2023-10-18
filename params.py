@@ -35,7 +35,8 @@ simulationEndTime = 40
 simulationTimestep = .1
 
 #radar parameters
-radarPositions = [(6000,6000)]
+radarPositions = [(6000,6000), (2000,8000), (8000,8000)]
+# radarPositions = [(6000,6000)]
 # radarPositions = [(200,800), (500,600), (800,800), (1100,600)]
 radarPhases = [0,np.pi, np.pi/2, np.pi/3]
 radarAngularRates = [3,2.5,3.5,4]
@@ -55,7 +56,7 @@ print("Actual ERP", radarOutputPower * radarTransmitGain)
 
 #agent parameters
 # agentInitialStates = [[10,10,0]]
-agentInitialStates = [[6000,10,0],[10,6000,-np.pi/2]]
+agentInitialStates = [[6000,10,0],[2000,2000,-np.pi/4]]
 agentSensingRange = 10000
 agentPowerMeasurementStdDev = 0.0001
 agentAngleMeasurementStdDev = (2*np.pi/180)

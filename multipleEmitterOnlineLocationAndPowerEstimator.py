@@ -28,7 +28,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.group_lists = []
 
         # self.mahalonobis_distance_inlier_threshold = 3.5
-        self.mahalonobis_distance_inlier_threshold = 10
+        self.mahalonobis_distance_inlier_threshold = 2
         self.mal_dist_opt_point = None
         
         self.radar_measurement_coeff = radar_measurement_coeff       
@@ -176,15 +176,15 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                 combined_mahalanobis_distance = measurement_mahalonobis_distance_in_x_y + measurement_mahalonobis_distance
                 print("measurement_mahalonobis_distance",measurement_mahalonobis_distance)
                 print("measurement_mahalonobis_distance_in_x_y",measurement_mahalonobis_distance_in_x_y)
-                # if measurement_mahalonobis_distance < minimum_mal_dist:
-                #     minimum_mal_dist  = measurement_mahalonobis_distance
-                #     minimum_mal_dist_index = i
+                if measurement_mahalonobis_distance < minimum_mal_dist:
+                    minimum_mal_dist  = measurement_mahalonobis_distance
+                    minimum_mal_dist_index = i
                 # if measurement_mahalonobis_distance_in_x_y < minimum_mal_dist:
                 #     minimum_mal_dist  = measurement_mahalonobis_distance_in_x_y
                 #     minimum_mal_dist_index = i
-                if combined_mahalanobis_distance < minimum_mal_dist:
-                    minimum_mal_dist  = combined_mahalanobis_distance
-                    minimum_mal_dist_index = i
+                # if combined_mahalanobis_distance < minimum_mal_dist:
+                #     minimum_mal_dist  = combined_mahalanobis_distance
+                #     minimum_mal_dist_index = i
 
             if minimum_mal_dist < self.mahalonobis_distance_inlier_threshold:
                 
@@ -358,30 +358,6 @@ class NonlinearEstimator():
     def temp(self, x, X_):
         return self.measurement_model(x[0],x[1],x[2], X_[0],X_[1]).reshape((2,))
 
-    def get_gradient_finite_diff(self,f,x,h,X_):
-        #calculate gradient using finite differencing
-        x = np.array(x)
-
-        #store the function value at x
-        fx = f(x,X_)
-
-        #initialize the jacobian matrix (# functions by # variables
-        grad = np.zeros((len(fx),len(x)))
-
-        #this loops through each column of the Jacobian
-        for i in range(len(x)):
-            #the next three lines creates a step vector where all elements are zeros except for the current step direction
-            epsilon = np.zeros(len(x))
-            step = h * (1 + abs(x[i]))
-            epsilon[i] = step
-
-            #add the step to the x vector
-            xi = x + epsilon
-
-            grad[:,i] = (f(xi,X_) - fx)/step
-            # print("grad[:,i]",grad[:,i])
-
-        return grad
     def get_params(self, deep=False):
         # return {"position": self.estimated_emmiter_location}
         return {"measurement_cov": self.measurement_covariance, "radar_measurement_coeff":self.radar_measurement_coeff}
