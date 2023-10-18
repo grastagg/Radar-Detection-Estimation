@@ -84,11 +84,10 @@ class ProbabilityOfDetectionMap():
         d_pd_d_erp = -(Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*np.exp(np.log(Pfa)/((Gr*rcs*tau_p*wavelength**2*ERP)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)))/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2*((Gr*rcs*tau_p*wavelength**2*ERP)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)**2)
         d_pd_d_xem = -(ERP*Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*(x-x_em)*np.exp(np.log(Pfa)/((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)))/(16*np.pi**3*T_s*k*((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)**2*((x-x_em)**2+(y-y_em)**2)**3)
         d_pd_d_yem = -(ERP*Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*(y-y_em)*np.exp(np.log(Pfa)/((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)))/(16*np.pi**3*T_s*k*((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)**2*((y-y_em)**2+(x-x_em)**2)**3)
-        SNR = self.signal_to_noise_ration(ERP, Gr, wavelength, rcs, tau_p, np.sqrt((x-x_em)**2+(y-y_em)**2),T_s)
-        my_grad = -np.exp((np.log(Pfa)/(SNR+1))) * (np.log(Pfa))/(SNR+1)**2 * (Gr*wavelength**2*rcs*tau_p)/((4*np.pi)**3*np.sqrt((x-x_em)**2+(y-y_em)**2)**4*k*T_s)
-        test_jac = self.get_gradient_finite_diff(self.f,estimatedRadarParams,1e-6, radar, position)
+        # SNR = self.signal_to_noise_ration(ERP, Gr, wavelength, rcs, tau_p, np.sqrt((x-x_em)**2+(y-y_em)**2),T_s)
+        # my_grad = -np.exp((np.log(Pfa)/(SNR+1))) * (np.log(Pfa))/(SNR+1)**2 * (Gr*wavelength**2*rcs*tau_p)/((4*np.pi)**3*np.sqrt((x-x_em)**2+(y-y_em)**2)**4*k*T_s)
+        # test_jac = self.get_gradient_finite_diff(self.f,estimatedRadarParams,1e-6, radar, position)
         # jac = jacfwd(self.jax_pd)(estimatedRadarParams,position)
-        a=0
 
         return np.array([[d_pd_d_xem],[d_pd_d_yem],[d_pd_d_erp]])
         # return np.array([[jac[0]],[jac[1]],[jac[2]]])
@@ -100,7 +99,8 @@ class ProbabilityOfDetectionMap():
         y = position[1]
         distance = jnp.sqrt((x-x_em)**2+(y-y_em)**2)
         # snr = (ERP*params.radarRecieveGain*params.radarWavelength**2*params.agentRadarCrossSection*params.radarPulseWidth)/((4*jnp.pi)**3*distance**4*Boltzmann*params.radarSystemTemperature)
-        snr = self.signal_to_noise_ration(ERP, params.radarRecieveGain, params.radarWavelength, params.agentRadarCrossSection, params.radarPulseWidth, jnp.sqrt((x-x_em)**2+(y-y_em)**2))
+        snr = self.signal_to_noise_ration(ERP, params.radarRecieveGain, params.radarWavelength, params.agentRadarCrossSection, params.radarPulseWidth, distance, params.radarSystemTemperature)
+        print("snr",snr)
         return jnp.exp((jnp.log(params.radarProbabilityOfFalseAlarm))/(snr + 1))
     def f(self, x, radar, position):
         return np.array([self.compute_probability_of_detection_at_xy(radar, position, x)])

@@ -35,9 +35,8 @@ simulationEndTime = 40
 simulationTimestep = .1
 
 #radar parameters
-radarPositions = [(6000,6000), (2000,8000), (8000,8000)]
-# radarPositions = [(6000,6000)]
-# radarPositions = [(200,800), (500,600), (800,800), (1100,600)]
+# radarPositions = [(6000,6000), (2000,8000), (8000,8000)]
+radarPositions = [(6000,6000)]
 radarPhases = [0,np.pi, np.pi/2, np.pi/3]
 radarAngularRates = [3,2.5,3.5,4]
 radarOutputPower = 10000
@@ -70,7 +69,7 @@ agentList = create_agent_list(agentInitialStates, len(radarList), agentSensingRa
 
 
 #unknown parameters
-radarRecieveGainPriorMean = 1
+radarRecieveGainPriorMean = radarRecieveGain
 radarRecieveGainPriorVariance = .1
 
 radarProbabilityOfFalseAlarmPriorMean = radarProbabilityOfFalseAlarm
