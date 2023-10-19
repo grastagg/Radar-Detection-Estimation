@@ -73,9 +73,20 @@ radarRecieveGainPriorMean = radarRecieveGain
 radarRecieveGainPriorVariance = .1
 
 radarProbabilityOfFalseAlarmPriorMean = radarProbabilityOfFalseAlarm
+radarProbabilityOfFalseAlarmPriorVariance = 1e-8
+
 radarPulseWidthPriorMean = radarPulseWidth
+# radarPulseWidthPriorVariance = 1e-6
+radarPulseWidthPriorVariance = 0
+
 radarWavelengthPriorMean = radarWavelength
+# radarWavelengthPriorVariance = 1e-2
+radarWavelengthPriorVariance = 0
+
 radarSystemTemperaturePriorMean = radarSystemTemperature
+# radarSystemTemperaturePriorVariance = 10
+radarSystemTemperaturePriorVariance = 0
+
 
 
 def create_test_points(numTestPoints, bounds):

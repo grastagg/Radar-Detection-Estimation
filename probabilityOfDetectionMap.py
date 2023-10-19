@@ -57,9 +57,11 @@ class ProbabilityOfDetectionMap():
     def probability_of_detection_uncertainty_single_radar_at_xy(self, position, radar, estimatedRadarParams, estimatedRadarParamsCov, agent):
         estimatedRadarParamsJacobian = self.pd_jacobian_emittor_params(position, estimatedRadarParams)
         radarParametersJacobian = self.pd_jacobian_unkown_radar_parameters(position, estimatedRadarParams)
+        # radarParametersCovariance = np.zeros((radarParametersJacobian.shape[0],radarParametersJacobian.shape[0]))
+        radarParametersCovariance = np.diag([params.radarRecieveGainPriorVariance, params.radarWavelengthPriorVariance, 0, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorVariance])
 
         
-        return np.squeeze(estimatedRadarParamsJacobian.T @ estimatedRadarParamsCov@estimatedRadarParamsJacobian)
+        return np.squeeze(estimatedRadarParamsJacobian @ estimatedRadarParamsCov@estimatedRadarParamsJacobian.T + radarParametersJacobian @ radarParametersCovariance @ radarParametersJacobian.T)
         
 
 
@@ -85,7 +87,7 @@ class ProbabilityOfDetectionMap():
         d_pd_d_erp = -(Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*np.exp(np.log(Pfa)/((Gr*rcs*tau_p*wavelength**2*ERP)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)))/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2*((Gr*rcs*tau_p*wavelength**2*ERP)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)**2)
         d_pd_d_xem = -(ERP*Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*(x-x_em)*np.exp(np.log(Pfa)/((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)))/(16*np.pi**3*T_s*k*((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)**2*((x-x_em)**2+(y-y_em)**2)**3)
         d_pd_d_yem = -(ERP*Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*(y-y_em)*np.exp(np.log(Pfa)/((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)))/(16*np.pi**3*T_s*k*((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)**2*((y-y_em)**2+(x-x_em)**2)**3)
-        return np.array([[d_pd_d_xem],[d_pd_d_yem],[d_pd_d_erp]])
+        return np.array([d_pd_d_xem,d_pd_d_yem,d_pd_d_erp])
         # return np.array([[jac[0]],[jac[1]],[jac[2]]])
     
     def pd_jacobian_unkown_radar_parameters(self, position, estimatedRadarParams):
@@ -102,7 +104,7 @@ class ProbabilityOfDetectionMap():
         T_s = params.radarSystemTemperaturePriorMean
         k = Boltzmann
 
-        parameters = [Gr, wavelength, rcs, tau_p, T_s, Pfa]
+        # parameters = [Gr, wavelength, rcs, tau_p, T_s, Pfa]
         # jac = jacfwd(self.jax_pd, 2)(estimatedRadarParams,position, parameters)
         SNR = self.signal_to_noise_ration(ERP, Gr, wavelength, rcs, tau_p, np.sqrt((x-x_em)**2+(y-y_em)**2),T_s)
 
@@ -112,6 +114,8 @@ class ProbabilityOfDetectionMap():
         d_pd_d_tau_p = -np.exp((np.log(Pfa)/(SNR+1))) * (np.log(Pfa))/(SNR+1)**2 * (Gr*ERP*wavelength**2*rcs)/((4*np.pi)**3*np.sqrt((x-x_em)**2+(y-y_em)**2)**4*k*T_s)
         d_pd_d_T_s = np.exp((np.log(Pfa)/(SNR+1))) * (np.log(Pfa))/(SNR+1)**2 * (Gr*ERP*wavelength**2*rcs*tau_p)/((4*np.pi)**3*np.sqrt((x-x_em)**2+(y-y_em)**2)**4*k*T_s**2)
         d_pd_d_Pfa = 1/(SNR+1) * np.exp(np.log(Pfa)/(SNR+1)) * 1/Pfa
+
+        return np.array([d_pd_d_Gr, d_pd_d_wavelength, d_pd_d_rcs, d_pd_d_tau_p, d_pd_d_T_s, d_pd_d_Pfa])
 
 
         
