@@ -73,7 +73,11 @@ class ProbabilityOfDetectionMap():
         return self.pdMap, self.pdCovMap
     
     # def probability_of_detection_uncertainty_multiple_radar_at_xy(position, estimatedRadarParamsList, estimatedRadarParamsCovList):
-
+    def multi_radar_jacobian_test_x(self, pdList):
+        out = 1
+        for pd in pdList:
+            out *= (1-pd)
+        return 1-out
     
     
     def probability_of_detection_uncertainty_single_radar_at_xy(self, position, radar, estimatedRadarParams, estimatedRadarParamsCov):
