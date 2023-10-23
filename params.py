@@ -29,14 +29,14 @@ def frequency_to_wavelength(freq):
         
 
 #simulation parameters
-bounds = (12000, 12000) #meters
+bounds = (20000, 20000) #meters
 numTestPoints = 60
 simulationEndTime = 40
 simulationTimestep = .1
 
 #radar parameters
-# radarPositions = [(6000,6000), (2000,8000), (8000,8000)]
-radarPositions = [(6000,6000)]
+radarPositions = [(10000,10000), (6000,12000),(16000, 10000)]
+# radarPositions = [(6000,6000)]
 radarPhases = [0,np.pi, np.pi/2, np.pi/3]
 radarAngularRates = [3,2.5,3.5,4]
 radarOutputPower = 10000
@@ -55,7 +55,7 @@ print("Actual ERP", radarOutputPower * radarTransmitGain)
 
 #agent parameters
 # agentInitialStates = [[10,10,0]]
-agentInitialStates = [[6000,10,0],[2000,2000,-np.pi/4]]
+agentInitialStates = [[10000,4010,0],[6000,6000,-np.pi/4]]
 agentSensingRange = 10000
 agentPowerMeasurementStdDev = 0.001
 agentAngleMeasurementStdDev = (5*np.pi/180)
