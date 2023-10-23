@@ -57,8 +57,8 @@ print("Actual ERP", radarOutputPower * radarTransmitGain)
 # agentInitialStates = [[10,10,0]]
 agentInitialStates = [[6000,10,0],[2000,2000,-np.pi/4]]
 agentSensingRange = 10000
-agentPowerMeasurementStdDev = 0.0001
-agentAngleMeasurementStdDev = (2*np.pi/180)
+agentPowerMeasurementStdDev = 0.001
+agentAngleMeasurementStdDev = (5*np.pi/180)
 agentELINTAnteneaGaindb = 18
 agentELINTAnteneaGain = db_to_amplitude(agentELINTAnteneaGaindb)
 print(agentELINTAnteneaGain)
@@ -70,10 +70,10 @@ agentList = create_agent_list(agentInitialStates, len(radarList), agentSensingRa
 
 #unknown parameters
 radarRecieveGainPriorMean = radarRecieveGain
-radarRecieveGainPriorVariance = .1
+radarRecieveGainPriorVariance = 0
 
 radarProbabilityOfFalseAlarmPriorMean = radarProbabilityOfFalseAlarm
-radarProbabilityOfFalseAlarmPriorVariance = 1e-8
+radarProbabilityOfFalseAlarmPriorVariance = 0
 
 radarPulseWidthPriorMean = radarPulseWidth
 # radarPulseWidthPriorVariance = 1e-6
