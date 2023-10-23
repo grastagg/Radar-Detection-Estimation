@@ -28,7 +28,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.group_lists = []
 
         # self.mahalonobis_distance_inlier_threshold = 3.5
-        self.mahalonobis_distance_inlier_threshold = 2
+        self.mahalonobis_distance_inlier_threshold = 2.5
         self.mal_dist_opt_point = None
         
         self.radar_measurement_coeff = radar_measurement_coeff       
@@ -56,7 +56,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
     
 
     def fit_ransac_model(self, measurement_locations, measurements, original_index):
-        if len(measurements) > 4:
+        if len(measurements) > 5:
             try:
                 def loss(y_true, y_pred, X, estimator):
                     mean = estimator.get_estimate_emmitor_params()
@@ -235,16 +235,16 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         color_list = ['tab:blue','tab:orange','tab:green','tab:purple', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
         c = None
 
-        for i,angle_indicies in enumerate([self.outlier_indicies]):
-            if angle_indicies.size > 0:
-                self.plot_angle_of_arrival_measurements(ax, 'r', np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
+        # for i,angle_indicies in enumerate([self.outlier_indicies]):
+        #     if angle_indicies.size > 0:
+        #         self.plot_angle_of_arrival_measurements(ax, 'r', np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
         if len(self.estimated_emmiter_params) > 0:
-            for i,angle_indicies in enumerate(self.group_lists):
-                self.plot_angle_of_arrival_measurements(ax, color_list[i], np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
+            # for i,angle_indicies in enumerate(self.group_lists):
+            #     self.plot_angle_of_arrival_measurements(ax, color_list[i], np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
             
 
             for i,estimated_emmiter_params in enumerate(self.estimated_emmiter_params):
-                ax.scatter(estimated_emmiter_params[0], estimated_emmiter_params[1], marker='x', c = 'm')
+                ax.scatter(estimated_emmiter_params[0], estimated_emmiter_params[1], marker='x', c = 'g')
                 # c = self.plot_esimate_1_sigma_bounds(ax, estimated_emmiter_params, self.estimated_emmiter_params_covariances[i])
         # if self.mal_dist_opt_point is not None:
         #     ax.scatter(self.mal_dist_opt_point[0], self.mal_dist_opt_point[1])
