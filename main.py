@@ -37,15 +37,17 @@ def plot_scene(radarList, agentList,bounds,plotIndex,emmitterLocationEstimator, 
         if batchEmmiterLocationEstimator is not None:
             batchEmmiterLocationEstimator.plot(ax)
         if multipleEmmiterLocationEstimator is not None:
-            multipleEmmiterLocationEstimator.plot(ax)
-        # c = multipleEmitterPowerParametricEstimator.plot(ax)
-        # if c is not None:
-        #     plt.colorbar(c)
+            c = multipleEmmiterLocationEstimator.plot(ax)
         if batchEmitterLocationAndPowerEstimator is not None:
-            batchEmitterLocationAndPowerEstimator.plot(ax, plot_var = True)
+            c = batchEmitterLocationAndPowerEstimator.plot(ax, plot_var = True)
 
-        if probabilityOfDetectionMap is not None:
-            c = probabilityOfDetectionMap.plot(ax)
+        # if probabilityOfDetectionMap is not None:
+        #     c = probabilityOfDetectionMap.plot(ax)
+        # if c is not None:
+        #     cb = plt.colorbar(c)
+        if multipleEmitterOnlineLocationAndPowerEstimator is not None:
+            c = multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
+            # c = multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
         if c is not None:
             cb = plt.colorbar(c)
             
@@ -63,9 +65,6 @@ def plot_scene(radarList, agentList,bounds,plotIndex,emmitterLocationEstimator, 
             
         for radar in radarList:
             radar.plot_view_area(ax)
-        if multipleEmitterOnlineLocationAndPowerEstimator is not None:
-            multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
-            # c = multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
         plt.title(numMeasurements-1)
         plt.savefig('images/pd_cov/'+str(plotIndex)+'.png')
         plt.close()
