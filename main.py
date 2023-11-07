@@ -29,8 +29,10 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
             agent.plot_agent(ax)
             numMeasurements += len(agent.measurementPowerValues)
 
+        if probabilityOfDetectionMap is not None:
+            c = probabilityOfDetectionMap.plot_best_measurement_map(ax)
         if multipleEmitterOnlineLocationAndPowerEstimator is not None:
-            c = multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
+            multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
 
         if c is not None:
             cb = plt.colorbar(c)
@@ -82,7 +84,7 @@ def main():
 
 
 
-    multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=params.agentSensingRange, angle_measurement_std_dev=params.agentAngleMeasurementStdDev, measurement_cov=np.array([[params.agentAngleMeasurementStdDev**2,0],[0,params.agentPowerMeasurementStdDev**2]]), X_test=X_test, radar_measurement_coeff=params.radarMeasurementCoeff)
+    multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=params.agentSensingRange, angle_measurement_std_dev=params.agentAngleMeasurementStdDev, measurement_cov=params.measurementCov, X_test=X_test, radar_measurement_coeff=params.radarMeasurementCoeff)
     probabilityOfDetectionMap = ProbabilityOfDetectionMap(X_test)
 
 

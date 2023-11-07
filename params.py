@@ -54,11 +54,12 @@ radarSystemTemperature = 745.4148
 radarList = create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm)
 print("Actual ERP", radarOutputPower * radarTransmitGain)
 
+
 #agent parameters
 # agentInitialStates = [[10,10,0]]
 # agentInitialStates = [[10000,4010,0],[6000,6000,-np.pi/4]]
 # agentInitialStates = [[10000,4010,0]]
-agentInitialStates = [[100,5000,0]]
+agentInitialStates = [[5000,5000,0]]
 agentSensingRange = 10000
 agentPowerMeasurementStdDev = 0.001
 agentAngleMeasurementStdDev = (5*np.pi/180)
@@ -69,6 +70,9 @@ agentELINTSystemLoss = 1
 radarMeasurementCoeff = (agentELINTAnteneaGain * radarWavelength**2)/((4*np.pi)**2 * agentELINTSystemLoss)
 agentRadarCrossSection = .1
 agentList = create_agent_list(agentInitialStates, len(radarList), agentSensingRange, agentPowerMeasurementStdDev, agentAngleMeasurementStdDev, agentELINTAnteneaGain, agentELINTSystemLoss, radarWavelength, agentRadarCrossSection)
+
+measurementCov = np.array([[agentAngleMeasurementStdDev**2,0],[0,agentPowerMeasurementStdDev**2]])
+
 
 
 #unknown parameters

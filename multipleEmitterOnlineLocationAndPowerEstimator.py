@@ -208,8 +208,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             print("group lists", self.group_lists)
             print("outliers", self.outlier_indicies)
             print()
-            if len(self.estimated_emmiter_params) >0:
-                self.best_measurement_location_map = self.create_best_measurement_location_map(self.estimated_emmiter_params, self.estimated_emmiter_params_covariances)
+            # if len(self.estimated_emmiter_params) >0:
+            #     self.best_measurement_location_map = self.create_best_measurement_location_map(self.estimated_emmiter_params, self.estimated_emmiter_params_covariances)
         elif len(self.measurement_values) == 2:
             self.outlier_indicies = np.append(self.outlier_indicies, 1)
         else:
@@ -237,7 +237,6 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
     def plot(self, ax):
         color_list = ['tab:blue','tab:orange','tab:green','tab:purple', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
         c = None
-        c = self.plot_best_measurement_map(ax)
 
         for i,angle_indicies in enumerate([self.outlier_indicies]):
             if angle_indicies.size > 0:
@@ -301,39 +300,6 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             return c
         else:
             return None
-    def plot_best_measurement_map(self, ax):
-        X_test = np.array(self.X_test)
-        c = None
-        if self.best_measurement_location_map is not None:
-            c = ax.pcolormesh(X_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), X_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), self.best_measurement_location_map.reshape((params.numTestPoints,params.numTestPoints)))
-
-        return c
-            
-
-    def next_measurement_covariance_determinant(self, pos, estimatedRadarParams, estimatedRadarCovariance):
-        x = pos[0]
-        y = pos[1]
-        x_em = estimatedRadarParams[0]
-        y_em = estimatedRadarParams[1]
-        erp = estimatedRadarParams[2]
-        H = self.measurement_jacobian(x_em, y_em, erp, x, y)
-        R = self.measurement_cov
-        nextCovariance = estimatedRadarCovariance - estimatedRadarCovariance@H.T@np.linalg.inv(H@estimatedRadarCovariance@H.T+R)@H@estimatedRadarCovariance
-        # return 1/2*np.log((2*np.pi*np.exp(1))**3*np.linalg.det(estimatedRadarCovariance)) - 1/2*np.log((2*np.pi*np.exp(1))**3*np.linalg.det(nextCovariance))
-        return np.linalg.det(estimatedRadarCovariance) - np.linalg.det(nextCovariance)
-    
-    def create_best_measurement_location_map(self, estimatedRadarParams_list, estimatedRadarCovariance_list):
-        best_measurement_location_map = np.zeros(len(self.X_test))
-        max_entropy = -1
-
-        for j,estimatedRadarParams in enumerate(estimatedRadarParams_list):
-            for i,pos in enumerate(self.X_test):
-                entropy = self.next_measurement_covariance_determinant(pos, estimatedRadarParams, estimatedRadarCovariance_list[j])
-                best_measurement_location_map[i] += entropy
-                if entropy > max_entropy:
-                    max_entropy = entropy
-            
-        return best_measurement_location_map/max_entropy
 
             
             

@@ -9,6 +9,8 @@ class ProbabilityOfDetectionMap():
         self.X_test = np.array(X_test)
         self.pdMap = None
         self.pdCovMap = None
+        self.estimatedRadarParamsList = None
+        self.estimatedRadarParamsCovList = None
 
     
     
@@ -44,6 +46,9 @@ class ProbabilityOfDetectionMap():
         pdCovMap = np.zeros(len(X_test))
         probabilityOfNoDetection = np.ones(len(X_test))
         
+        self.estimatedRadarParamsList = estimatedRadarParamsList
+        self.estimatedRadarParamsCovList = estimatedRadarParamsCovList
+
         for i,position in enumerate(X_test):
             pd_list = []
             pd_cov_list = []
@@ -201,6 +206,42 @@ class ProbabilityOfDetectionMap():
             # print("grad[:,i]",grad[:,i])
 
         return grad
+
+    def measurement_jacobian(self, xem, yem, erp, x, y):
+        d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
+        d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
+        d_h1_d_p_emmitter = 0
+
+        d_h2_d_x_emmitter = -(2*erp*params.radarMeasurementCoeff*(xem-x))/((xem-x)**2+(yem-y)**2)**2 
+        d_h2_d_y_emmitter = -(2*erp*params.radarMeasurementCoeff*(yem-y))/((yem-y)**2+(xem-x)**2)**2 
+        d_h2_d_p_emmitter = params.radarMeasurementCoeff/((yem-y)**2+(xem-x)**2)
+
+        return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
+
+    def next_measurement_covariance_determinant(self, pos, estimatedRadarParams, estimatedRadarCovariance):
+        x = pos[0]
+        y = pos[1]
+        x_em = estimatedRadarParams[0]
+        y_em = estimatedRadarParams[1]
+        erp = estimatedRadarParams[2]
+        H = self.measurement_jacobian(x_em, y_em, erp, x, y)
+        R = params.measurementCov
+        nextCovariance = estimatedRadarCovariance - estimatedRadarCovariance@H.T@np.linalg.inv(H@estimatedRadarCovariance@H.T+R)@H@estimatedRadarCovariance
+        # return 1/2*np.log((2*np.pi*np.exp(1))**3*np.linalg.det(estimatedRadarCovariance)) - 1/2*np.log((2*np.pi*np.exp(1))**3*np.linalg.det(nextCovariance))
+        return np.linalg.det(estimatedRadarCovariance) - np.linalg.det(nextCovariance)
+    
+    def create_best_measurement_location_map(self, estimatedRadarParams_list, estimatedRadarCovariance_list):
+        best_measurement_location_map = np.zeros(len(self.X_test))
+        max_entropy = -1
+
+        for j,estimatedRadarParams in enumerate(estimatedRadarParams_list):
+            for i,pos in enumerate(self.X_test):
+                entropy = self.next_measurement_covariance_determinant(pos, estimatedRadarParams, estimatedRadarCovariance_list[j])
+                best_measurement_location_map[i] += entropy
+                if entropy > max_entropy:
+                    max_entropy = entropy
+            
+        return best_measurement_location_map/max_entropy
         
     
     def plot_mean(self, ax):
@@ -218,7 +259,19 @@ class ProbabilityOfDetectionMap():
 
             c = ax.pcolormesh(x_test, y_test, self.pdCovMap.reshape((params.numTestPoints, params.numTestPoints)))
             return c
+    def plot_best_measurement_map(self, ax):
+        
+        c = None
+        if self.estimatedRadarParamsList is not None:
+            X_test = np.array(self.X_test)
 
+            
+            best_measurement_location_map = self.create_best_measurement_location_map(self.estimatedRadarParamsList, self.estimatedRadarParamsCovList)
+
+            c = ax.pcolormesh(X_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), X_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), best_measurement_location_map.reshape((params.numTestPoints,params.numTestPoints)))
+
+        return c
+            
             
 
     
