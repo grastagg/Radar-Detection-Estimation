@@ -106,7 +106,8 @@ def main():
         for radar in radarList:
             radar.update(dt)
         for i,agent in enumerate(agentList):
-            agent.update(134,.025,dt,radarList)
+            # agent.update(134,.025,dt,radarList)
+            agent.update(134,.0,dt,radarList)
             if len(agent.measurementAngleOfArrivalValues) != currentNumberOfMeasurementsArray[i]:
                 print("adding measurement:", currentNumberOfMeasurementsArray[i], "from agent",i)
                 print("measurement:", currentNumberOfMeasurements)

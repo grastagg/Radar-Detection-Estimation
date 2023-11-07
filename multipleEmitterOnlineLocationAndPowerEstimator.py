@@ -191,7 +191,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                 
                 estimated_emmiter_param,  estimated_emmiter_params_covariances = self.ekf_update(measurement_location, measurement_value, self.measurement_cov, self.estimated_emmiter_params[minimum_mal_dist_index], self.estimated_emmiter_params_covariances[minimum_mal_dist_index])
                 if estimated_emmiter_param[2] < 0:
-                    # print("estimated power level too small")
+                    print("estimated power level too small")
                     updated_using_ekf = False
                 else:
                     self.estimated_emmiter_params[minimum_mal_dist_index] = estimated_emmiter_param
