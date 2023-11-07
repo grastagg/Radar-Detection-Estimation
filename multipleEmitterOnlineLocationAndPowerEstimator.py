@@ -319,8 +319,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         H = self.measurement_jacobian(x_em, y_em, erp, x, y)
         R = self.measurement_cov
         nextCovariance = estimatedRadarCovariance - estimatedRadarCovariance@H.T@np.linalg.inv(H@estimatedRadarCovariance@H.T+R)@H@estimatedRadarCovariance
-        return 1/2*np.log((2*np.pi*np.exp(1))**3*np.linalg.det(estimatedRadarCovariance)) - 1/2*np.log((2*np.pi*np.exp(1))**3*np.linalg.det(nextCovariance))
-        # return np.linalg.det(estimatedRadarCovariance) - np.linalg.det(nextCovariance)
+        # return 1/2*np.log((2*np.pi*np.exp(1))**3*np.linalg.det(estimatedRadarCovariance)) - 1/2*np.log((2*np.pi*np.exp(1))**3*np.linalg.det(nextCovariance))
+        return np.linalg.det(estimatedRadarCovariance) - np.linalg.det(nextCovariance)
     
     def create_best_measurement_location_map(self, estimatedRadarParams_list, estimatedRadarCovariance_list):
         best_measurement_location_map = np.zeros(len(self.X_test))
@@ -329,7 +329,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         for j,estimatedRadarParams in enumerate(estimatedRadarParams_list):
             for i,pos in enumerate(self.X_test):
                 entropy = self.next_measurement_covariance_determinant(pos, estimatedRadarParams, estimatedRadarCovariance_list[j])
-                best_measurement_location_map[i] = entropy
+                best_measurement_location_map[i] += entropy
                 if entropy > max_entropy:
                     max_entropy = entropy
             
