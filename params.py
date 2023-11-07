@@ -31,12 +31,13 @@ def frequency_to_wavelength(freq):
 #simulation parameters
 bounds = (20000, 20000) #meters
 numTestPoints = 60
-simulationEndTime = 40
+simulationEndTime = 40*5
 simulationTimestep = .1
 
 #radar parameters
 # radarPositions = [(10000,10000), (6000,12000),(16000, 10000)]
-radarPositions = [(10000,10000)]
+radarPositions = [(6000,12000),(16000, 10000)]
+# radarPositions = [(10000,10000)]
 radarPhases = [0,np.pi, np.pi/2, np.pi/3]
 radarAngularRates = [3,2.5,3.5,4]
 radarOutputPower = 10000

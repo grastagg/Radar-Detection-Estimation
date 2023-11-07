@@ -27,8 +27,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.inlier_mask = None
         self.group_lists = []
 
-        # self.mahalonobis_distance_inlier_threshold = 3.5
-        self.mahalonobis_distance_inlier_threshold = 2.5
+        self.mahalonobis_distance_inlier_threshold = 3.5
+        # self.mahalonobis_distance_inlier_threshold = 2.5
         self.mal_dist_opt_point = None
         
         self.radar_measurement_coeff = radar_measurement_coeff       
@@ -66,7 +66,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                     return np.array([self.mahalonobis_distance(y, X[i], mean, cov) for i,y in enumerate(y_true)])
                 regressionModel = NonlinearEstimator(self.measurement_cov, self.radar_measurement_coeff)
                 # ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = 'squared_error')#,residual_threshold=.09)
-                ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = loss, residual_threshold=.5)#,residual_threshold=.09)
+                ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = loss, residual_threshold=.9)#,residual_threshold=.09)
                 ransacRegressor.fit(np.array(measurement_locations), np.array(measurements))
                 self.estimated_emmiter_params.append(ransacRegressor.estimator_.get_estimate_emmitor_params())
                 self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
@@ -153,7 +153,6 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
     def measurement_model(self, xem, yem, erp, x, y):
         return np.array([[np.arctan2(yem-y, xem-x)], [(erp*self.radar_measurement_coeff)/((xem-x)**2 + (yem-y)**2)]])
 
-
     def measurement_jacobian(self, xem, yem, erp, x, y):
         d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
         d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
@@ -170,7 +169,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.measurement_values.append(measurement_value)
         if len(self.measurement_values) > 2:
             updated_using_ekf = False
-            minimum_mal_dist = 10000
+            minimum_mal_dist = np.inf
             minimum_mal_dist_index = -1
             for i,emitter_param in enumerate(self.estimated_emmiter_params):
                 measurement_mahalonobis_distance = self.mahalonobis_distance(measurement_value, measurement_location, emitter_param, self.estimated_emmiter_params_covariances[i])
@@ -210,7 +209,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             print("outliers", self.outlier_indicies)
             print()
             if len(self.estimated_emmiter_params) >0:
-                self.best_measurement_location_map = self.create_best_measurement_location_map(self.estimated_emmiter_params[0], self.estimated_emmiter_params_covariances[0])
+                self.best_measurement_location_map = self.create_best_measurement_location_map(self.estimated_emmiter_params, self.estimated_emmiter_params_covariances)
         elif len(self.measurement_values) == 2:
             self.outlier_indicies = np.append(self.outlier_indicies, 1)
         else:
@@ -266,13 +265,13 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             start_y = measurement_locations[i][1]
             end_x = start_x + self.sensing_range * np.cos(angle)
             end_y = start_y + self.sensing_range * np.sin(angle)
-            ax.plot([start_x,end_x],[start_y,end_y], c=color, linewidth = line_width)
+            ax.plot([start_x,end_x],[start_y,end_y], c=color, linewidth = line_width,alpha = .25)
             end_x = start_x + self.sensing_range * np.cos(angle+self.angle_measurement_std_dev)
             end_y = start_y + self.sensing_range * np.sin(angle+self.angle_measurement_std_dev)
-            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c = color, linewidth = line_width)
+            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c = color, linewidth = line_width,alpha = .25)
             end_x = start_x + self.sensing_range * np.cos(angle-self.angle_measurement_std_dev)
             end_y = start_y + self.sensing_range * np.sin(angle-self.angle_measurement_std_dev)
-            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c=color, linewidth = line_width)
+            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c=color, linewidth = line_width,alpha = .25)
 
     def plot_esimate_1_sigma_bounds(self, ax, estimated_emmiter_params, estimated_emmiter_params_cov):
         invCovariance = np.linalg.inv(estimated_emmiter_params_cov[0:2,0:2])
@@ -320,16 +319,21 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         H = self.measurement_jacobian(x_em, y_em, erp, x, y)
         R = self.measurement_cov
         nextCovariance = estimatedRadarCovariance - estimatedRadarCovariance@H.T@np.linalg.inv(H@estimatedRadarCovariance@H.T+R)@H@estimatedRadarCovariance
-        # return 1/2*np.log((2*np.pi*np.exp(1))**3*np.linalg.det(estimatedRadarCovariance)) - 1/2*np.log((2*np.pi*np.exp(1))**3*np.linalg.det(nextCovariance))
-        return np.linalg.det(estimatedRadarCovariance) - np.linalg.det(nextCovariance)
+        return 1/2*np.log((2*np.pi*np.exp(1))**3*np.linalg.det(estimatedRadarCovariance)) - 1/2*np.log((2*np.pi*np.exp(1))**3*np.linalg.det(nextCovariance))
+        # return np.linalg.det(estimatedRadarCovariance) - np.linalg.det(nextCovariance)
     
-    def create_best_measurement_location_map(self, estimatedRadarParams, estimatedRadarCovariance):
+    def create_best_measurement_location_map(self, estimatedRadarParams_list, estimatedRadarCovariance_list):
         best_measurement_location_map = np.zeros(len(self.X_test))
+        max_entropy = -1
 
-        for i,pos in enumerate(self.X_test):
-            best_measurement_location_map[i] = self.next_measurement_covariance_determinant(pos, estimatedRadarParams, estimatedRadarCovariance)
+        for j,estimatedRadarParams in enumerate(estimatedRadarParams_list):
+            for i,pos in enumerate(self.X_test):
+                entropy = self.next_measurement_covariance_determinant(pos, estimatedRadarParams, estimatedRadarCovariance_list[j])
+                best_measurement_location_map[i] = entropy
+                if entropy > max_entropy:
+                    max_entropy = entropy
             
-        return best_measurement_location_map
+        return best_measurement_location_map/max_entropy
 
             
             

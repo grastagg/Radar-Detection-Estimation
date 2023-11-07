@@ -203,7 +203,7 @@ class ProbabilityOfDetectionMap():
         return grad
         
     
-    def plot(self, ax):
+    def plot_mean(self, ax):
         if self.pdMap is not None:
             x_test = self.X_test[:,0].reshape((params.numTestPoints,params.numTestPoints))
             y_test = self.X_test[:,1].reshape((params.numTestPoints,params.numTestPoints))

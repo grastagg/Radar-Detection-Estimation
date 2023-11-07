@@ -18,55 +18,53 @@ import params
 
 # np.random.seed(12342)
 
-def plot_scene(radarList, agentList,bounds,plotIndex,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleEmmiterLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmitterLocationAndPowerEstimator, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap):
+def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap):
         fig,ax = plt.subplots()
         ax.set_xlim((0,bounds[0]))
         ax.set_ylim((0,bounds[1]))
         ax.set_aspect('equal')
-        # c = gp.plot(ax)
-        # if c is not None:
-            # plt.colorbar(c)
+
         numMeasurements = 0
         for agent in agentList:
             agent.plot_agent(ax)
             numMeasurements += len(agent.measurementPowerValues)
-        if emmitterLocationEstimator is not None:
-            c = emmitterLocationEstimator.plot(ax, False)
-        # if c is not None:
-        #     plt.colorbar(c)
-        if batchEmmiterLocationEstimator is not None:
-            batchEmmiterLocationEstimator.plot(ax)
-        if multipleEmmiterLocationEstimator is not None:
-            c = multipleEmmiterLocationEstimator.plot(ax)
-        if batchEmitterLocationAndPowerEstimator is not None:
-            c = batchEmitterLocationAndPowerEstimator.plot(ax, plot_var = True)
 
-        # if probabilityOfDetectionMap is not None:
-        #     c = probabilityOfDetectionMap.plot(ax)
-        # if c is not None:
-        #     cb = plt.colorbar(c)
         if multipleEmitterOnlineLocationAndPowerEstimator is not None:
             c = multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
-            # c = multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
+
         if c is not None:
             cb = plt.colorbar(c)
             
         for radar in radarList:
             radar.plot_view_area(ax)
         plt.title(numMeasurements-1)
-        plt.savefig('images/pd_mean/'+str(plotIndex)+'.png')
+        plt.savefig('images/best_measurement/'+str(plotIndex)+'.png')
 
         if c is not None:
             cb.remove()
+
         if probabilityOfDetectionMap is not None:
             c = probabilityOfDetectionMap.plot_cov(ax)
+        if c is not None:
+            cb = plt.colorbar(c)
+            
+        for radar in radarList:
+            radar.plot_view_area(ax)
+        plt.title(numMeasurements-1)
+        plt.savefig('images/pd_cov/'+str(plotIndex)+'.png')
+
+        if c is not None:
+            cb.remove()
+
+        if probabilityOfDetectionMap is not None:
+            c = probabilityOfDetectionMap.plot_mean(ax)
         if c is not None:
             plt.colorbar(c)
             
         for radar in radarList:
             radar.plot_view_area(ax)
         plt.title(numMeasurements-1)
-        plt.savefig('images/pd_cov/'+str(plotIndex)+'.png')
+        plt.savefig('images/pd_mean/'+str(plotIndex)+'.png')
         plt.close()
 
 
@@ -83,16 +81,6 @@ def main():
 
 
 
-    # emmitterLocationEstimator = EmmitterLocationEstimator(groundTruth=np.array([[600,600]]))
-    # batchEmmiterLocationEstimator = BatchEmmiterLocationEstimator(np.array([[600,600]]))
-    # batchEmiterAndPowerEstimator = BatchEmitterLocationAndPowerEstimator(measurement_cov=np.array([[agent.angle_measurement_std_dev**2,0],[0,agent.power_measurement_std_dev**2]]))
-    batchEmiterAndPowerEstimator = None
-    emmitterLocationEstimator = None 
-    batchEmmiterLocationEstimator = None
-    # multipleRadarLocationEstimator = MultipleEmitterBatchLocationEstimator(sensing_range=agent.sensing_range, angle_measurement_std_dev=agent.angle_measurement_std_dev)
-    multipleRadarLocationEstimator = None
-    # multipleEmitterPowerParametricEstimator = MultipleEmittorPowerParametricEstimator(X_test)
-    multipleEmitterPowerParametricEstimator = None
 
     multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=params.agentSensingRange, angle_measurement_std_dev=params.agentAngleMeasurementStdDev, measurement_cov=np.array([[params.agentAngleMeasurementStdDev**2,0],[0,params.agentPowerMeasurementStdDev**2]]), X_test=X_test, radar_measurement_coeff=params.radarMeasurementCoeff)
     probabilityOfDetectionMap = ProbabilityOfDetectionMap(X_test)
@@ -100,8 +88,6 @@ def main():
 
 
     
-    # gp = GaussianProcess(X_test)
-    gp = None 
 
 
     
@@ -116,7 +102,7 @@ def main():
 
     
     while tCurrent < tEnd:
-        plot_scene(radarList, agentList, bounds, plotIndex,emmitterLocationEstimator, gp, batchEmmiterLocationEstimator, multipleRadarLocationEstimator, multipleEmitterPowerParametricEstimator, batchEmiterAndPowerEstimator, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap)
+        plot_scene(radarList, agentList, bounds, plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap)
         for radar in radarList:
             radar.update(dt)
         for i,agent in enumerate(agentList):
@@ -130,7 +116,6 @@ def main():
                 currentNumberOfMeasurements += 1
                 if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
                     probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, radarList[0], multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances)
-                    # probabilityOfDetectionMap.compute_probability_of_detection_at_points(X_test, radarList[0], multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params[0],multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances[0], agentList[0])
 
 
 
@@ -138,11 +123,6 @@ def main():
         tCurrent += dt
 
     
-    # plt.figure()
-    # plt.plot(np.linspace(0, len(emmitterLocationEstimator.errorHistory), len(emmitterLocationEstimator.errorHistory)), emmitterLocationEstimator.errorHistory, label = "ekf")
-    # plt.plot(np.linspace(0, len(batchEmmiterLocationEstimator.errorHistory), len(batchEmmiterLocationEstimator.errorHistory)), batchEmmiterLocationEstimator.errorHistory, label = "batch")
-    # plt.legend()
-    # plt.show()
     
 
 
