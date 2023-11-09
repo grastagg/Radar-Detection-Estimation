@@ -1,7 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
-
+import cProfile
+from pstats import Stats
+import matplotlib.style as mplstyle
+mplstyle.use('fast')
+# matplotlib.use('Agg')
+import time
 
 
 from radar import RadarCircularPattern
@@ -18,56 +22,69 @@ import params
 
 # np.random.seed(12342)
 
+fig,ax = plt.subplots()
+ax.set_xlim((0,params.bounds[0]))
+ax.set_ylim((0,params.bounds[1]))
+ax.set_aspect('equal')
 def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap):
-        fig,ax = plt.subplots()
-        ax.set_xlim((0,bounds[0]))
-        ax.set_ylim((0,bounds[1]))
-        ax.set_aspect('equal')
+    start  = time.time()
 
-        numMeasurements = 0
-        for agent in agentList:
-            agent.plot_agent(ax)
-            numMeasurements += len(agent.measurementPowerValues)
 
-        if probabilityOfDetectionMap is not None:
-            c = probabilityOfDetectionMap.plot_best_measurement_map(ax)
-        if multipleEmitterOnlineLocationAndPowerEstimator is not None:
-            multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
+    numMeasurements = 0
+    for agent in agentList:
+        agent.plot_agent(ax)
+        numMeasurements += len(agent.measurementPowerValues)
 
-        if c is not None:
-            cb = plt.colorbar(c)
-            
-        for radar in radarList:
-            radar.plot_view_area(ax)
-        plt.title(numMeasurements-1)
-        plt.savefig('images/best_measurement/'+str(plotIndex)+'.png')
+    # start1 = time.time()
+    if probabilityOfDetectionMap is not None:
+        c = probabilityOfDetectionMap.plot_best_measurement_map(ax)
+    # print("best measurment plot:", time.time() - start1)
+    # start2 = time.time()
+    if multipleEmitterOnlineLocationAndPowerEstimator is not None:
+        measurement_lines = multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
+    # print("mult plot time", time.time()-start2)
+    if c is not None:
+        cb = plt.colorbar(c)
+    
+    # start4 = time.time()
+    for radar in radarList:
+        radar.plot_view_area(ax)
 
-        if c is not None:
-            cb.remove()
+    plt.title(numMeasurements-1)
+    plt.savefig('images/best_measurement/'+str(plotIndex)+'.png')
 
-        if probabilityOfDetectionMap is not None:
-            c = probabilityOfDetectionMap.plot_cov(ax)
-        if c is not None:
-            cb = plt.colorbar(c)
-            
-        for radar in radarList:
-            radar.plot_view_area(ax)
-        plt.title(numMeasurements-1)
-        plt.savefig('images/pd_cov/'+str(plotIndex)+'.png')
+    if c is not None:
+        cb.remove()
 
-        if c is not None:
-            cb.remove()
+    # start3 = time.time()
+    if probabilityOfDetectionMap is not None:
+        c = probabilityOfDetectionMap.plot_cov(ax)
+    # print("cov:", time.time() - start3)
+    if c is not None:
+        cb = plt.colorbar(c)
+        
+    # for radar in radarList:
+    #     radar.plot_view_area(ax)
+    plt.title(numMeasurements-1)
+    plt.savefig('images/pd_cov/'+str(plotIndex)+'.png')
 
-        if probabilityOfDetectionMap is not None:
-            c = probabilityOfDetectionMap.plot_mean(ax)
-        if c is not None:
-            plt.colorbar(c)
-            
-        for radar in radarList:
-            radar.plot_view_area(ax)
-        plt.title(numMeasurements-1)
-        plt.savefig('images/pd_mean/'+str(plotIndex)+'.png')
-        plt.close()
+    if c is not None:
+        cb.remove()
+    # start3 = time.time()
+    if probabilityOfDetectionMap is not None:
+        c = probabilityOfDetectionMap.plot_mean(ax)
+    # print("mean:", time.time() - start3)
+    if c is not None:
+        plt.colorbar(c)
+        
+    # for radar in radarList:
+    #     radar.plot_view_area(ax)
+    plt.title(numMeasurements-1)
+    plt.savefig('images/pd_mean/'+str(plotIndex)+'.png')
+    # plt.close()
+    for line in measurement_lines:
+        line.remove()
+    print("plot time:", time.time() - start)
 
 
 def main():
@@ -131,4 +148,15 @@ def main():
 
 
 if __name__ == '__main__':
+    do_profile = False 
+    if do_profile:
+        with cProfile.Profile() as pr:
+            main()
+        with open('profile_state.txt','w') as stream:
+            stats = Stats(pr, stream=stream)
+            stats.strip_dirs()
+            stats.sort_stats('time')
+            stats.dump_stats('.prof_stats')
+            stats.print_stats()
+            
     main()

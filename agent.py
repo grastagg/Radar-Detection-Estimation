@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib.patches import Circle
+from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 
 
@@ -21,6 +22,13 @@ class Agent:
         self.elsintSystemLoss = elintSystemLoss
         self.emittor_signal_wavelength = emittorWavelength
         self.radarMeasurementCoeff = (self.elintAntenneaGain * self.emittor_signal_wavelength**2)/((4*np.pi)**2 * self.elsintSystemLoss)
+        self.plotCircle = Circle((self.position[0],self.position[1]),radius = 100,fill = False)
+        h = self.position[2]
+        self.lineLength = 1000
+        x_end = self.position[0] + self.lineLength * np.cos(h)
+        y_end = self.position[1] + self.lineLength * np.sin(h)
+        self.plotLine = Line2D(xdata=[self.position[0],x_end],ydata=[self.position[1],y_end],linewidth=1)
+        self.firstPlot = True
         
         
         
@@ -84,8 +92,9 @@ class Agent:
     def plot_power_measurements(self, ax):
         if len(self.measurementLocations) > 0:
             data = np.array(self.measurementLocations)
-            ax.scatter(data[:,0],data[:,1],c=np.log10(np.array(self.measurementPowerValues)),vmin = -5, vmax =.5)
+            p = ax.scatter(data[:,0],data[:,1],c=np.log10(np.array(self.measurementPowerValues)),vmin = -5, vmax =.5)
             # ax.scatter(data[:,0],data[:,1],c=np.log10(np.array(self.measurementPowerValues)))
+            return p
         
     def plot_angle_of_arrival_measurements(self, ax, inlier_mask):
         color = 'g'
@@ -108,16 +117,24 @@ class Agent:
             ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c=color)
         
     def plot_agent(self,ax, inlier_mask = None):
+        if self.firstPlot:
+            ax.add_patch(self.plotCircle)
+            ax.add_line(self.plotLine)
+            self.firstPlot = False
+
+
         x = self.position[0] 
         y = self.position[1] 
-        circle = Circle((x,y),radius = 1,fill = False)
-        ax.add_patch(circle)
+        # circle = Circle((x,y),radius = 100,fill = False)
+        self.plotCircle.center = x,y
+        # ax.add_patch(circle)
 
         h = self.position[2]
-        x_end = x + 10 * np.cos(h)
-        y_end = y + 10 * np.sin(h)
-        ax.plot([x, x_end], [y, y_end])
-        self.plot_power_measurements(ax)
+        x_end = x +  self.lineLength * np.cos(h)
+        y_end = y +  self.lineLength * np.sin(h)
+        self.plotLine.set_xdata([[x,x_end]])
+        self.plotLine.set_ydata([[y,y_end]])
+        # powerPlot = self.plot_power_measurements(ax)
         # self.plot_angle_of_arrival_measurements(ax, inlier_mask)
 
             

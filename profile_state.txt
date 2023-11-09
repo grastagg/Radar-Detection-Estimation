@@ -1,0 +1,85 @@
+         10717 function calls (10705 primitive calls) in 0.009 seconds
+
+   Ordered by: internal time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+     4012    0.002    0.000    0.002    0.000 {built-in method numpy.array}
+        1    0.002    0.002    0.003    0.003 params.py:99(create_test_points)
+      202    0.001    0.000    0.001    0.000 linalg.py:2383(norm)
+      202    0.001    0.000    0.002    0.000 agent.py:34(get_distance)
+      101    0.001    0.000    0.003    0.000 agent.py:44(measure_radar)
+      101    0.000    0.000    0.003    0.000 agent.py:28(update)
+        1    0.000    0.000    0.009    0.009 main.py:74(main)
+      202    0.000    0.000    0.000    0.000 {method 'dot' of 'numpy.ndarray' objects}
+     3650    0.000    0.000    0.000    0.000 {method 'append' of 'list' objects}
+       30    0.000    0.000    0.001    0.000 {built-in method builtins.print}
+      106    0.000    0.000    0.000    0.000 agent.py:37(map_angle_minus_pi_to_pi)
+      202    0.000    0.000    0.000    0.000 linalg.py:140(isComplexType)
+        5    0.000    0.000    0.001    0.000 multipleEmitterOnlineLocationAndPowerEstimator.py:167(add_measurement)
+      413    0.000    0.000    0.000    0.000 {built-in method builtins.issubclass}
+      202    0.000    0.000    0.000    0.000 radar.py:31(update)
+        6    0.000    0.000    0.000    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+      207    0.000    0.000    0.000    0.000 {method 'ravel' of 'numpy.ndarray' objects}
+        2    0.000    0.000    0.000    0.000 function_base.py:24(linspace)
+        3    0.000    0.000    0.000    0.000 arrayprint.py:1223(__init__)
+      421    0.000    0.000    0.000    0.000 {built-in method builtins.len}
+     15/3    0.000    0.000    0.000    0.000 arrayprint.py:789(recurser)
+      202    0.000    0.000    0.000    0.000 linalg.py:2379(_norm_dispatcher)
+        5    0.000    0.000    0.000    0.000 function_base.py:5562(append)
+        5    0.000    0.000    0.000    0.000 {method 'normal' of 'numpy.random.mtrand.RandomState' objects}
+      205    0.000    0.000    0.000    0.000 {built-in method numpy.asarray}
+        3    0.000    0.000    0.000    0.000 arrayprint.py:523(_array2string)
+        3    0.000    0.000    0.000    0.000 arrayprint.py:452(_get_format_function)
+        3    0.000    0.000    0.000    0.000 arrayprint.py:561(array2string)
+        6    0.000    0.000    0.000    0.000 fromnumeric.py:71(_wrapreduction)
+        3    0.000    0.000    0.000    0.000 arrayprint.py:506(wrapper)
+        3    0.000    0.000    0.000    0.000 arrayprint.py:64(_make_options_dict)
+        3    0.000    0.000    0.000    0.000 arrayprint.py:403(_get_formatdict)
+       12    0.000    0.000    0.000    0.000 arrayprint.py:739(_extendLine)
+       12    0.000    0.000    0.000    0.000 arrayprint.py:753(_extendLine_pretty)
+       14    0.000    0.000    0.000    0.000 {built-in method numpy.asanyarray}
+        3    0.000    0.000    0.000    0.000 arrayprint.py:1595(_array_str_implementation)
+        2    0.000    0.000    0.000    0.000 {built-in method numpy.arange}
+        3    0.000    0.000    0.000    0.000 {built-in method builtins.locals}
+        3    0.000    0.000    0.000    0.000 fromnumeric.py:2692(max)
+       12    0.000    0.000    0.000    0.000 arrayprint.py:1231(__call__)
+        5    0.000    0.000    0.000    0.000 fromnumeric.py:1768(ravel)
+        1    0.000    0.000    0.000    0.000 multipleEmitterOnlineLocationAndPowerEstimator.py:11(__init__)
+        3    0.000    0.000    0.000    0.000 arrayprint.py:410(<lambda>)
+        6    0.000    0.000    0.000    0.000 fromnumeric.py:72(<dictcomp>)
+        3    0.000    0.000    0.000    0.000 arrayprint.py:780(_formatArray)
+        3    0.000    0.000    0.000    0.000 fromnumeric.py:2836(min)
+        4    0.000    0.000    0.000    0.000 {method 'astype' of 'numpy.ndarray' objects}
+        3    0.000    0.000    0.000    0.000 multipleEmitterOnlineLocationAndPowerEstimator.py:38(delete_lowest_probability_model)
+        3    0.000    0.000    0.000    0.000 arrayprint.py:72(<dictcomp>)
+       12    0.000    0.000    0.000    0.000 {method 'splitlines' of 'str' objects}
+        6    0.000    0.000    0.000    0.000 {built-in method builtins.max}
+        1    0.000    0.000    0.000    0.000 cProfile.py:118(__exit__)
+        3    0.000    0.000    0.000    0.000 {method 'format' of 'str' objects}
+        2    0.000    0.000    0.000    0.000 {method 'reshape' of 'numpy.ndarray' objects}
+        3    0.000    0.000    0.000    0.000 multipleEmitterOnlineLocationAndPowerEstimator.py:60(fit_ransac_model)
+        2    0.000    0.000    0.000    0.000 numeric.py:1855(isscalar)
+        1    0.000    0.000    0.001    0.001 probabilityOfDetectionMap.py:8(__init__)
+        7    0.000    0.000    0.000    0.000 {built-in method builtins.isinstance}
+        9    0.000    0.000    0.000    0.000 {method 'items' of 'dict' objects}
+        2    0.000    0.000    0.000    0.000 fromnumeric.py:3176(ndim)
+        5    0.000    0.000    0.000    0.000 multiarray.py:153(concatenate)
+        5    0.000    0.000    0.000    0.000 function_base.py:5558(_append_dispatcher)
+        3    0.000    0.000    0.000    0.000 {built-in method builtins.id}
+        3    0.000    0.000    0.000    0.000 {method 'update' of 'dict' objects}
+        3    0.000    0.000    0.000    0.000 {method 'rstrip' of 'str' objects}
+        3    0.000    0.000    0.000    0.000 {method 'copy' of 'dict' objects}
+        1    0.000    0.000    0.000    0.000 {built-in method numpy.zeros}
+        3    0.000    0.000    0.000    0.000 {method 'discard' of 'set' objects}
+        3    0.000    0.000    0.000    0.000 fromnumeric.py:2687(_max_dispatcher)
+        5    0.000    0.000    0.000    0.000 fromnumeric.py:1764(_ravel_dispatcher)
+        3    0.000    0.000    0.000    0.000 fromnumeric.py:2831(_min_dispatcher)
+        2    0.000    0.000    0.000    0.000 fromnumeric.py:3172(_ndim_dispatcher)
+        3    0.000    0.000    0.000    0.000 {built-in method _thread.get_ident}
+        3    0.000    0.000    0.000    0.000 {method 'add' of 'set' objects}
+        2    0.000    0.000    0.000    0.000 function_base.py:19(_linspace_dispatcher)
+        2    0.000    0.000    0.000    0.000 {built-in method _operator.index}
+        2    0.000    0.000    0.000    0.000 multiarray.py:669(result_type)
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+
+

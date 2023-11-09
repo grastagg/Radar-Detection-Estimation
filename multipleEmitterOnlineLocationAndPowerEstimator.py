@@ -238,12 +238,19 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         color_list = ['tab:blue','tab:orange','tab:green','tab:purple', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
         c = None
 
+        lines = []
         for i,angle_indicies in enumerate([self.outlier_indicies]):
             if angle_indicies.size > 0:
-                self.plot_angle_of_arrival_measurements(ax, 'r', np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
+                p1,p2,p3 = self.plot_angle_of_arrival_measurements(ax, 'r', np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
+                lines.append(p1)
+                lines.append(p2)
+                lines.append(p3)
         if len(self.estimated_emmiter_params) > 0:
             for i,angle_indicies in enumerate(self.group_lists):
-                self.plot_angle_of_arrival_measurements(ax, color_list[i], np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
+                p1,p2,p3 = self.plot_angle_of_arrival_measurements(ax, color_list[i], np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
+                lines.append(p1)
+                lines.append(p2)
+                lines.append(p3)
             
 
             for i,estimated_emmiter_params in enumerate(self.estimated_emmiter_params):
@@ -255,7 +262,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
 
 
 
-        return c
+        return lines
             
     def plot_angle_of_arrival_measurements(self, ax, color, measurement_locations, measurement_angle_of_arrival_values):
         line_width = 1
@@ -264,13 +271,14 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             start_y = measurement_locations[i][1]
             end_x = start_x + self.sensing_range * np.cos(angle)
             end_y = start_y + self.sensing_range * np.sin(angle)
-            ax.plot([start_x,end_x],[start_y,end_y], c=color, linewidth = line_width,alpha = .25)
+            p1 = ax.plot([start_x,end_x],[start_y,end_y], c=color, linewidth = line_width,alpha = .25)
             end_x = start_x + self.sensing_range * np.cos(angle+self.angle_measurement_std_dev)
             end_y = start_y + self.sensing_range * np.sin(angle+self.angle_measurement_std_dev)
-            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c = color, linewidth = line_width,alpha = .25)
+            p2 = ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c = color, linewidth = line_width,alpha = .25)
             end_x = start_x + self.sensing_range * np.cos(angle-self.angle_measurement_std_dev)
             end_y = start_y + self.sensing_range * np.sin(angle-self.angle_measurement_std_dev)
-            ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c=color, linewidth = line_width,alpha = .25)
+            p3 = ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c=color, linewidth = line_width,alpha = .25)
+            return p1[0],p2[0],p3[0]
 
     def plot_esimate_1_sigma_bounds(self, ax, estimated_emmiter_params, estimated_emmiter_params_cov):
         invCovariance = np.linalg.inv(estimated_emmiter_params_cov[0:2,0:2])
