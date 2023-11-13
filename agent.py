@@ -22,12 +22,12 @@ class Agent:
         self.elsintSystemLoss = elintSystemLoss
         self.emittor_signal_wavelength = emittorWavelength
         self.radarMeasurementCoeff = (self.elintAntenneaGain * self.emittor_signal_wavelength**2)/((4*np.pi)**2 * self.elsintSystemLoss)
-        self.plotCircle = Circle((self.position[0],self.position[1]),radius = 100,fill = False)
+        self.plotCircle = Circle((self.position[0],self.position[1]),radius = 100,fill = True, color = 'b')
         h = self.position[2]
-        self.lineLength = 1000
+        self.lineLength = 100
         x_end = self.position[0] + self.lineLength * np.cos(h)
         y_end = self.position[1] + self.lineLength * np.sin(h)
-        self.plotLine = Line2D(xdata=[self.position[0],x_end],ydata=[self.position[1],y_end],linewidth=1)
+        self.plotLine = Line2D(xdata=[self.position[0],x_end],ydata=[self.position[1],y_end],linewidth=2, color = 'b')
         self.firstPlot = True
         
         

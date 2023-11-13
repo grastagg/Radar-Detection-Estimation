@@ -34,6 +34,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.radar_measurement_coeff = radar_measurement_coeff       
 
         self.best_measurement_location_map = None
+        self.plot_alpha = .5
     
     def delete_lowest_probability_model(self):
         remove_indicies = []
@@ -238,19 +239,15 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         color_list = ['tab:blue','tab:orange','tab:green','tab:purple', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
         c = None
 
-        lines = []
+        all_lines = []
         for i,angle_indicies in enumerate([self.outlier_indicies]):
             if angle_indicies.size > 0:
-                p1,p2,p3 = self.plot_angle_of_arrival_measurements(ax, 'r', np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
-                lines.append(p1)
-                lines.append(p2)
-                lines.append(p3)
+                line = self.plot_angle_of_arrival_measurements(ax, 'r', np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
+                all_lines += line
         if len(self.estimated_emmiter_params) > 0:
             for i,angle_indicies in enumerate(self.group_lists):
-                p1,p2,p3 = self.plot_angle_of_arrival_measurements(ax, color_list[i], np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
-                lines.append(p1)
-                lines.append(p2)
-                lines.append(p3)
+                line = self.plot_angle_of_arrival_measurements(ax, color_list[i], np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
+                all_lines += line
             
 
             for i,estimated_emmiter_params in enumerate(self.estimated_emmiter_params):
@@ -261,24 +258,29 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         # c = self.plot_power(ax)
 
 
-
-        return lines
+        return all_lines
             
     def plot_angle_of_arrival_measurements(self, ax, color, measurement_locations, measurement_angle_of_arrival_values):
         line_width = 1
-        for i,angle in enumerate(measurement_angle_of_arrival_values):
+        # for i,angle in enumerate(measurement_angle_of_arrival_values):
+        lines = []
+        for i in range(len(measurement_angle_of_arrival_values)):
+            angle = measurement_angle_of_arrival_values[i]
             start_x = measurement_locations[i][0]
             start_y = measurement_locations[i][1]
             end_x = start_x + self.sensing_range * np.cos(angle)
             end_y = start_y + self.sensing_range * np.sin(angle)
-            p1 = ax.plot([start_x,end_x],[start_y,end_y], c=color, linewidth = line_width,alpha = .25)
+            p1 = ax.plot([start_x,end_x],[start_y,end_y], c=color, linewidth = line_width,alpha = self.plot_alpha)
             end_x = start_x + self.sensing_range * np.cos(angle+self.angle_measurement_std_dev)
             end_y = start_y + self.sensing_range * np.sin(angle+self.angle_measurement_std_dev)
-            p2 = ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c = color, linewidth = line_width,alpha = .25)
+            p2 = ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c = color, linewidth = line_width,alpha = self.plot_alpha)
             end_x = start_x + self.sensing_range * np.cos(angle-self.angle_measurement_std_dev)
             end_y = start_y + self.sensing_range * np.sin(angle-self.angle_measurement_std_dev)
-            p3 = ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c=color, linewidth = line_width,alpha = .25)
-            return p1[0],p2[0],p3[0]
+            p3 = ax.plot([start_x,end_x],[start_y,end_y],linestyle = '--',c=color, linewidth = line_width,alpha = self.plot_alpha)
+            lines.append(p1[0])
+            lines.append(p2[0])
+            lines.append(p3[0])
+        return lines 
 
     def plot_esimate_1_sigma_bounds(self, ax, estimated_emmiter_params, estimated_emmiter_params_cov):
         invCovariance = np.linalg.inv(estimated_emmiter_params_cov[0:2,0:2])

@@ -30,7 +30,7 @@ class RadarCircularPattern:
         self.current_angle = phase
 
         self.firstPlot = True
-        self.plotArc = Arc((self.position[0], self.position[1]), 2*self.range, 2*self.range,self.current_angle, -self.beamwidth/2*180/np.pi, self.beamwidth/2*180/np.pi,zorder = 100)
+        self.plotArc = Arc((self.position[0], self.position[1]), 2*self.range, 2*self.range,self.current_angle, -self.beamwidth/2*180/np.pi, self.beamwidth/2*180/np.pi,zorder = 100,color='r')
 
         x_left = self.position[0] + self.range * np.cos(self.current_angle - self.beamwidth/2)
         y_left = self.position[1] + self.range * np.sin(self.current_angle - self.beamwidth/2)
@@ -43,7 +43,7 @@ class RadarCircularPattern:
         
         # self.plotLine = Line2D(xdata=[x_left, x_middle, x_right], ydata=[y_left, y_middle, y_right])
         print("test", np.array([[x_left,y_left],[x_middle, y_middle],[x_right,y_right]]).shape)
-        self.plotPoly = Polygon(xy = np.array([[x_left,y_left],[x_middle, y_middle],[x_right,y_right]]), closed=False, fill = False)
+        self.plotPoly = Polygon(xy = np.array([[x_left,y_left],[x_middle, y_middle],[x_right,y_right]]), closed=False, fill = False,zorder = 101, color='r')
         
         
     def update(self, dt):
@@ -67,7 +67,6 @@ class RadarCircularPattern:
     def plot_end_bounds(self,ax):
         if self.firstPlot:
             ax.add_patch(self.plotPoly)
-            self.firstPlot = False
         else:
             x_left = self.position[0] + self.range * np.cos(self.current_angle - self.beamwidth/2)
             y_left = self.position[1] + self.range * np.sin(self.current_angle - self.beamwidth/2)
@@ -86,11 +85,13 @@ class RadarCircularPattern:
         # ax.plot([x_left,x_middle,x_right],[y_left,y_middle,y_right],zorder = 101)
 
     def plot_radar_location(self, ax):
-        plt.scatter(self.position[0],self.position[1], marker='*',zorder = 100)
+        plt.scatter(self.position[0],self.position[1], marker='*',zorder = 100, color = 'r')
 
     def plot_view_area(self, ax):
         self.plot_arc_length(ax)
         self.plot_end_bounds(ax)
-        self.plot_radar_location(ax)
+        if self.firstPlot:
+            self.plot_radar_location(ax)
+            self.firstPlot = False
         
         

@@ -31,7 +31,7 @@ def frequency_to_wavelength(freq):
 #simulation parameters
 bounds = (20000, 20000) #meters
 numTestPoints = 60
-simulationEndTime = 20
+simulationEndTime = 50
 simulationTimestep = 0.1
 plotTimeStep = 0.5
 
