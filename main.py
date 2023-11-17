@@ -27,7 +27,6 @@ ax.set_xlim((0,params.bounds[0]))
 ax.set_ylim((0,params.bounds[1]))
 ax.set_aspect('equal')
 def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap):
-    start  = time.time()
     c = None
 
 
@@ -96,7 +95,6 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
 
     for line in measurement_lines:
         line.remove()
-    print("plot time:", time.time() - start)
 
 
 def main():
