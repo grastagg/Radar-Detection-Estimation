@@ -21,28 +21,28 @@ class ProbabilityOfDetectionMap():
         #antennea gain not i decibels
         return (effectiveRadarPower*radarRecieverGain*wavelength**2*radarCrossSection*radarPulseWidth)/((4*np.pi)**3*distance**4*Boltzmann*radarSystemTemperature)
         
-    def compute_probability_of_detection_at_xy(self, radar, position, estimatedRadarParams):
+    def compute_probability_of_detection_at_xy(self, position, estimatedRadarParams):
         radarXY = estimatedRadarParams[0:1]
         distance = np.linalg.norm(radarXY-position)
-        snr = self.signal_to_noise_ration(estimatedRadarParams[2], radar.recieveGain, radar.wavelength, params.agentRadarCrossSection, radar.pulseWidth, distance, params.radarSystemTemperature)
-        return self.probability_of_detection(radar.probabilityOfFalseAlarm, snr)
+        snr = self.signal_to_noise_ration(estimatedRadarParams[2], params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.pulseWidth, distance, params.radarSystemTemperaturePriorMean)
+        return self.probability_of_detection(params.radarProbabilityOfFalseAlarmPriorMean, snr)
     
-    def compute_probability_of_detection_at_points(self, X_test, radar, estimatedRadarParams, estimatedRadarParamsCov, agent):
+    def compute_probability_of_detection_at_points(self, X_test, estimatedRadarParams, estimatedRadarParamsCov, agent):
         pdMap = np.zeros(len(X_test))
         pdCovMap = np.zeros(len(X_test))
         
         radarXY = estimatedRadarParams[0:2]
         for i,position in enumerate(X_test):
             distance = np.linalg.norm(radarXY-position)
-            snr = self.signal_to_noise_ration(estimatedRadarParams[2], radar.recieveGain, radar.wavelength, agent.radarCrossSection, radar.pulseWidth, distance, radar.systemTemperature)
-            pdMap[i] = self.probability_of_detection(radar.probabilityOfFalseAlarm, snr)
-            pdCovMap[i] = self.probability_of_detection_uncertainty_single_radar_at_xy(position, radar, estimatedRadarParams, estimatedRadarParamsCov)
+            snr = self.signal_to_noise_ration(estimatedRadarParams[2], params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.pulseWidth, distance, params.radarSystemTemperaturePriorMean)
+            pdMap[i] = self.probability_of_detection(params.radarProbabilityOfFalseAlarm, snr)
+            pdCovMap[i] = self.probability_of_detection_uncertainty_single_radar_at_xy(position, estimatedRadarParams, estimatedRadarParamsCov)
     
         self.pdMap = pdMap
         self.pdCovMap = pdCovMap
         return pdMap
 
-    def compute_probability_of_detection_at_points_multiple_radar(self, X_test, radar, estimatedRadarParamsList, estimatedRadarParamsCovList):
+    def compute_probability_of_detection_at_points_multiple_radar(self, X_test, estimatedRadarParamsList, estimatedRadarParamsCovList):
         pdCovMap = np.zeros(len(X_test))
         probabilityOfNoDetection = np.ones(len(X_test))
         
@@ -55,10 +55,10 @@ class ProbabilityOfDetectionMap():
             for j, estimatedRadarParams in enumerate(estimatedRadarParamsList):
                 radarXY = estimatedRadarParams[0:2]
                 distance = np.linalg.norm(radarXY-position)
-                snr = self.signal_to_noise_ration(estimatedRadarParams[2], radar.recieveGain, radar.wavelength, params.agentRadarCrossSection, radar.pulseWidth, distance, radar.systemTemperature)
-                pdi = self.probability_of_detection(radar.probabilityOfFalseAlarm, snr)
+                snr = self.signal_to_noise_ration(estimatedRadarParams[2], params.radarRecieveGain, params.radarWavelength, params.agentRadarCrossSection, params.radarPulseWidth, distance, params.radarSystemTemperature)
+                pdi = self.probability_of_detection(params.radarProbabilityOfFalseAlarm, snr)
                 probabilityOfNoDetection[i] *= (1-pdi)
-                dpdi_dparams = self.probability_of_detection_uncertainty_single_radar_at_xy(position, radar, estimatedRadarParams, estimatedRadarParamsCovList[j])
+                dpdi_dparams = self.probability_of_detection_uncertainty_single_radar_at_xy(position, estimatedRadarParams, estimatedRadarParamsCovList[j])
                 pd_cov_list.append(dpdi_dparams)
                 pd_list.append(pdi)
                 
@@ -85,7 +85,7 @@ class ProbabilityOfDetectionMap():
         return 1-out
     
     
-    def probability_of_detection_uncertainty_single_radar_at_xy(self, position, radar, estimatedRadarParams, estimatedRadarParamsCov):
+    def probability_of_detection_uncertainty_single_radar_at_xy(self, position, estimatedRadarParams, estimatedRadarParamsCov):
         estimatedRadarParamsJacobian = self.pd_jacobian_emittor_params(position, estimatedRadarParams)
         radarParametersJacobian = self.pd_jacobian_unkown_radar_parameters(position, estimatedRadarParams)
         # radarParametersCovariance = np.zeros((radarParametersJacobian.shape[0],radarParametersJacobian.shape[0]))
