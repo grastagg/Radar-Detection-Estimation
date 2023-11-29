@@ -10,7 +10,7 @@ from statistics import NormalDist
 pd_mean = .2
 pd_var = .1
 
-delta = .85
+delta = .8
 
 dist = NormalDist(pd_mean, np.sqrt(pd_var))
 rho = .5

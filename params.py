@@ -37,8 +37,8 @@ plotTimeStep = 0.5
 
 #radar parameters
 # radarPositions = [(10000,10000), (6000,12000),(16000, 10000)]
-# radarPositions = [(6000,10000),(16000, 10000)]
-radarPositions = [(6000,10000),(10000,10000),(16000, 10000)]
+radarPositions = [(6000,10000),(16000, 10000)]
+# radarPositions = [(6000,10000),(10000,10000),(16000, 10000)]
 # radarPositions = [(10000,10000)]
 radarPhases = [0,np.pi, np.pi/2, np.pi/3]
 radarAngularRates = [3,2.5,3.5,4]
@@ -97,6 +97,15 @@ radarSystemTemperaturePriorMean = radarSystemTemperature
 # radarSystemTemperaturePriorVariance = 10
 radarSystemTemperaturePriorVariance = 0
 
+#plotting
+plotObjectiveFunction = True
+plotPd = False
+plotPdCov = False
+plotBestMeasurement = False
+
+#chance constraints
+probabilityOfDetectionThreshold = 0.5
+thresholdConfidence = 0.5
 
 
 def create_test_points(numTestPoints, bounds):

@@ -13,6 +13,7 @@ from agent import Agent
 from multipleEmitterOnlineLocationAndPowerEstimator import MultipleEmitterOnlineLocationAndPowerEstimator
 from probabilityOfDetectionMap import ProbabilityOfDetectionMap
 import params
+from pathPlanning import plot_objective_and_constraint
 
 # np.random.seed(12342)
 
@@ -35,57 +36,62 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
     if multipleEmitterOnlineLocationAndPowerEstimator is not None:
         measurement_lines = multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
 
+    if params.plotBestMeasurement:
+        if probabilityOfDetectionMap is not None:
+            c = probabilityOfDetectionMap.plot_best_measurement_map(ax)
+        cb = None
+        if c is not None:
+            cb = plt.colorbar(c)
+        
 
-    if probabilityOfDetectionMap is not None:
-        c = probabilityOfDetectionMap.plot_best_measurement_map(ax)
-    cb = None
-    if c is not None:
-        cb = plt.colorbar(c)
+        plt.title(numMeasurements-1)
+        plt.savefig('images/best_measurement/'+str(plotIndex)+'.png')
+
+        if c is not None:
+            cb.remove()
+            c.remove()
+            cb = None
+            c = None
+
+    if params.plotPdCov:
+        if probabilityOfDetectionMap is not None:
+            c = probabilityOfDetectionMap.plot_cov(ax)
+        if c is not None:
+            cb = plt.colorbar(c)
+            
+        plt.title(numMeasurements-1)
+        plt.savefig('images/pd_cov/'+str(plotIndex)+'.png')
+
+        if c is not None:
+            cb.remove()
+            c.remove()
+            cb = None
+            c = None
+
+    if params.plotPd:
+        if probabilityOfDetectionMap is not None:
+            c = probabilityOfDetectionMap.plot_mean(ax)
+        if c is not None:
+            cb = plt.colorbar(c)
+            
+        plt.title(numMeasurements-1)
+        plt.savefig('images/pd_mean/'+str(plotIndex)+'.png')
+        if c is not None:
+            cb.remove()
+            c.remove()
+            cb = None
+            c = None
     
-
-    plt.title(numMeasurements-1)
-    plt.savefig('images/best_measurement/'+str(plotIndex)+'.png')
-
-    if c is not None:
-        cb.remove()
-        c.remove()
-        cb = None
-        c = None
-
-    # start3 = time.time()
-    if probabilityOfDetectionMap is not None:
-        c = probabilityOfDetectionMap.plot_cov(ax)
-    # print("cov:", time.time() - start3)
-    if c is not None:
-        cb = plt.colorbar(c)
-        
-    # for radar in radarList:
-    #     radar.plot_view_area(ax)
-    plt.title(numMeasurements-1)
-    plt.savefig('images/pd_cov/'+str(plotIndex)+'.png')
-
-    if c is not None:
-        cb.remove()
-        c.remove()
-        cb = None
-        c = None
-
-    # start3 = time.time()
-    if probabilityOfDetectionMap is not None:
-        c = probabilityOfDetectionMap.plot_mean(ax)
-    # print("mean:", time.time() - start3)
-    if c is not None:
-        cb = plt.colorbar(c)
-        
-    # for radar in radarList:
-    #     radar.plot_view_area(ax)
-    plt.title(numMeasurements-1)
-    plt.savefig('images/pd_mean/'+str(plotIndex)+'.png')
-    if c is not None:
-        cb.remove()
-        c.remove()
-        cb = None
-        c = None
+    if params.plotObjectiveFunction:
+        if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
+            c = plot_objective_and_constraint(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap)
+            cb = plt.colorbar(c)
+        plt.savefig('images/objective_function/'+str(plotIndex)+'.png')
+        if c is not None:
+            cb.remove()
+            c.remove()
+            cb = None
+            c = None
 
     for line in measurement_lines:
         line.remove()
