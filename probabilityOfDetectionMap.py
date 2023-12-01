@@ -3,6 +3,7 @@ from scipy.constants import Boltzmann
 import params
 import jax.numpy as jnp
 from jax import jacfwd
+from numpy.random import multivariate_normal
 
 class ProbabilityOfDetectionMap():
     def __init__(self, X_test):
@@ -22,9 +23,11 @@ class ProbabilityOfDetectionMap():
         return (effectiveRadarPower*radarRecieverGain*wavelength**2*radarCrossSection*radarPulseWidth)/((4*np.pi)**3*distance**4*Boltzmann*radarSystemTemperature)
         
     def compute_probability_of_detection_at_xy(self, position, estimatedRadarParams):
-        radarXY = estimatedRadarParams[0:1]
+        radarXY = estimatedRadarParams[0:2]
         distance = np.linalg.norm(radarXY-position)
-        snr = self.signal_to_noise_ration(estimatedRadarParams[2], params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.pulseWidth, distance, params.radarSystemTemperaturePriorMean)
+        snr = self.signal_to_noise_ration(estimatedRadarParams[2], params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, distance, params.radarSystemTemperaturePriorMean)
+        if snr<0:
+            print("STOP")
         return self.probability_of_detection(params.radarProbabilityOfFalseAlarmPriorMean, snr)
     
     def compute_probability_of_detection_at_points(self, X_test, estimatedRadarParams, estimatedRadarParamsCov, agent):
@@ -58,6 +61,7 @@ class ProbabilityOfDetectionMap():
                 snr = self.signal_to_noise_ration(estimatedRadarParams[2], params.radarRecieveGain, params.radarWavelength, params.agentRadarCrossSection, params.radarPulseWidth, distance, params.radarSystemTemperature)
                 pdi = self.probability_of_detection(params.radarProbabilityOfFalseAlarm, snr)
                 probabilityOfNoDetection[i] *= (1-pdi)
+                # self.probability_of_detection_uncertainty_single_radar_at_xy_bootstrap(position, estimatedRadarParams, estimatedRadarParamsCovList[j])
                 dpdi_dparams = self.probability_of_detection_uncertainty_single_radar_at_xy(position, estimatedRadarParams, estimatedRadarParamsCovList[j])
                 pd_cov_list.append(dpdi_dparams)
                 pd_list.append(pdi)
@@ -94,7 +98,14 @@ class ProbabilityOfDetectionMap():
         
         return np.squeeze(estimatedRadarParamsJacobian @ estimatedRadarParamsCov@estimatedRadarParamsJacobian.T + radarParametersJacobian @ radarParametersCovariance @ radarParametersJacobian.T)
         
-
+    def probability_of_detection_uncertainty_single_radar_at_xy_bootstrap(self, position, estimatedRadarParams, estimatedRadarParamsCov):
+        num_samples = 1000
+        samples = multivariate_normal(estimatedRadarParams, estimatedRadarParamsCov, num_samples)
+        snr_samples = np.zeros(num_samples)
+        for i in range(num_samples):
+            snr_samples[i] = self.compute_probability_of_detection_at_xy(position, samples[i,:])
+        
+        print(samples)
 
 
     def pd_jacobian_emittor_params(self,position, estimatedRadarParams):
