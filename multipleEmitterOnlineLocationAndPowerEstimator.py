@@ -32,6 +32,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.mal_dist_opt_point = None
         
         self.radar_measurement_coeff = radar_measurement_coeff       
+        self.radar_measurement_coeff_db = 10*np.log10(radar_measurement_coeff)       
 
         self.best_measurement_location_map = None
         self.plot_alpha = .5
@@ -60,23 +61,23 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
 
     def fit_ransac_model(self, measurement_locations, measurements, original_index):
         if len(measurements) > 5:
-            try:
-                def loss(y_true, y_pred, X, estimator):
-                    mean = estimator.get_estimate_emmitor_params()
-                    cov = estimator.compute_emmitor_estimate_covariance(X, y_true)
-                    return np.array([self.mahalonobis_distance(y, X[i], mean, cov) for i,y in enumerate(y_true)])
-                regressionModel = NonlinearEstimator(self.measurement_cov, self.radar_measurement_coeff)
-                # ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = 'squared_error')#,residual_threshold=.09)
-                ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = loss, residual_threshold=.9)#,residual_threshold=.09)
-                ransacRegressor.fit(np.array(measurement_locations), np.array(measurements))
-                self.estimated_emmiter_params.append(ransacRegressor.estimator_.get_estimate_emmitor_params())
-                self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
-                self.estimated_emmiter_params_covariances.append(ransacRegressor.estimator_.compute_emmitor_estimate_covariance(np.array(self.measurement_locations)[self.group_lists[-1]], np.array(self.measurement_values)[self.group_lists[-1]]))
-                for ind in original_index[ransacRegressor.inlier_mask_== True]:
-                    self.outlier_indicies = np.delete(self.outlier_indicies, np.argwhere(self.outlier_indicies == ind))
-                self.fit_ransac_model(measurement_locations[ransacRegressor.inlier_mask_== False],measurements[ransacRegressor.inlier_mask_== False], original_index[ransacRegressor.inlier_mask_== False])
-            except:
-                pass
+            # try:
+            def loss(y_true, y_pred, X, estimator):
+                mean = estimator.get_estimate_emmitor_params()
+                cov = estimator.compute_emmitor_estimate_covariance(X, y_true)
+                return np.array([self.mahalonobis_distance(y, X[i], mean, cov) for i,y in enumerate(y_true)])
+            regressionModel = NonlinearEstimator(self.measurement_cov, self.radar_measurement_coeff)
+            # ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = 'squared_error')#,residual_threshold=.09)
+            ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = loss, residual_threshold=2)#,residual_threshold=.09)
+            ransacRegressor.fit(np.array(measurement_locations), np.array(measurements))
+            self.estimated_emmiter_params.append(ransacRegressor.estimator_.get_estimate_emmitor_params())
+            self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
+            self.estimated_emmiter_params_covariances.append(ransacRegressor.estimator_.compute_emmitor_estimate_covariance(np.array(self.measurement_locations)[self.group_lists[-1]], np.array(self.measurement_values)[self.group_lists[-1]]))
+            for ind in original_index[ransacRegressor.inlier_mask_== True]:
+                self.outlier_indicies = np.delete(self.outlier_indicies, np.argwhere(self.outlier_indicies == ind))
+            self.fit_ransac_model(measurement_locations[ransacRegressor.inlier_mask_== False],measurements[ransacRegressor.inlier_mask_== False], original_index[ransacRegressor.inlier_mask_== False])
+            # except:
+            #     pass
     
     def minimized_angle(self, angle):
         while angle < -np.pi:
@@ -93,9 +94,10 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         x = measurement_pos[0]
         y = measurement_pos[1]
 
-        H = self.measurement_jacobian(xem, yem, erp, x, y)
+        H = self.measurement_jacobian_db(xem, yem, erp, x, y)
         K = sigma_prev @ H.T @ np.linalg.inv(H@sigma_prev@H.T + measurement_cov)
-        zHat = self.measurement_model(xem, yem, erp, x, y)
+        # zHat = self.measurement_model(xem, yem, erp, x, y)
+        zHat = self.measurement_model_db(xem, yem, erp, x, y)
         inovation = np.zeros_like(zHat)
         inovation[0] = self.minimized_angle(measurement_value[0] - zHat[0][0])
         inovation[1] = measurement_value[1] - zHat[1][0]
@@ -105,8 +107,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         return xHat, sigmaHat
 
     def mahalonobis_distance(self, measurement_value, measurement_location, estimated_emitter_params, emitter_params_covariance):
-        z_hat = self.measurement_model(estimated_emitter_params[0], estimated_emitter_params[1], estimated_emitter_params[2], measurement_location[0], measurement_location[1])
-        measurement_jacobian = self.measurement_jacobian(estimated_emitter_params[0], estimated_emitter_params[1], estimated_emitter_params[2], measurement_location[0], measurement_location[1])
+        z_hat = self.measurement_model_db(estimated_emitter_params[0], estimated_emitter_params[1], estimated_emitter_params[2], measurement_location[0], measurement_location[1])
+        measurement_jacobian = self.measurement_jacobian_db(estimated_emitter_params[0], estimated_emitter_params[1], estimated_emitter_params[2], measurement_location[0], measurement_location[1])
 
         z_hat_cov = measurement_jacobian @ emitter_params_covariance @ measurement_jacobian.T
 
@@ -151,19 +153,33 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         mahalonobis_distance_squared = ((x-mean).T@inv_cov@(x-mean))[0][0]
         return np.sqrt(mahalonobis_distance_squared)
     
-    def measurement_model(self, xem, yem, erp, x, y):
-        return np.array([[np.arctan2(yem-y, xem-x)], [(erp*self.radar_measurement_coeff)/((xem-x)**2 + (yem-y)**2)]])
+    # def measurement_model(self, xem, yem, erp, x, y):
+    #     return np.array([[np.arctan2(yem-y, xem-x)], [(erp*self.radar_measurement_coeff)/((xem-x)**2 + (yem-y)**2)]])
 
-    def measurement_jacobian(self, xem, yem, erp, x, y):
+    def measurement_model_db(self, xem, yem, erp_db, x, y):
+        return np.array([[np.arctan2(yem-y, xem-x)], [erp_db + self.radar_measurement_coeff_db - 10*np.log10((xem-x)**2 + (yem-y)**2)]])
+
+    def measurement_jacobian_db(self, xem, yem, erp_db, x, y):
         d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
         d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
         d_h1_d_p_emmitter = 0
 
-        d_h2_d_x_emmitter = -(2*erp*self.radar_measurement_coeff*(xem-x))/((xem-x)**2+(yem-y)**2)**2 
-        d_h2_d_y_emmitter = -(2*erp*self.radar_measurement_coeff*(yem-y))/((yem-y)**2+(xem-x)**2)**2 
-        d_h2_d_p_emmitter = self.radar_measurement_coeff/((yem-y)**2+(xem-x)**2)
+        d_h2_d_x_emmitter = -(20*(xem-x))/(np.log(10)*((xem-x)**2+(yem-y)**2))
+        d_h2_d_y_emmitter = -(20*(yem-y))/(np.log(10)*((yem-y)**2+(xem-x)**2)) 
+        d_h2_d_p_emmitter = 1
 
         return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
+
+    # def measurement_jacobian(self, xem, yem, erp, x, y):
+    #     d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
+    #     d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
+    #     d_h1_d_p_emmitter = 0
+
+    #     d_h2_d_x_emmitter = -(2*erp*self.radar_measurement_coeff*(xem-x))/((xem-x)**2+(yem-y)**2)**2 
+    #     d_h2_d_y_emmitter = -(2*erp*self.radar_measurement_coeff*(yem-y))/((yem-y)**2+(xem-x)**2)**2 
+    #     d_h2_d_p_emmitter = self.radar_measurement_coeff/((yem-y)**2+(xem-x)**2)
+
+    #     return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
 
     def add_measurement(self, measurement_location, measurement_value):
         self.measurement_locations.append(measurement_location)
@@ -320,9 +336,10 @@ class NonlinearEstimator():
         self.estimated_emmiter_params_cov = None
         self.measurement_covariance = measurement_cov
         self.radar_measurement_coeff = radar_measurement_coeff
+        self.radar_measurement_coeff_db = 10*np.log10(radar_measurement_coeff)
 
     def measurement_residual(self, emitter_params, measurements, measurement_locations):
-        return np.array([self.measurement_model(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1]) for loc in measurement_locations]).reshape((-1,)) - np.array(measurements).reshape((-1,))
+        return np.array([self.measurement_model_db(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1]) for loc in measurement_locations]).reshape((-1,)) - np.array(measurements).reshape((-1,))
 
     def fit(self, X, y):
         x0 = np.array([params.bounds[0]/2,params.bounds[1]/2,params.radarOutputPower*params.radarTransmitGain])
@@ -339,24 +356,38 @@ class NonlinearEstimator():
         return 1/np.linalg.norm(self.measurement_residual(self.estimated_emmiter_params, y, X))**2
     
     def predict(self, X):
-        return np.array([self.measurement_model(self.estimated_emmiter_params[0], self.estimated_emmiter_params[1], self.estimated_emmiter_params[2], loc[0], loc[1]) for loc in X]).reshape((-1,2))
+        return np.array([self.measurement_model_db(self.estimated_emmiter_params[0], self.estimated_emmiter_params[1], self.estimated_emmiter_params[2], loc[0], loc[1]) for loc in X]).reshape((-1,2))
 
-    def measurement_model(self, xem, yem, erp, x, y):
-        return np.array([[np.arctan2(yem-y, xem-x)], [(self.radar_measurement_coeff * erp)/((xem-x)**2 + (yem-y)**2)]])
+    # def measurement_model(self, xem, yem, erp, x, y):
+    #     return np.array([[np.arctan2(yem-y, xem-x)], [(self.radar_measurement_coeff * erp)/((xem-x)**2 + (yem-y)**2)]])
     
     def stack_measurement_jacobian(self, emitter_params, measurements, measurement_locations):
-        return np.array([self.measurement_jacobian(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1]) for loc in measurement_locations]).reshape((2*len(measurement_locations),3))
+        return np.array([self.measurement_jacobian_db(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1]) for loc in measurement_locations]).reshape((2*len(measurement_locations),3))
 
-    def measurement_jacobian(self, xem, yem, erp, x, y):
+    def measurement_model_db(self, xem, yem, erp_db, x, y):
+        return np.array([[np.arctan2(yem-y, xem-x)], [erp_db + self.radar_measurement_coeff_db - 10*np.log10((xem-x)**2 + (yem-y)**2)]])
+
+    def measurement_jacobian_db(self, xem, yem, erp_db, x, y):
         d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
         d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
         d_h1_d_p_emmitter = 0
 
-        d_h2_d_x_emmitter = -(2*erp*self.radar_measurement_coeff*(xem-x))/((xem-x)**2+(yem-y)**2)**2
-        d_h2_d_y_emmitter = -(2*erp*self.radar_measurement_coeff*(yem-y))/((yem-y)**2+(xem-x)**2)**2
-        d_h2_d_p_emmitter = self.radar_measurement_coeff/((yem-y)**2+(xem-x)**2)
+        d_h2_d_x_emmitter = -(20*(xem-x))/(np.log(10)*((xem-x)**2+(yem-y)**2))
+        d_h2_d_y_emmitter = -(20*(yem-y))/(np.log(10)*((yem-y)**2+(xem-x)**2)) 
+        d_h2_d_p_emmitter = 1
 
         return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
+
+    # def measurement_jacobian(self, xem, yem, erp, x, y):
+    #     d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
+    #     d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
+    #     d_h1_d_p_emmitter = 0
+
+    #     d_h2_d_x_emmitter = -(2*erp*self.radar_measurement_coeff*(xem-x))/((xem-x)**2+(yem-y)**2)**2
+    #     d_h2_d_y_emmitter = -(2*erp*self.radar_measurement_coeff*(yem-y))/((yem-y)**2+(xem-x)**2)**2
+    #     d_h2_d_p_emmitter = self.radar_measurement_coeff/((yem-y)**2+(xem-x)**2)
+
+    #     return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
 
     def set_params(self, **parameters):
         for parameter, value in parameters.items():
@@ -372,7 +403,7 @@ class NonlinearEstimator():
         emitter_params_cov = np.linalg.inv(jacobians.T@np.linalg.inv(combined_measurment_cov)@jacobians)
         return emitter_params_cov
     def temp(self, x, X_):
-        return self.measurement_model(x[0],x[1],x[2], X_[0],X_[1]).reshape((2,))
+        return self.measurement_model_db(x[0],x[1],x[2], X_[0],X_[1]).reshape((2,))
 
     def get_params(self, deep=False):
         # return {"position": self.estimated_emmiter_location}

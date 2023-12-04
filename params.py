@@ -64,7 +64,7 @@ print("Actual ERP", radarOutputPower * radarTransmitGain)
 # agentInitialStates = [[5000,5000,0],[5000,15000,0]]
 agentInitialStates = [[5000,5000,0]]
 agentSensingRange = 10000
-agentPowerMeasurementStdDev = 0.001
+agentPowerMeasurementStdDev = 0.1
 agentAngleMeasurementStdDev = (5*np.pi/180)
 agentELINTAnteneaGaindb = 18
 agentELINTAnteneaGain = db_to_amplitude(agentELINTAnteneaGaindb)
@@ -99,8 +99,8 @@ radarSystemTemperaturePriorVariance = 0
 
 #plotting
 plotObjectiveFunction = True
-plotPd = False
-plotPdCov = False
+plotPd = True
+plotPdCov = True 
 plotBestMeasurement = False
 
 #chance constraints

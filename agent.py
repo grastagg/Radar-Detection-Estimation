@@ -66,7 +66,8 @@ class Agent:
                     radar_indecies.append(i)
                     # print("radar angle", radar.current_angle)
                     # print("angle",angle_between_radar_and_agent)
-                    power_measurements.append((self.radarMeasurementCoeff * radar.outputPower * radar.transmitGain) / dist**2) #+ np.random.normal(0,self.powerMeasurementStdDev)**2
+                    # power_measurements.append((self.radarMeasurementCoeff * radar.outputPower * radar.transmitGain) / dist**2) #+ np.random.normal(0,self.powerMeasurementStdDev)**2
+                    power_measurements.append(10*np.log10((self.radarMeasurementCoeff * radar.outputPower * radar.transmitGain) / dist**2)) #+ np.random.normal(0,self.powerMeasurementStdDev)**2
                     #aoa measured in global frame
                     angle_of_arrivals.append(self.map_angle_minus_pi_to_pi(angle_between_radar_and_agent + np.pi + np.random.normal(0,self.angelMeasurementStdDev)))
                     # print("AOA", angle_of_arrival)

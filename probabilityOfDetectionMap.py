@@ -25,7 +25,7 @@ class ProbabilityOfDetectionMap():
     def compute_probability_of_detection_at_xy(self, position, estimatedRadarParams):
         radarXY = estimatedRadarParams[0:2]
         distance = np.linalg.norm(radarXY-position)
-        snr = self.signal_to_noise_ration(estimatedRadarParams[2], params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, distance, params.radarSystemTemperaturePriorMean)
+        snr = self.signal_to_noise_ration(10**(estimatedRadarParams[2]/10), params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, distance, params.radarSystemTemperaturePriorMean)
         if snr<0:
             print("STOP")
         return self.probability_of_detection(params.radarProbabilityOfFalseAlarmPriorMean, snr)
@@ -37,7 +37,7 @@ class ProbabilityOfDetectionMap():
         radarXY = estimatedRadarParams[0:2]
         for i,position in enumerate(X_test):
             distance = np.linalg.norm(radarXY-position)
-            snr = self.signal_to_noise_ration(estimatedRadarParams[2], params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.pulseWidth, distance, params.radarSystemTemperaturePriorMean)
+            snr = self.signal_to_noise_ration(10**(estimatedRadarParams[2]/10), params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.pulseWidth, distance, params.radarSystemTemperaturePriorMean)
             pdMap[i] = self.probability_of_detection(params.radarProbabilityOfFalseAlarm, snr)
             pdCovMap[i] = self.probability_of_detection_uncertainty_single_radar_at_xy(position, estimatedRadarParams, estimatedRadarParamsCov)
     
@@ -58,7 +58,7 @@ class ProbabilityOfDetectionMap():
             for j, estimatedRadarParams in enumerate(estimatedRadarParamsList):
                 radarXY = estimatedRadarParams[0:2]
                 distance = np.linalg.norm(radarXY-position)
-                snr = self.signal_to_noise_ration(estimatedRadarParams[2], params.radarRecieveGain, params.radarWavelength, params.agentRadarCrossSection, params.radarPulseWidth, distance, params.radarSystemTemperature)
+                snr = self.signal_to_noise_ration(10**(estimatedRadarParams[2]/10), params.radarRecieveGain, params.radarWavelength, params.agentRadarCrossSection, params.radarPulseWidth, distance, params.radarSystemTemperature)
                 pdi = self.probability_of_detection(params.radarProbabilityOfFalseAlarm, snr)
                 probabilityOfNoDetection[i] *= (1-pdi)
                 # self.probability_of_detection_uncertainty_single_radar_at_xy_bootstrap(position, estimatedRadarParams, estimatedRadarParamsCovList[j])
@@ -113,7 +113,9 @@ class ProbabilityOfDetectionMap():
         y = position[1]
         x_em = estimatedRadarParams[0]
         y_em = estimatedRadarParams[1]
-        ERP = estimatedRadarParams[2]
+        # ERP = estimatedRadarParams[2]
+        ERP_db = estimatedRadarParams[2]
+        ERP = 10**(ERP_db/10) 
         Gr = params.radarRecieveGainPriorMean
         Pfa = params.radarProbabilityOfFalseAlarmPriorMean
         rcs = params.agentRadarCrossSection
@@ -126,9 +128,12 @@ class ProbabilityOfDetectionMap():
         # d_pd_d_xem = -(ERP*Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*(x-x_em))/(16*np.pi**3*T_s*k*((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)**2*((x-x_em)**2+(y-y_em)**2)**3)
         # d_pd_d_yem = -(ERP*Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*(y-y_em))/(16*np.pi**3*T_s*k*((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)**2*((x-x_em)**2+(y-y_em)**2)**3)
         # d_pd_d_erp = -(Gr*np.log(Pfa)*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2*((Gr*rcs*tau_p*wavelength**2*ERP)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)**2)
-        d_pd_d_erp = -(Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*np.exp(np.log(Pfa)/((Gr*rcs*tau_p*wavelength**2*ERP)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)))/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2*((Gr*rcs*tau_p*wavelength**2*ERP)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)**2)
-        d_pd_d_xem = -(ERP*Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*(x-x_em)*np.exp(np.log(Pfa)/((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)))/(16*np.pi**3*T_s*k*((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)**2*((x-x_em)**2+(y-y_em)**2)**3)
-        d_pd_d_yem = -(ERP*Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*(y-y_em)*np.exp(np.log(Pfa)/((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)))/(16*np.pi**3*T_s*k*((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)**2*((y-y_em)**2+(x-x_em)**2)**3)
+        # d_pd_d_erp = -(Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*np.exp(np.log(Pfa)/((Gr*rcs*tau_p*wavelength**2*ERP)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)))/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2*((Gr*rcs*tau_p*wavelength**2*ERP)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)**2)
+        d_pd_d_erp = -np.log(10)*10**(ERP_db/10-1)*(Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*np.exp(np.log(Pfa)/((Gr*rcs*tau_p*wavelength**2*ERP)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)))/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2*((Gr*rcs*tau_p*wavelength**2*ERP)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)**2)
+        # d_pd_d_xem = -(ERP*Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*(x-x_em)*np.exp(np.log(Pfa)/((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)))/(16*np.pi**3*T_s*k*((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)**2*((x-x_em)**2+(y-y_em)**2)**3)
+        d_pd_d_xem = -((ERP)*Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*(x-x_em)*np.exp(np.log(Pfa)/((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)))/(16*np.pi**3*T_s*k*((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)**2*((x-x_em)**2+(y-y_em)**2)**3)
+        # d_pd_d_yem = -(ERP*Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*(y-y_em)*np.exp(np.log(Pfa)/((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)))/(16*np.pi**3*T_s*k*((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)**2*((y-y_em)**2+(x-x_em)**2)**3)
+        d_pd_d_yem = -((ERP)*Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*(y-y_em)*np.exp(np.log(Pfa)/((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)))/(16*np.pi**3*T_s*k*((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)**2*((y-y_em)**2+(x-x_em)**2)**3)
         return np.array([d_pd_d_xem,d_pd_d_yem,d_pd_d_erp])
         # return np.array([[jac[0]],[jac[1]],[jac[2]]])
     
@@ -137,7 +142,7 @@ class ProbabilityOfDetectionMap():
         y = position[1]
         x_em = estimatedRadarParams[0]
         y_em = estimatedRadarParams[1]
-        ERP = estimatedRadarParams[2]
+        ERP = 10**(estimatedRadarParams[2]/10)
         Gr = params.radarRecieveGainPriorMean
         Pfa = params.radarProbabilityOfFalseAlarmPriorMean
         rcs = params.agentRadarCrossSection
