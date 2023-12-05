@@ -4,6 +4,7 @@ import params
 import jax.numpy as jnp
 from jax import jacfwd
 from numpy.random import multivariate_normal
+from params import measurement_jacobian_db
 
 class ProbabilityOfDetectionMap():
     def __init__(self, X_test):
@@ -28,7 +29,7 @@ class ProbabilityOfDetectionMap():
         snr = self.signal_to_noise_ration(10**(estimatedRadarParams[2]/10), params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, distance, params.radarSystemTemperaturePriorMean)
         if snr<0:
             print("STOP")
-        return self.probability_of_detection(params.radarProbabilityOfFalseAlarmPriorMean, snr)
+        return np.array([self.probability_of_detection(params.radarProbabilityOfFalseAlarmPriorMean, snr)])
     
     def compute_probability_of_detection_at_points(self, X_test, estimatedRadarParams, estimatedRadarParamsCov, agent):
         pdMap = np.zeros(len(X_test))
@@ -56,10 +57,11 @@ class ProbabilityOfDetectionMap():
             pd_list = []
             pd_cov_list = []
             for j, estimatedRadarParams in enumerate(estimatedRadarParamsList):
-                radarXY = estimatedRadarParams[0:2]
-                distance = np.linalg.norm(radarXY-position)
-                snr = self.signal_to_noise_ration(10**(estimatedRadarParams[2]/10), params.radarRecieveGain, params.radarWavelength, params.agentRadarCrossSection, params.radarPulseWidth, distance, params.radarSystemTemperature)
-                pdi = self.probability_of_detection(params.radarProbabilityOfFalseAlarm, snr)
+                # radarXY = estimatedRadarParams[0:2]
+                # distance = np.linalg.norm(radarXY-position)
+                # snr = self.signal_to_noise_ration(10**(estimatedRadarParams[2]/10), params.radarRecieveGain, params.radarWavelength, params.agentRadarCrossSection, params.radarPulseWidth, distance, params.radarSystemTemperature)
+                # pdi = self.probability_of_detection(params.radarProbabilityOfFalseAlarm, snr)
+                pdi = self.compute_probability_of_detection_at_xy(position, estimatedRadarParams)
                 probabilityOfNoDetection[i] *= (1-pdi)
                 # self.probability_of_detection_uncertainty_single_radar_at_xy_bootstrap(position, estimatedRadarParams, estimatedRadarParamsCovList[j])
                 dpdi_dparams = self.probability_of_detection_uncertainty_single_radar_at_xy(position, estimatedRadarParams, estimatedRadarParamsCovList[j])
@@ -80,6 +82,31 @@ class ProbabilityOfDetectionMap():
         
         
         return self.pdMap, self.pdCovMap
+
+    def get_gradient_finite_diff(self, f,x,h, position):
+        #calculate gradient using finite differencing
+        x = np.array(x)
+
+        #store the function value at x
+        fx = f(position, x)
+
+        #initialize the jacobian matrix (# functions by # variables
+        grad = np.zeros((len(fx),len(x)))
+
+        #this loops through each column of the Jacobian
+        for i in range(len(x)):
+            #the next three lines creates a step vector where all elements are zeros except for the current step direction
+            epsilon = np.zeros(len(x))
+            step = h * (1 + abs(x[i]))
+            epsilon[i] = step
+
+            #add the step to the x vector
+            xi = x + epsilon
+
+            grad[:,i] = ((f(position, xi) - fx)/step).flatten()
+            # print("grad[:,i]",grad[:,i])
+
+        return grad
     
     # def probability_of_detection_uncertainty_multiple_radar_at_xy(position, estimatedRadarParamsList, estimatedRadarParamsCovList):
     def multi_radar_jacobian_test_x(self, pdList):
@@ -106,6 +133,7 @@ class ProbabilityOfDetectionMap():
             snr_samples[i] = self.compute_probability_of_detection_at_xy(position, samples[i,:])
         
         print(samples)
+
 
 
     def pd_jacobian_emittor_params(self,position, estimatedRadarParams):
@@ -198,41 +226,43 @@ class ProbabilityOfDetectionMap():
     def f(self, x, radar, position):
         return np.array([self.compute_probability_of_detection_at_xy(radar, position, x)])
 
-    def get_gradient_finite_diff(self,f,x,h,radar, position):
-        #calculate gradient using finite differencing
-        x = np.array(x)
+    # def get_gradient_finite_diff(self,f,x,h,radar, position):
+    #     #calculate gradient using finite differencing
+    #     x = np.array(x)
 
-        #store the function value at x
-        fx = f(x,radar,position)
+    #     #store the function value at x
+    #     fx = f(x,radar,position)
 
-        #initialize the jacobian matrix (# functions by # variables
-        grad = np.zeros((len(fx),len(x)))
+    #     #initialize the jacobian matrix (# functions by # variables
+    #     grad = np.zeros((len(fx),len(x)))
 
-        #this loops through each column of the Jacobian
-        for i in range(len(x)):
-            #the next three lines creates a step vector where all elements are zeros except for the current step direction
-            epsilon = np.zeros(len(x))
-            step = h * (1 + abs(x[i]))
-            epsilon[i] = step
+    #     #this loops through each column of the Jacobian
+    #     for i in range(len(x)):
+    #         #the next three lines creates a step vector where all elements are zeros except for the current step direction
+    #         epsilon = np.zeros(len(x))
+    #         step = h * (1 + abs(x[i]))
+    #         epsilon[i] = step
 
-            #add the step to the x vector
-            xi = x + epsilon
+    #         #add the step to the x vector
+    #         xi = x + epsilon
 
-            grad[:,i] = (f(xi,radar, position) - fx)/step
-            # print("grad[:,i]",grad[:,i])
+    #         grad[:,i] = (f(xi,radar, position) - fx)/step
+    #         # print("grad[:,i]",grad[:,i])
 
-        return grad
+    #     return grad
 
     def measurement_jacobian(self, xem, yem, erp, x, y):
-        d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
-        d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
-        d_h1_d_p_emmitter = 0
+        return measurement_jacobian_db(xem, yem, erp, x, y)
 
-        d_h2_d_x_emmitter = -(2*erp*params.radarMeasurementCoeff*(xem-x))/((xem-x)**2+(yem-y)**2)**2 
-        d_h2_d_y_emmitter = -(2*erp*params.radarMeasurementCoeff*(yem-y))/((yem-y)**2+(xem-x)**2)**2 
-        d_h2_d_p_emmitter = params.radarMeasurementCoeff/((yem-y)**2+(xem-x)**2)
+        # d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
+        # d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
+        # d_h1_d_p_emmitter = 0
 
-        return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
+        # d_h2_d_x_emmitter = -(2*erp*params.radarMeasurementCoeff*(xem-x))/((xem-x)**2+(yem-y)**2)**2 
+        # d_h2_d_y_emmitter = -(2*erp*params.radarMeasurementCoeff*(yem-y))/((yem-y)**2+(xem-x)**2)**2 
+        # d_h2_d_p_emmitter = params.radarMeasurementCoeff/((yem-y)**2+(xem-x)**2)
+
+        # return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
 
     def next_measurement_covariance_determinant(self, pos, estimatedRadarParams, estimatedRadarCovariance):
         x = pos[0]
@@ -242,7 +272,9 @@ class ProbabilityOfDetectionMap():
         erp = estimatedRadarParams[2]
         H = self.measurement_jacobian(x_em, y_em, erp, x, y)
         R = params.measurementCov
-        nextCovariance = estimatedRadarCovariance - estimatedRadarCovariance@H.T@np.linalg.inv(H@estimatedRadarCovariance@H.T+R)@H@estimatedRadarCovariance
+        K = estimatedRadarCovariance @ H.T @ np.linalg.inv(H@estimatedRadarCovariance@H.T + R)
+        nextCovariance = (np.eye(3) - K@H)@estimatedRadarCovariance
+        # nextCovariance = estimatedRadarCovariance - estimatedRadarCovariance@H.T@np.linalg.inv(H@estimatedRadarCovariance@H.T+R)@H@estimatedRadarCovariance
         # return 1/2*np.log((2*np.pi*np.exp(1))**3*np.linalg.det(estimatedRadarCovariance)) - 1/2*np.log((2*np.pi*np.exp(1))**3*np.linalg.det(nextCovariance))
         return np.linalg.det(estimatedRadarCovariance) - np.linalg.det(nextCovariance)
     

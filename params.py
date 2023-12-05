@@ -49,12 +49,13 @@ radarTransmitGain = db_to_amplitude(radarTransmitGaindb)
 radarRecieveGain = db_to_amplitude(radarRecieveGaindb)
 radarFrequency = 3e9
 radarWavelength = frequency_to_wavelength(radarFrequency)
-print("radarWavelength",radarWavelength)
+# print("radarWavelength",radarWavelength)
 radarProbabilityOfFalseAlarm = 1e-6
 radarPulseWidth = 1.1e-5
 radarSystemTemperature = 745.4148
 radarList = create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm)
 print("Actual ERP", radarOutputPower * radarTransmitGain)
+print("Actual ERP in DB", 10*np.log10(radarOutputPower * radarTransmitGain))
 
 
 #agent parameters
@@ -71,6 +72,7 @@ agentELINTAnteneaGain = db_to_amplitude(agentELINTAnteneaGaindb)
 print(agentELINTAnteneaGain)
 agentELINTSystemLoss = 1
 radarMeasurementCoeff = (agentELINTAnteneaGain * radarWavelength**2)/((4*np.pi)**2 * agentELINTSystemLoss)
+radarMeasurementCoeffDB = 10*np.log10(radarMeasurementCoeff)
 agentRadarCrossSection = .1
 agentList = create_agent_list(agentInitialStates, len(radarList), agentSensingRange, agentPowerMeasurementStdDev, agentAngleMeasurementStdDev, agentELINTAnteneaGain, agentELINTSystemLoss, radarWavelength, agentRadarCrossSection)
 
@@ -98,10 +100,10 @@ radarSystemTemperaturePriorMean = radarSystemTemperature
 radarSystemTemperaturePriorVariance = 0
 
 #plotting
-plotObjectiveFunction = True
+plotObjectiveFunction = False
 plotPd = True
 plotPdCov = True 
-plotBestMeasurement = False
+plotBestMeasurement = True 
 
 #chance constraints
 probabilityOfDetectionThreshold = 0.5
@@ -119,3 +121,19 @@ def create_test_points(numTestPoints, bounds):
             X_test.append(np.array([x_test[i],y_test[j]]))
     return X_test
     
+    
+
+
+def measurement_model_db(xem, yem, erp_db, x, y):
+    return np.array([[np.arctan2(yem-y, xem-x)], [erp_db + radarMeasurementCoeffDB - 10*np.log10((xem-x)**2 + (yem-y)**2)]])
+
+def measurement_jacobian_db(xem, yem, erp_db, x, y):
+    d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
+    d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
+    d_h1_d_p_emmitter = 0
+
+    d_h2_d_x_emmitter = -(20*(xem-x))/(np.log(10)*((xem-x)**2+(yem-y)**2))
+    d_h2_d_y_emmitter = -(20*(yem-y))/(np.log(10)*((yem-y)**2+(xem-x)**2)) 
+    d_h2_d_p_emmitter = 1
+
+    return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
