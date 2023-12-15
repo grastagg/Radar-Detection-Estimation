@@ -10,7 +10,9 @@ def chance_constraint(rho, delta, mean, var):
 def objective_function(X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap):
     objectivFunctionVal = np.zeros((len(X_test),1))
     constraintMet = np.zeros((len(X_test),1))
-    pdMean, pdVar = probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, estimatedRadarParams, estimatedRadarParamsCov)
+    # pdMean, pdVar = probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, estimatedRadarParams, estimatedRadarParamsCov)
+    pdMean = probabilityOfDetectionMap.pdMap
+    pdVar = probabilityOfDetectionMap.pdCovMap
     rho = params.probabilityOfDetectionThreshold
     delta = params.thresholdConfidence
     for i, mean in enumerate(pdMean):

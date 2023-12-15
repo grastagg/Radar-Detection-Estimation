@@ -15,7 +15,7 @@ from probabilityOfDetectionMap import ProbabilityOfDetectionMap
 import params
 from pathPlanning import plot_objective_and_constraint
 
-# np.random.seed(12342)
+np.random.seed(1234)
 
 fig,ax = plt.subplots()
 ax.set_xlim((0,params.bounds[0]))

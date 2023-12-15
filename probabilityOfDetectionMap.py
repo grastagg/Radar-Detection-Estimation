@@ -63,7 +63,7 @@ class ProbabilityOfDetectionMap():
                 # pdi = self.probability_of_detection(params.radarProbabilityOfFalseAlarm, snr)
                 pdi = self.compute_probability_of_detection_at_xy(position, estimatedRadarParams)
                 probabilityOfNoDetection[i] *= (1-pdi)
-                # self.probability_of_detection_uncertainty_single_radar_at_xy_bootstrap(position, estimatedRadarParams, estimatedRadarParamsCovList[j])
+                # dpdi_dparams = self.probability_of_detection_uncertainty_single_radar_at_xy_bootstrap(position, estimatedRadarParams, estimatedRadarParamsCovList[j])
                 dpdi_dparams = self.probability_of_detection_uncertainty_single_radar_at_xy(position, estimatedRadarParams, estimatedRadarParamsCovList[j])
                 pd_cov_list.append(dpdi_dparams)
                 pd_list.append(pdi)
@@ -126,13 +126,15 @@ class ProbabilityOfDetectionMap():
         return np.squeeze(estimatedRadarParamsJacobian @ estimatedRadarParamsCov@estimatedRadarParamsJacobian.T + radarParametersJacobian @ radarParametersCovariance @ radarParametersJacobian.T)
         
     def probability_of_detection_uncertainty_single_radar_at_xy_bootstrap(self, position, estimatedRadarParams, estimatedRadarParamsCov):
-        num_samples = 1000
+        num_samples = 500
         samples = multivariate_normal(estimatedRadarParams, estimatedRadarParamsCov, num_samples)
-        snr_samples = np.zeros(num_samples)
+        pd_samples = np.zeros(num_samples)
         for i in range(num_samples):
-            snr_samples[i] = self.compute_probability_of_detection_at_xy(position, samples[i,:])
+            pd_samples[i] = self.compute_probability_of_detection_at_xy(position, samples[i,:])
         
-        print(samples)
+        # print(pd_samples.var())
+        # print("TEST")
+        return pd_samples.var()
 
 
 
