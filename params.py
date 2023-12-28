@@ -65,8 +65,8 @@ print("Actual ERP in DB", 10*np.log10(radarOutputPower * radarTransmitGain))
 # agentInitialStates = [[5000,5000,0],[5000,15000,0]]
 agentInitialStates = [[5000,5000,0]]
 agentSensingRange = 10000
-agentPowerMeasurementStdDev = 1
-agentAngleMeasurementStdDev = (8*np.pi/180)
+agentPowerMeasurementStdDev = .001
+agentAngleMeasurementStdDev = (3*np.pi/180)
 agentELINTAnteneaGaindb = 18
 agentELINTAnteneaGain = db_to_amplitude(agentELINTAnteneaGaindb)
 print(agentELINTAnteneaGain)
@@ -100,10 +100,10 @@ radarSystemTemperaturePriorMean = radarSystemTemperature
 radarSystemTemperaturePriorVariance = 0
 
 #plotting
-plotObjectiveFunction = False 
-plotPd = False
-plotPdCov = False
-plotBestMeasurement = False
+plotObjectiveFunction = True 
+plotPd = True 
+plotPdCov = True
+plotBestMeasurement = True 
 
 #chance constraints
 probabilityOfDetectionThreshold = 0.5
@@ -122,18 +122,34 @@ def create_test_points(numTestPoints, bounds):
     return X_test
     
     
+X_test = create_test_points(numTestPoints, bounds)
 
+# def measurement_model_db(xem, yem, erp_db, x, y):
+#     return np.array([[np.arctan2(yem-y, xem-x)], [erp_db + radarMeasurementCoeffDB - 10*np.log10((xem-x)**2 + (yem-y)**2)]])
 
-def measurement_model_db(xem, yem, erp_db, x, y):
-    return np.array([[np.arctan2(yem-y, xem-x)], [erp_db + radarMeasurementCoeffDB - 10*np.log10((xem-x)**2 + (yem-y)**2)]])
+# def measurement_jacobian_db(xem, yem, erp_db, x, y):
+#     d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
+#     d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
+#     d_h1_d_p_emmitter = 0
 
-def measurement_jacobian_db(xem, yem, erp_db, x, y):
+#     d_h2_d_x_emmitter = -(20*(xem-x))/(np.log(10)*((xem-x)**2+(yem-y)**2))
+#     d_h2_d_y_emmitter = -(20*(yem-y))/(np.log(10)*((yem-y)**2+(xem-x)**2)) 
+#     d_h2_d_p_emmitter = 1
+
+#     return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
+
+def measurement_model(xem, yem, erp, x, y):
+    return np.array([[np.arctan2(yem-y, xem-x)], [(erp*radarMeasurementCoeff)/((xem-x)**2 + (yem-y)**2)]])
+
+def measurement_jacobian(xem, yem, erp, x, y):
     d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
     d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
     d_h1_d_p_emmitter = 0
 
-    d_h2_d_x_emmitter = -(20*(xem-x))/(np.log(10)*((xem-x)**2+(yem-y)**2))
-    d_h2_d_y_emmitter = -(20*(yem-y))/(np.log(10)*((yem-y)**2+(xem-x)**2)) 
-    d_h2_d_p_emmitter = 1
+    d_h2_d_x_emmitter = -(2*erp*radarMeasurementCoeff*(xem-x))/((xem-x)**2+(yem-y)**2)**2 
+    d_h2_d_y_emmitter = -(2*erp*radarMeasurementCoeff*(yem-y))/((yem-y)**2+(xem-x)**2)**2 
+    d_h2_d_p_emmitter = radarMeasurementCoeff/((yem-y)**2+(xem-x)**2)
 
     return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
+
+    

@@ -2,7 +2,8 @@ import numpy as np
 from scipy.special import erfinv
 import params
 
-
+# class SplinePathPlanning():
+    
 
 def chance_constraint(rho, delta, mean, var):
     return (mean - rho) < (-erfinv(2*delta-1)*np.sqrt(2*var))
