@@ -100,10 +100,10 @@ radarSystemTemperaturePriorMean = radarSystemTemperature
 radarSystemTemperaturePriorVariance = 0
 
 #plotting
-plotObjectiveFunction = True 
-plotPd = True 
-plotPdCov = True
-plotBestMeasurement = True 
+plotObjectiveFunction = False 
+plotPd = False 
+plotPdCov = False 
+plotBestMeasurement = False 
 
 #chance constraints
 probabilityOfDetectionThreshold = 0.5
