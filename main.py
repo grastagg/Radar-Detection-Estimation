@@ -84,7 +84,7 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
     
     if params.plotObjectiveFunction:
         if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
-            c = plot_objective_and_constraint(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap)
+            c = plot_objective_and_constraint(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position)
             cb = plt.colorbar(c)
         plt.savefig('images/objective_function/'+str(plotIndex)+'.png')
         if c is not None:

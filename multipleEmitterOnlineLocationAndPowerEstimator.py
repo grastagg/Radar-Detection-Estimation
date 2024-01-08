@@ -371,8 +371,8 @@ class NonlinearEstimator():
         # return np.array([[np.arctan2(yem-y, xem-x)], [erp_db + self.radar_measurement_coeff_db - 10*np.log10((xem-x)**2 + (yem-y)**2)]])
         return measurement_model(xem, yem, erp, x,y)
 
-    def measurement_jacobian(self, xem, yem, erp_db, x, y):
-        return measurement_jacobian(xem, yem, erp_db, x, y)
+    def measurement_jacobian(self, xem, yem, erp, x, y):
+        return measurement_jacobian(xem, yem, erp, x, y)
         # d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
         # d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
         # d_h1_d_p_emmitter = 0
