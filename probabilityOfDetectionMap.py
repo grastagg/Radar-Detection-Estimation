@@ -46,7 +46,7 @@ class ProbabilityOfDetectionMap():
         self.pdCovMap = pdCovMap
         return pdMap, pdCovMap
 
-    def compute_probability_of_detection_at_points_multiple_radar(self, X_test, estimatedRadarParamsList, estimatedRadarParamsCovList):
+    def compute_probability_of_detection_at_points_multiple_radar(self, X_test, estimatedRadarParamsList, estimatedRadarParamsCovList, updateMap = True):
         pdCovMap = np.zeros(len(X_test))
         probabilityOfNoDetection = np.ones(len(X_test))
         
@@ -76,12 +76,13 @@ class ProbabilityOfDetectionMap():
                 pdCovMap[i] += dpdt_dpdind1**2*pd_cov_list[ind1]
 
 
-        self.pdCovMap = pdCovMap
-        self.pdMap = 1 - probabilityOfNoDetection
+        if updateMap:
+            self.pdCovMap = pdCovMap
+            self.pdMap = 1 - probabilityOfNoDetection
         
         
         
-        return self.pdMap, self.pdCovMap
+        return 1-probabilityOfNoDetection, pdCovMap 
 
     def get_gradient_finite_diff(self, f,x,h, position):
         #calculate gradient using finite differencing

@@ -13,7 +13,7 @@ from agent import Agent
 from multipleEmitterOnlineLocationAndPowerEstimator import MultipleEmitterOnlineLocationAndPowerEstimator
 from probabilityOfDetectionMap import ProbabilityOfDetectionMap
 import params
-from pathPlanning import plot_objective_and_constraint
+from pathPlanning import SplinePathPlanningLowPriority 
 
 np.random.seed(1234)
 
@@ -21,7 +21,8 @@ fig,ax = plt.subplots()
 ax.set_xlim((0,params.bounds[0]))
 ax.set_ylim((0,params.bounds[1]))
 ax.set_aspect('equal')
-def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap):
+
+def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner):
     c = None
 
 
@@ -84,8 +85,9 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
     
     if params.plotObjectiveFunction:
         if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
-            c = plot_objective_and_constraint(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position)
+            c = lowPriorityPathPlanner.plot_objective_and_constraint(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements)
             cb = plt.colorbar(c)
+        plt.title(numMeasurements-1)
         plt.savefig('images/objective_function/'+str(plotIndex)+'.png')
         if c is not None:
             cb.remove()
@@ -113,6 +115,7 @@ def main():
 
     multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=params.agentSensingRange, angle_measurement_std_dev=params.agentAngleMeasurementStdDev, measurement_cov=params.measurementCov, X_test=X_test, radar_measurement_coeff=params.radarMeasurementCoeff)
     probabilityOfDetectionMap = ProbabilityOfDetectionMap(X_test)
+    lowPriorityPathPlanner = SplinePathPlanningLowPriority()
 
 
 
@@ -131,12 +134,12 @@ def main():
 
     
     while tCurrent < tEnd:
-        plot_scene(radarList, agentList, bounds, plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap)
+        plot_scene(radarList, agentList, bounds, plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner)
         for radar in radarList:
             radar.update(dt)
         for i,agent in enumerate(agentList):
             # agent.update(134,.025,dt,radarList)
-            agent.update(134,.0,dt,radarList)
+            agent.update(params.agentSpeed,.0,dt,radarList)
             if len(agent.measurementAngleOfArrivalValues) != currentNumberOfMeasurementsArray[i]:
                 print("adding measurement:", currentNumberOfMeasurementsArray[i], "from agent",i)
                 print("measurement:", currentNumberOfMeasurements)
@@ -146,6 +149,7 @@ def main():
                 currentNumberOfMeasurements += 1
                 if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
                     probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances)
+            lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agent.position, len(agent.measurementAngleOfArrivalValues))
 
 
 
