@@ -89,12 +89,20 @@ def objective_function(X_test, estimatedRadarParams, estimatedRadarParamsCov, pr
         objectivFunctionVal[i] = alpha * next_measurement_covariance_determinant(X_test[i,:], estimatedRadarParams, estimatedRadarParamsCov) - (1-alpha) * mean 
     return objectivFunctionVal
 
+def objective_function_at_pos(pos, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap):
+    alpha = 0.7
+    pdMean, pdVar = probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar([pos], estimatedRadarParams, estimatedRadarParamsCov)
+    # var = pdVar[i]
+    objectivFunctionVal = alpha * next_measurement_covariance_determinant(pos, estimatedRadarParams, estimatedRadarParamsCov) - (1-alpha) * pdMean 
+    return objectivFunctionVal
 
-def optimize_next_best_measurement(currPos, estimatedParams_list, estimatedRadarCovariance_list):
+
+def optimize_next_best_measurement(currPos, estimatedParams_list, estimatedRadarCovariance_list, probabilityOfDetectionMap):
     print("currPos", currPos)
     def objective_function(xdict):
         pos = xdict['pos']
-        obj = -next_measurement_covariance_determinant(pos, estimatedParams_list, estimatedRadarCovariance_list)
+        # obj = -next_measurement_covariance_determinant(pos, estimatedParams_list, estimatedRadarCovariance_list)
+        obj = -objective_function_at_pos(pos, estimatedParams_list, estimatedRadarCovariance_list, probabilityOfDetectionMap)
         funcs = {}
         funcs['obj'] = obj
         fail = False
@@ -115,7 +123,7 @@ def optimize_next_best_measurement(currPos, estimatedParams_list, estimatedRadar
 
 
 def plot_objective_and_constraint(ax,X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap, currPos):
-    bestPos = optimize_next_best_measurement(currPos, estimatedRadarParams, estimatedRadarParamsCov)
+    bestPos = optimize_next_best_measurement(currPos, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap)
     print("bestPos", bestPos)
     # objectiveFunctionVal, constraintMet = objective_function(X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap)
     objectiveFunctionVal = objective_function(X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap)
