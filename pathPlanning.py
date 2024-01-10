@@ -10,6 +10,7 @@ class SplinePathPlanningLowPriority():
         self.numMeasurements = 0
         self.bestMesurementPlot = None
         self.splinePath = None
+        self.previousEmittorParamsList = []
 
     def spline_seg(self,control_points,t0,tf):
         '''
@@ -38,11 +39,23 @@ class SplinePathPlanningLowPriority():
 
         return spline
     
+    def newParamsDifferent(self, estimatedRadarParamsList):
+        for i in range(len(estimatedRadarParamsList)):
+            for j in range(len(estimatedRadarParamsList[i])):
+                if estimatedRadarParamsList[i][j]!=self.previousEmittorParamsList[i][j]:
+                    return True
+                
+        return False
+    
     def update_path(self, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos, numMeasurements):
         if numMeasurements != self.numMeasurements and len(estimatedRadarParamsList)>0:
-            bestMeasurementLoc = self.optimize_next_best_measurement(currPos, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap)
-            self.optimize_spline_path(estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos, bestMeasurementLoc)
             self.numMeasurements = numMeasurements
+            if len(estimatedRadarParamsList)>0:
+                if (len(self.previousEmittorParamsList)!=len(estimatedRadarParamsList) or self.newParamsDifferent(estimatedRadarParamsList)):
+                    bestMeasurementLoc = self.optimize_next_best_measurement(currPos, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap)
+                    self.optimize_spline_path(estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos, bestMeasurementLoc)
+                    self.numMeasurements = numMeasurements
+                    self.previousEmittorParamsList = estimatedRadarParamsList.copy()
 
         
     
