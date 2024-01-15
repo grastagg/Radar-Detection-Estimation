@@ -108,14 +108,17 @@ plotBestMeasurement = False
 #chance constraints
 probabilityOfDetectionThreshold = 0.5
 thresholdConfidence = 0.5
-pathLengthMultiplier = 1.2
-numObjectiveFunctionSamples = 20
 
 
 #path planning
+pathLengthMultiplier = 1.2
+numObjectiveFunctionSamples = 20
 lowPrioritySafetyBestMeasurementTradeoff = 0.9
 agentSpeed = 134
 numControlPoints = 8
+maxTurnRate = 1
+velocityBounds = [100,134]
+numConstraintSamples = 20
 
 
 def create_test_points(numTestPoints, bounds):
