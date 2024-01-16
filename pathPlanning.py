@@ -13,8 +13,11 @@ class SplinePathPlanningLowPriority():
         self.previousEmittorParamsList = []
         self.splinePathPlot = None
         self.splineControlPointsPlot = None
+        self.currentSplineTime = 0
+        self.currentVelocity = (params.velocityBounds[0]+params.velocityBounds[1])/2
+        self.first = False
 
-    def spline_seg(self,control_points,t0,tf):
+    def spline_seg(self,control_points,t):
         '''
         Wrapper function for scipy bspline class, this creates a clamped bpline with evenly spaced knot points (expect for first few and last few which are repeated)
             with control points and start and stop time specified by parameters
@@ -26,49 +29,24 @@ class SplinePathPlanningLowPriority():
             scipy bspline class
         '''
 
-        #the number of control points
-        l = len(control_points)
-
-        #create evenly spaced knot points
-        t = np.linspace(t0, tf, l - 2, endpoint=True)
-
-        #add repeated knot points at begining and end
-        t = np.append([t0, t0, t0], t)
-        t = np.append(t, [tf, tf, tf])
 
         #create scipy bpline object
         spline = interpolate.BSpline(t, control_points, 3)
 
         return spline
     
-    def newParamsDifferent(self, estimatedRadarParamsList):
-        for i in range(len(estimatedRadarParamsList)):
-            for j in range(len(estimatedRadarParamsList[i])):
-                if estimatedRadarParamsList[i][j]!=self.previousEmittorParamsList[i][j]:
-                    return True
-                
-        return False
-    
-    def update_path(self, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos, numMeasurements):
-        if numMeasurements != self.numMeasurements and len(estimatedRadarParamsList)>0:
-            self.numMeasurements = numMeasurements
-            if len(estimatedRadarParamsList)>0:
-                if (len(self.previousEmittorParamsList)!=len(estimatedRadarParamsList) or self.newParamsDifferent(estimatedRadarParamsList)):
-                    bestMeasurementLoc = self.optimize_next_best_measurement(currPos, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap)
-                    self.optimize_spline_path(estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos, bestMeasurementLoc)
-                    self.numMeasurements = numMeasurements
-                    self.previousEmittorParamsList = estimatedRadarParamsList.copy()
-
-        
-    
-    def create_evenly_spaced_control_points(self, start, stop, numControlPoints):
-        xPoints = np.linspace(start[0] + .1, stop[0], numControlPoints, endpoint=False) 
-        yPoints = np.linspace(start[1]+.1, stop[1], numControlPoints, endpoint=False) 
-        points = np.hstack((xPoints.reshape((len(xPoints),1)), yPoints.reshape((len(xPoints),1))))
-        return points
-    
-    def compute_spline_constraints(self,tf, spl):
-        t = np.linspace(0,tf,params.numConstraintSamples)
+    def get_control(self, dt):
+        u = 0
+        v = (params.velocityBounds[0]+params.velocityBounds[1])/2
+        if self.splinePath is not None:
+            u,v = self.get_turn_rate_and_velocity(np.array([self.currentSplineTime]), self.splinePath)
+            u = u[0]
+            v = v[0]
+            self.currentSplineTime += dt
+        self.currentVelocity = v
+        return u,v
+            
+    def get_turn_rate_and_velocity(self, t, spl):
         out_d1 = spl.derivative(1)(t)
         out_d2 = spl.derivative(2)(t)
         x1_dot = out_d1[:,0]
@@ -80,31 +58,93 @@ class SplinePathPlanningLowPriority():
         u = f_num / g_den
 
         v = np.sqrt(np.square(x1_dot) + np.square(x2_dot))
+        return u,v
+            
+    
+    def newParamsDifferent(self, estimatedRadarParamsList):
+        for i in range(len(estimatedRadarParamsList)):
+            for j in range(len(estimatedRadarParamsList[i])):
+                if estimatedRadarParamsList[i][j]!=self.previousEmittorParamsList[i][j]:
+                    return True
+                
+        return False
+    
+    def update_path(self, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos,numMeasurements):
+        if numMeasurements != self.numMeasurements and len(estimatedRadarParamsList)>0:
+            self.numMeasurements = numMeasurements
+            if len(estimatedRadarParamsList)>0:
+                if (len(self.previousEmittorParamsList)!=len(estimatedRadarParamsList) or self.newParamsDifferent(estimatedRadarParamsList)):
+                    bestMeasurementLoc = self.optimize_next_best_measurement(currPos, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap)
+                    self.optimize_spline_path(estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos, bestMeasurementLoc)
+                    self.numMeasurements = numMeasurements
+                    # self.previousEmittorParamsList = estimatedRadarParamsList.copy()
+                    self.currentSplineTime = 0
+                # if not self.first:
+                    # bestMeasurementLoc = self.optimize_next_best_measurement(currPos, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap)
+                    # self.optimize_spline_path(estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos, bestMeasurementLoc)
+                    # self.first = True
+                    
+
+        
+    
+    def create_evenly_spaced_control_points(self, start, stop, numControlPoints):
+        xPoints = np.linspace(start[0] + .1, stop[0], numControlPoints, endpoint=False) 
+        yPoints = np.linspace(start[1]+.1, stop[1], numControlPoints, endpoint=False) 
+        points = np.hstack((xPoints.reshape((len(xPoints),1)), yPoints.reshape((len(xPoints),1))))
+        return points
+    
+    
+    def compute_spline_constraints(self,tf, spl):
+        t = np.linspace(0,tf,params.numConstraintSamples)
+        u,v = self.get_turn_rate_and_velocity(t, spl)
 
         pos = spl(t)
 
         return u,v,pos
-    def spline_objective_function(self, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, controlPoints, tf):
-        spline = self.spline_seg(controlPoints, 0, tf)
-        tObjective = np.linspace(0,tf, params.numObjectiveFunctionSamples)
+
+    def spline_objective_function(self, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, controlPoints, knotPoints):
+        spline = self.spline_seg(controlPoints, knotPoints)
+        tObjective = np.linspace(0,knotPoints[-1], params.numObjectiveFunctionSamples)
         pdMean, pdVar = probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(spline(tObjective), estimatedRadarParamsList, estimatedRadarParamsCovList, False)
-        u,v,pos = self.compute_spline_constraints(tf, spline)
+        u,v,pos = self.compute_spline_constraints(knotPoints[-1], spline)
         # return np.max(pdMean), u, v, pos
         return np.sum(pdMean), u, v, pos
 
+    def create_knot_points(self, t0, tf, numControlPoints):
+        #the number of control points
+        l = numControlPoints
+
+        #create evenly spaced knot points
+        t = np.linspace(t0, tf, l - 2, endpoint=True)
+
+        #add repeated knot points at begining and end
+        t = np.append([t0, t0, t0], t)
+        t = np.append(t, [tf, tf, tf])
+        return t
+    
+    def create_control_points(self, optimizedControlPoints, currPose, currVelocity, splineOrder, bestMeasurementLocation, knotPoints):
+        controlPoints = np.zeros((params.numControlPoints,2))
+        controlPoints[0,:] = currPose[0:2]
+        controlPoints[2:-1,:] = optimizedControlPoints.reshape((params.numControlPoints-3,2))
+
+        controlPoints[1,0] = np.cos(currPose[2]) * self.currentVelocity * knotPoints[splineOrder + 1] / splineOrder + currPose[0]
+        controlPoints[1,1] = np.sin(currPose[2]) * self.currentVelocity * knotPoints[splineOrder + 1] / splineOrder + currPose[1]
+
+
+        controlPoints[-1,:] = bestMeasurementLocation 
+        return controlPoints
+        
 
 
     def optimize_spline_path(self, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos, bestMeasurementLocation):
         straitLineDist = np.linalg.norm(currPos[0:2] - bestMeasurementLocation)
-        initialControlPoints = self.create_evenly_spaced_control_points(currPos, bestMeasurementLocation, params.numControlPoints-2)
+        initialControlPoints = self.create_evenly_spaced_control_points(currPos, bestMeasurementLocation, params.numControlPoints-3)
         def objective_function(xDict):
-            controlPoints = np.zeros((params.numControlPoints,2))
-            controlPoints[0,:] = currPos[0:2]
-            controlPoints[-1,:] = bestMeasurementLocation 
-            controlPoints[1:-1,:] = xDict['control_points'].reshape((params.numControlPoints-2,2))
             tf = xDict['tf']
+            knotPoints = self.create_knot_points(0, tf, params.numControlPoints)
+            controlPoints = self.create_control_points(xDict['control_points'], currPos, self.currentVelocity, params.splineOrder, bestMeasurementLocation, knotPoints)
             funcs = {}
-            obj,u,v,pos = self.spline_objective_function(estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, controlPoints, tf[0])
+            obj,u,v,pos = self.spline_objective_function(estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, controlPoints, knotPoints)
             funcs['obj'] = obj
             funcs['turn_rate'] = u 
             funcs['velocity'] = v 
@@ -113,7 +153,7 @@ class SplinePathPlanningLowPriority():
             
 
         optProb = Optimization("low priority path", objective_function)
-        optProb.addVarGroup(name = "control_points", nVars = 2*(params.numControlPoints-2), varType = 'c', value = initialControlPoints.reshape((2*(params.numControlPoints-2))), lower = 0, upper=params.bounds[1])
+        optProb.addVarGroup(name = "control_points", nVars = 2*(params.numControlPoints-3), varType = 'c', value = initialControlPoints.reshape((2*(params.numControlPoints-3))), lower = 0, upper=params.bounds[1])
         optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = straitLineDist/params.agentSpeed, lower = 0, upper=params.pathLengthMultiplier * straitLineDist/params.agentSpeed)
         optProb.addConGroup("turn_rate", params.numConstraintSamples, lower=-params.maxTurnRate, upper=params.maxTurnRate, scale=1.0 / params.maxTurnRate)
         optProb.addConGroup("velocity", params.numConstraintSamples, lower=-params.velocityBounds[0], upper=params.velocityBounds[1], scale=1.0 / params.velocityBounds[1])
@@ -122,12 +162,14 @@ class SplinePathPlanningLowPriority():
         opt.options['print_level'] = 5
         opt.options['tol'] = 1e-10
         sol = opt(optProb, sens = 'FD')
-        controlPoints = np.zeros((params.numControlPoints,2))
-        controlPoints[0,:] = currPos[0:2]
-        controlPoints[-1,:] = bestMeasurementLocation 
-        controlPoints[1:-1,:] = sol.xStar['control_points'].reshape((params.numControlPoints-2,2))
-        tf = sol.xStar['tf']
-        self.splinePath = self.spline_seg(controlPoints, 0, tf)
+        knotPoints = self.create_knot_points(0, sol.xStar['tf'], params.numControlPoints)
+        controlPoints = self.create_control_points(sol.xStar['control_points'], currPos, self.currentVelocity, params.splineOrder, bestMeasurementLocation, knotPoints)
+        # controlPoints = np.zeros((params.numControlPoints,2))
+        # controlPoints[0,:] = currPos[0:2]
+        # controlPoints[-1,:] = bestMeasurementLocation 
+        # controlPoints[1:-1,:] = sol.xStar['control_points'].reshape((params.numControlPoints-2,2))
+        # tf = sol.xStar['tf']
+        self.splinePath = self.spline_seg(controlPoints, knotPoints)
         print()
     
 
@@ -231,12 +273,12 @@ class SplinePathPlanningLowPriority():
         if self.splinePathPlot is not None:
             for line in self.splinePathPlot:
                 line.remove()
-            for line in self.splineControlPointsPlot:
-                line.remove()
-        self.splinePathPlot = ax.plot(x,y)
+            # for line in self.splineControlPointsPlot:
+            #     line.remove()
+        self.splinePathPlot = ax.plot(x,y, color = 'black')
         # plt.scatter(x,y,c = spline_color)
         control_points = spl.c
-        self.splineControlPointsPlot = ax.plot(control_points[:, 0], control_points[:, 1], 'k--', label='Control polygon', marker='o', zorder = 100000)
+        # self.splineControlPointsPlot = ax.plot(control_points[:, 0], control_points[:, 1], 'k--', label='Control polygon', marker='o', zorder = 100000)
 
 
     def plot_objective_and_constraint(self, ax,X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap, currPos, numMeasurements):

@@ -31,7 +31,7 @@ def frequency_to_wavelength(freq):
 #simulation parameters
 bounds = (20000, 20000) #meters
 numTestPoints = 60
-simulationEndTime = 90
+simulationEndTime = 900
 simulationTimestep = 0.1
 plotTimeStep = 0.5
 
@@ -63,7 +63,7 @@ print("Actual ERP in DB", 10*np.log10(radarOutputPower * radarTransmitGain))
 # agentInitialStates = [[10000,4010,0],[6000,6000,-np.pi/4]]
 # agentInitialStates = [[10000,4010,0]]
 # agentInitialStates = [[5000,5000,0],[5000,15000,0]]
-agentInitialStates = [[11000,5000,np.pi/2]]
+agentInitialStates = [[11000,2000,np.pi/2]]
 agentSensingRange = 10000
 agentPowerMeasurementStdDev = .001
 agentAngleMeasurementStdDev = (3*np.pi/180)
@@ -113,12 +113,13 @@ thresholdConfidence = 0.5
 #path planning
 pathLengthMultiplier = 1.2
 numObjectiveFunctionSamples = 20
-lowPrioritySafetyBestMeasurementTradeoff = 0.9
+lowPrioritySafetyBestMeasurementTradeoff = 1.
 agentSpeed = 134
 numControlPoints = 8
 maxTurnRate = 1
 velocityBounds = [100,134]
 numConstraintSamples = 20
+splineOrder = 3
 
 
 def create_test_points(numTestPoints, bounds):
