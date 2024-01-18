@@ -30,7 +30,7 @@ class RadarCircularPattern:
         self.current_angle = phase
 
         self.firstPlot = True
-        self.plotArc = Arc((self.position[0], self.position[1]), 2*self.range, 2*self.range,self.current_angle, -self.beamwidth/2*180/np.pi, self.beamwidth/2*180/np.pi,zorder = 100,color='r')
+        self.plotArc = Arc((self.position[0], self.position[1]), 2*self.range, 2*self.range,angle = self.current_angle, theta1=-self.beamwidth/2*180/np.pi, theta2=self.beamwidth/2*180/np.pi,zorder = 100,color='r')
 
         x_left = self.position[0] + self.range * np.cos(self.current_angle - self.beamwidth/2)
         y_left = self.position[1] + self.range * np.sin(self.current_angle - self.beamwidth/2)
