@@ -256,7 +256,7 @@ class SplinePathPlanningLowPriority():
         optProb.addObj("obj")
         opt = OPT("ipopt")
         opt.options['print_level'] = 5
-        opt.options['tol'] = 1e-10
+        opt.options['tol'] = 1e-8
         sol = opt(optProb, sens = 'FD')
         return sol.xStar["pos"]
         
@@ -289,8 +289,26 @@ class SplinePathPlanningLowPriority():
         # objectiveFunctionVal[constraintMet ==0] = -1
 
         c = ax.pcolormesh(X_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), X_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), objectiveFunctionVal.reshape((params.numTestPoints,params.numTestPoints)))
-        if self.splinePath is not None:
-            self.plot_spline(ax, self.splinePath, 100)
+        # if self.splinePath is not None:
+        #     self.plot_spline(ax, self.splinePath, 100)
+            
+        # if numMeasurements != self.numMeasurements:
+        #     bestPos = self.optimize_next_best_measurement(currPos, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap)
+        #     print("bestPos", bestPos)
+        #     if self.bestMesurementPlot is not None:
+        #         self.bestMesurementPlot.remove()
+        #     ax.scatter(bestPos[0], bestPos[1],zorder = 1000000)
+    #     self.numMeasurements = numMeasurements
+        return c
+
+    def plot_chance_constraints(self, ax,X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap, currPos, numMeasurements):
+        objectiveFunctionVal, constraintMet = self.objective_function_chance_constraints(X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap)
+        objectiveFunctionVal[constraintMet ==0] = 1
+        objectiveFunctionVal[constraintMet ==1] = 0
+        
+        c = ax.contourf(X_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), X_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), objectiveFunctionVal.reshape((params.numTestPoints,params.numTestPoints)), levels = [-1,0,1], cmap = 'coolwarm')
+        # if self.splinePath is not None:
+        #     self.plot_spline(ax, self.splinePath, 100)
             
         # if numMeasurements != self.numMeasurements:
         #     bestPos = self.optimize_next_best_measurement(currPos, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap)

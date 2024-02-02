@@ -86,11 +86,15 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
     if params.plotObjectiveFunction:
         if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
             c = lowPriorityPathPlanner.plot_objective_and_constraint(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements)
-            cb = plt.colorbar(c)
+            # c = lowPriorityPathPlanner.plot_chance_constraints(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements)
+            # proxy = [plt.Rectangle((0,0),1,1,fc = pc.get_facecolor()[0]) for pc in c.collections]
+            # ax.legend(proxy, ['safe', 'unsafe'])
+            # cb = plt.colorbar(c)
         plt.title(numMeasurements-1)
         plt.savefig('images/objective_function/'+str(plotIndex)+'.png')
         if c is not None:
-            cb.remove()
+            if cb is not None:
+                cb.remove()
             c.remove()
             cb = None
             c = None
@@ -138,10 +142,10 @@ def main():
         for radar in radarList:
             radar.update(dt)
         for i,agent in enumerate(agentList):
-            # agent.update(134,.025,dt,radarList)
-            turnRate, velocity = lowPriorityPathPlanner.get_control(dt)
+            agent.update(134,.0,dt,radarList)
+            # turnRate, velocity = lowPriorityPathPlanner.get_control(dt)
             # agent.update(params.agentSpeed,.0,dt,radarList)
-            agent.update(velocity,turnRate,dt,radarList)
+            # agent.update(velocity,turnRate,dt,radarList)
             if len(agent.measurementAngleOfArrivalValues) != currentNumberOfMeasurementsArray[i]:
                 print("adding measurement:", currentNumberOfMeasurementsArray[i], "from agent",i)
                 print("measurement:", currentNumberOfMeasurements)

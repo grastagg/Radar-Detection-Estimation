@@ -30,7 +30,7 @@ def frequency_to_wavelength(freq):
 
 #simulation parameters
 bounds = (20000, 20000) #meters
-numTestPoints = 60
+numTestPoints = 100
 simulationEndTime = 900
 simulationTimestep = 0.1
 plotTimeStep = 0.5
@@ -101,8 +101,8 @@ radarSystemTemperaturePriorVariance = 0
 
 #plotting
 plotObjectiveFunction = True 
-plotPd = False 
-plotPdCov = False 
+plotPd = True 
+plotPdCov = True 
 plotBestMeasurement = False 
 
 #chance constraints
