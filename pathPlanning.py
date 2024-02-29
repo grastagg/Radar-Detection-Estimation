@@ -289,8 +289,8 @@ class SplinePathPlanningLowPriority():
         # objectiveFunctionVal[constraintMet ==0] = -1
 
         c = ax.pcolormesh(X_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), X_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), objectiveFunctionVal.reshape((params.numTestPoints,params.numTestPoints)))
-        # if self.splinePath is not None:
-        #     self.plot_spline(ax, self.splinePath, 100)
+        if self.splinePath is not None:
+            self.plot_spline(ax, self.splinePath, 100)
             
         # if numMeasurements != self.numMeasurements:
         #     bestPos = self.optimize_next_best_measurement(currPos, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap)

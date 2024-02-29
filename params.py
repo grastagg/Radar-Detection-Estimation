@@ -101,8 +101,8 @@ radarSystemTemperaturePriorVariance = 0
 
 #plotting
 plotObjectiveFunction = True 
-plotPd = True 
-plotPdCov = True 
+plotPd = False 
+plotPdCov = False 
 plotBestMeasurement = False 
 
 #chance constraints
