@@ -36,10 +36,8 @@ simulationTimestep = 0.1
 plotTimeStep = 0.5
 
 #radar parameters
-# radarPositions = [(10000,10000), (6000,12000),(16000, 10000)]
-radarPositions = [(6000,10000),(16000, 10000)]
-# radarPositions = [(6000,10000),(10000,10000),(16000, 10000)]
-# radarPositions = [(10000,10000)]
+# radarPositions = [(6000,10000),(16000, 10000)]
+radarPositions = [(3000,10000),(8000, 10000)]
 radarPhases = [0,np.pi, np.pi/2, np.pi/3]
 radarAngularRates = [3,2.5,3.5,4]
 radarOutputPower = 10000
@@ -113,7 +111,8 @@ thresholdConfidence = 0.5
 #path planning
 pathLengthMultiplier = 1.2
 numObjectiveFunctionSamples = 20
-lowPrioritySafetyBestMeasurementTradeoff = 1.
+lowPrioritySafetyBestMeasurementTradeoff = .1
+lowPriorityDistanceBestMeasurementTradeoff = .6
 agentSpeed = 134
 numControlPoints = 8
 maxTurnRate = 1

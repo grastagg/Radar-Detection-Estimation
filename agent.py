@@ -89,6 +89,7 @@ class Agent:
             self.measurementAngleOfArrivalValues.append(angle_of_arrivals[closest_radar_index])
             self.truthEmitterCorrespondence[radar_indecies[closest_radar_index]].append(len(self.measurementLocations)-1)
         
+        
 
     def plot_power_measurements(self, ax):
         if len(self.measurementLocations) > 0:

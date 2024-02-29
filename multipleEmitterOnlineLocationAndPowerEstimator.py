@@ -37,6 +37,11 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
 
         self.best_measurement_location_map = None
         self.plot_alpha = .5
+        
+        #these will be used to make sure aoa are different enough before starting estimate
+        self.min_aoa_measurement = None
+        self.max_aoa_measurement = None
+        self.min_aoa_diff_to_start = .3
     
     def delete_lowest_probability_model(self):
         remove_indicies = []
@@ -187,7 +192,21 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
     def add_measurement(self, measurement_location, measurement_value):
         self.measurement_locations.append(measurement_location)
         self.measurement_values.append(measurement_value)
-        if len(self.measurement_values) > 2:
+        if self.min_aoa_measurement is None:
+            self.min_aoa_measurement = measurement_value[0]
+            self.max_aoa_measurement = measurement_value[0]
+        else:
+            if measurement_value[0] < self.min_aoa_measurement:
+                self.min_aoa_measurement = measurement_value[0]
+            if measurement_value[0] > self.max_aoa_measurement:
+                self.max_aoa_measurement = measurement_value[0]
+                
+            
+        # print("aoa diff to start", self.max_aoa_measurement - self.min_aoa_measurement)
+        # print("measurements", self.measurement_values)
+        # print("measurement locations", self.measurement_locations)
+        # if len(self.measurement_values) > 5:
+        if self.max_aoa_measurement - self.min_aoa_measurement > self.min_aoa_diff_to_start:
             updated_using_ekf = False
             minimum_mal_dist = np.inf
             minimum_mal_dist_index = -1
@@ -230,10 +249,11 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             print()
             # if len(self.estimated_emmiter_params) >0:
             #     self.best_measurement_location_map = self.create_best_measurement_location_map(self.estimated_emmiter_params, self.estimated_emmiter_params_covariances)
-        elif len(self.measurement_values) == 2:
-            self.outlier_indicies = np.append(self.outlier_indicies, 1)
+        # elif len(self.measurement_values) == 2:
+        #     self.outlier_indicies = np.append(self.outlier_indicies, 1)
         else:
-            self.outlier_indicies = np.append(self.outlier_indicies, 0)
+            # self.outlier_indicies = np.append(self.outlier_indicies, 0)
+            self.outlier_indicies = np.append(self.outlier_indicies, len(self.measurement_values)-1)
     
     def power_basis_function(self, radial_distance):
         return self.radar_measurement_coeff/radial_distance**2
@@ -259,6 +279,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         c = None
 
         all_lines = []
+        # print("TEST 2 ", self.outlier_indicies)
         for i,angle_indicies in enumerate([self.outlier_indicies]):
             if angle_indicies.size > 0:
                 line = self.plot_angle_of_arrival_measurements(ax, 'r', np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
@@ -283,6 +304,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         line_width = 1
         # for i,angle in enumerate(measurement_angle_of_arrival_values):
         lines = []
+        # print("TEST")
+        # print("measurement locations", measurement_locations)
         for i in range(len(measurement_angle_of_arrival_values)):
             angle = measurement_angle_of_arrival_values[i]
             start_x = measurement_locations[i][0]

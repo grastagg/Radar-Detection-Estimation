@@ -3,6 +3,7 @@ from scipy.special import erfinv
 import params
 from scipy import interpolate
 from pyoptsparse import Optimization, OPT, IPOPT
+from matplotlib.patches import Circle
 
 
 class SplinePathPlanningLowPriority():
@@ -16,6 +17,13 @@ class SplinePathPlanningLowPriority():
         self.currentSplineTime = 0
         self.currentVelocity = (params.velocityBounds[0]+params.velocityBounds[1])/2
         self.first = False
+
+        self.useSpline = False
+        self.bestMeasurementLoc = None
+        self.kp = 1
+
+        self.bestMeasurementLocPlot = None
+        self.firstPlot = True
 
     def spline_seg(self,control_points,t):
         '''
@@ -35,15 +43,26 @@ class SplinePathPlanningLowPriority():
 
         return spline
     
-    def get_control(self, dt):
+    def get_control(self, dt, currentPose):
         u = 0
         v = (params.velocityBounds[0]+params.velocityBounds[1])/2
-        if self.splinePath is not None:
-            u,v = self.get_turn_rate_and_velocity(np.array([self.currentSplineTime]), self.splinePath)
-            u = u[0]
-            v = v[0]
-            self.currentSplineTime += dt
-        self.currentVelocity = v
+        if self.useSpline:
+            if self.splinePath is not None:
+                u,v = self.get_turn_rate_and_velocity(np.array([self.currentSplineTime]), self.splinePath)
+                u = u[0]
+                v = v[0]
+                self.currentSplineTime += dt
+            self.currentVelocity = v
+        else:
+            if self.bestMeasurementLoc is not None:
+                u,v = self.get_turn_rate_and_velocity_waypoint(self.bestMeasurementLoc, currentPose)
+                
+        return u,v
+
+    def get_turn_rate_and_velocity_waypoint(self, bestMeasurementLoc, currentPose):
+        desiredHeading = np.arctan2(bestMeasurementLoc[1]-currentPose[1], bestMeasurementLoc[0]-currentPose[0])
+        v = (params.velocityBounds[0]+params.velocityBounds[1])/2
+        u = self.kp * (desiredHeading - currentPose[2])
         return u,v
             
     def get_turn_rate_and_velocity(self, t, spl):
@@ -74,8 +93,9 @@ class SplinePathPlanningLowPriority():
             self.numMeasurements = numMeasurements
             if len(estimatedRadarParamsList)>0:
                 if (len(self.previousEmittorParamsList)!=len(estimatedRadarParamsList) or self.newParamsDifferent(estimatedRadarParamsList)):
-                    bestMeasurementLoc = self.optimize_next_best_measurement(currPos, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap)
-                    self.optimize_spline_path(estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos, bestMeasurementLoc)
+                    self.bestMeasurementLoc = self.optimize_next_best_measurement(currPos, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap)
+                    if self.useSpline:
+                        self.optimize_spline_path(estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos, self.bestMeasurementLoc)
                     self.numMeasurements = numMeasurements
                     # self.previousEmittorParamsList = estimatedRadarParamsList.copy()
                     self.currentSplineTime = 0
@@ -212,15 +232,14 @@ class SplinePathPlanningLowPriority():
             constraintMet[i] = self.chance_constraint(rho, delta, mean, var)
         return objectivFunctionVal,  constraintMet
 
-    def objective_function(self, X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap):
+    def objective_function(self, X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap, currentPosition):
         alpha = params.lowPrioritySafetyBestMeasurementTradeoff
         objectivFunctionVal = np.zeros((len(X_test),1))
         # pdMean, pdVar = probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, estimatedRadarParams, estimatedRadarParamsCov)
         pdMean = probabilityOfDetectionMap.pdMap
         pdVar = probabilityOfDetectionMap.pdCovMap
-        for i, mean in enumerate(pdMean):
-            var = pdVar[i]
-            objectivFunctionVal[i] = alpha * self.next_measurement_covariance_determinant(X_test[i,:], estimatedRadarParams, estimatedRadarParamsCov) - (1-alpha) * mean 
+        for i, pos in enumerate(X_test):
+            objectivFunctionVal[i] = self.objective_function_at_pos(pos, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap, currentPosition) 
         return objectivFunctionVal
 
     def probability_of_detection_at_points(self, X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap):
@@ -233,20 +252,22 @@ class SplinePathPlanningLowPriority():
             objectivFunctionVal[i] = mean 
         return objectivFunctionVal
 
-    def objective_function_at_pos(self, pos, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap):
-        alpha = params.lowPrioritySafetyBestMeasurementTradeoff
-        pdMean, pdVar = probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar([pos], estimatedRadarParams, estimatedRadarParamsCov, False)
+    def objective_function_at_pos(self, pos, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap, currentPosition):
+        # alpha = params.lowPrioritySafetyBestMeasurementTradeoff
+        alpha = params.lowPriorityDistanceBestMeasurementTradeoff
+        # pdMean, pdVar = probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar([pos], estimatedRadarParams, estimatedRadarParamsCov, False)
         # var = pdVar[i]
-        objectivFunctionVal = alpha * self.next_measurement_covariance_determinant(pos, estimatedRadarParams, estimatedRadarParamsCov) - (1-alpha) * pdMean 
+        # objectivFunctionVal = alpha * self.next_measurement_covariance_determinant(pos, estimatedRadarParams, estimatedRadarParamsCov) - (1-alpha) * pdMean 
+        dist = np.linalg.norm(pos - currentPosition) / 20000
+        objectivFunctionVal = alpha * self.next_measurement_covariance_determinant(pos, estimatedRadarParams, estimatedRadarParamsCov) - (1-alpha) * dist 
         return objectivFunctionVal
 
 
     def optimize_next_best_measurement(self, currPos, estimatedParams_list, estimatedRadarCovariance_list, probabilityOfDetectionMap):
-        print("currPos", currPos)
         def objective_function(xdict):
             pos = xdict['pos']
             # obj = -next_measurement_covariance_determinant(pos, estimatedParams_list, estimatedRadarCovariance_list)
-            obj = -self.objective_function_at_pos(pos, estimatedParams_list, estimatedRadarCovariance_list, probabilityOfDetectionMap)
+            obj = -self.objective_function_at_pos(pos, estimatedParams_list, estimatedRadarCovariance_list, probabilityOfDetectionMap, currPos[0:2])
             funcs = {}
             funcs['obj'] = obj
             fail = False
@@ -255,7 +276,7 @@ class SplinePathPlanningLowPriority():
         optProb.addVarGroup(name = "pos", nVars = 2, varType = 'c', value = currPos[0:2], lower = 0, upper=params.bounds[1])
         optProb.addObj("obj")
         opt = OPT("ipopt")
-        opt.options['print_level'] = 5
+        opt.options['print_level'] = 0
         opt.options['tol'] = 1e-8
         sol = opt(optProb, sens = 'FD')
         return sol.xStar["pos"]
@@ -283,14 +304,23 @@ class SplinePathPlanningLowPriority():
 
     def plot_objective_and_constraint(self, ax,X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap, currPos, numMeasurements):
         # objectiveFunctionVal, constraintMet = objective_function(X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap)
-        objectiveFunctionVal = self.objective_function(X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap)
+        objectiveFunctionVal = self.objective_function(X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap, currPos[0:2])
         # objectiveFunctionVal = self.probability_of_detection_at_points(X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap)
 
         # objectiveFunctionVal[constraintMet ==0] = -1
 
         c = ax.pcolormesh(X_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), X_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), objectiveFunctionVal.reshape((params.numTestPoints,params.numTestPoints)))
+
         if self.splinePath is not None:
             self.plot_spline(ax, self.splinePath, 100)
+        
+        if self.bestMeasurementLoc is not None:
+            if self.firstPlot:
+                self.bestMeasurementLocPlot = Circle((self.bestMeasurementLoc[0],self.bestMeasurementLoc[1]),radius = 200,fill = True, color = 'r', zorder = 100000000)
+                ax.add_patch(self.bestMeasurementLocPlot)
+                self.firstPlot = False
+            else:
+                self.bestMeasurementLocPlot.center = self.bestMeasurementLoc[0], self.bestMeasurementLoc[1]
             
         # if numMeasurements != self.numMeasurements:
         #     bestPos = self.optimize_next_best_measurement(currPos, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap)
