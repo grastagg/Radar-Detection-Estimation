@@ -137,8 +137,11 @@ def main():
 
 
     
+
     while tCurrent < tEnd:
+        start = time.time()
         plot_scene(radarList, agentList, bounds, plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner)
+        # print("plot time", time.time()-start)
         for radar in radarList:
             radar.update(dt)
         for i,agent in enumerate(agentList):
@@ -151,11 +154,18 @@ def main():
                 print("measurement:", currentNumberOfMeasurements)
                 print("truth group lists",agent.truthEmitterCorrespondence)
                 currentNumberOfMeasurementsArray[i] += 1
+                start_e = time.time()
                 multipleEmitterOnlineLocationAndPowerEstimator.add_measurement(agent.measurementLocations[-1], [agent.measurementAngleOfArrivalValues[-1], agent.measurementPowerValues[-1]])
+                # print("estimator time", time.time()-start_e)
                 currentNumberOfMeasurements += 1
                 if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
+                    start_pd = time.time()
                     probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances)
+                    # print("pd map time", time.time()-start_pd)
+            start_p = time.time()
             lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agent.position, len(agent.measurementAngleOfArrivalValues))
+            # print("path planning time", time.time()-start_p)
+        # print("time for step:", time.time()-start)
 
 
 

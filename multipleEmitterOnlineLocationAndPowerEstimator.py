@@ -64,9 +64,18 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             self.estimated_emmiter_params_covariances = [i for j,i in enumerate(self.estimated_emmiter_params_covariances) if j not in remove_indicies]
             self.group_lists = [i for j,i in enumerate(self.group_lists) if j not in remove_indicies]
     
+    def compute_inlier_aoa_diff(self,measurements):
+        min_measurement = 10000
+        max_measurement = -10000
+        for measurement in measurements:
+            if measurement[0] < min_measurement:
+                min_measurement = measurement[0]
+            if measurement[0] > max_measurement:
+                max_measurement = measurement[0]
+        return max_measurement - min_measurement
 
     def fit_ransac_model(self, measurement_locations, measurements, original_index):
-        if len(measurements) > 5:
+        if len(measurements) > 3:
             # try:
             def loss(y_true, y_pred, X, estimator):
                 mean = estimator.get_estimate_emmitor_params()
@@ -76,11 +85,14 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             # ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = 'squared_error')#,residual_threshold=.09)
             ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = loss, residual_threshold=2)#,residual_threshold=.09)
             ransacRegressor.fit(np.array(measurement_locations), np.array(measurements))
-            self.estimated_emmiter_params.append(ransacRegressor.estimator_.get_estimate_emmitor_params())
-            self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
-            self.estimated_emmiter_params_covariances.append(ransacRegressor.estimator_.compute_emmitor_estimate_covariance(np.array(self.measurement_locations)[self.group_lists[-1]], np.array(self.measurement_values)[self.group_lists[-1]]))
-            for ind in original_index[ransacRegressor.inlier_mask_== True]:
-                self.outlier_indicies = np.delete(self.outlier_indicies, np.argwhere(self.outlier_indicies == ind))
+            if len(original_index[ransacRegressor.inlier_mask_== True]) >= 5:
+                inlier_aoa_diff = self.compute_inlier_aoa_diff(measurements[ransacRegressor.inlier_mask_==True])
+                if inlier_aoa_diff > self.min_aoa_diff_to_start:
+                    self.estimated_emmiter_params.append(ransacRegressor.estimator_.get_estimate_emmitor_params())
+                    self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
+                    self.estimated_emmiter_params_covariances.append(ransacRegressor.estimator_.compute_emmitor_estimate_covariance(np.array(self.measurement_locations)[self.group_lists[-1]], np.array(self.measurement_values)[self.group_lists[-1]]))
+                    for ind in original_index[ransacRegressor.inlier_mask_== True]:
+                        self.outlier_indicies = np.delete(self.outlier_indicies, np.argwhere(self.outlier_indicies == ind))
             self.fit_ransac_model(measurement_locations[ransacRegressor.inlier_mask_== False],measurements[ransacRegressor.inlier_mask_== False], original_index[ransacRegressor.inlier_mask_== False])
             # except:
             #     pass
@@ -188,10 +200,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
     #     d_h2_d_p_emmitter = self.radar_measurement_coeff/((yem-y)**2+(xem-x)**2)
 
     #     return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
-
-    def add_measurement(self, measurement_location, measurement_value):
-        self.measurement_locations.append(measurement_location)
-        self.measurement_values.append(measurement_value)
+    def update_aoa_diff_value(self, measurement_value):
         if self.min_aoa_measurement is None:
             self.min_aoa_measurement = measurement_value[0]
             self.max_aoa_measurement = measurement_value[0]
@@ -200,60 +209,83 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                 self.min_aoa_measurement = measurement_value[0]
             if measurement_value[0] > self.max_aoa_measurement:
                 self.max_aoa_measurement = measurement_value[0]
+        
+    def recompute_aoa_diff(self, measurements):
+        print("recomputing angle diff", measurements)
+        if len(measurements) == 0:
+            self.min_aoa_measurement = None
+            self.max_aoa_measurement = None
+        elif len(measurements) == 1:
+            self.min_aoa_measurement = measurements[0][0]
+            self.max_aoa_measurement = measurements[0][0]
+        else:
+            self.min_aoa_measurement = 10000
+            self.max_aoa_measurement = -10000
+            for measurement in measurements:
+                if measurement[0] < self.min_aoa_measurement:
+                    self.min_aoa_measurement = measurement[0]
+                if measurement[0] > self.max_aoa_measurement:
+                    self.max_aoa_measurement = measurement[0]
+
+    def add_measurement(self, measurement_location, measurement_value):
+        self.measurement_locations.append(measurement_location)
+        self.measurement_values.append(measurement_value)
                 
             
         # print("aoa diff to start", self.max_aoa_measurement - self.min_aoa_measurement)
         # print("measurements", self.measurement_values)
         # print("measurement locations", self.measurement_locations)
         # if len(self.measurement_values) > 5:
-        if self.max_aoa_measurement - self.min_aoa_measurement > self.min_aoa_diff_to_start:
-            updated_using_ekf = False
-            minimum_mal_dist = np.inf
-            minimum_mal_dist_index = -1
-            for i,emitter_param in enumerate(self.estimated_emmiter_params):
-                measurement_mahalonobis_distance = self.mahalonobis_distance(measurement_value, measurement_location, emitter_param, self.estimated_emmiter_params_covariances[i])
-                measurement_mahalonobis_distance_in_x_y = self.mahalonobis_distance_in_x_y_space(measurement_value[0], measurement_location, emitter_param[0:2], self.estimated_emmiter_params_covariances[i][0:2,0:2])
-                combined_mahalanobis_distance = measurement_mahalonobis_distance_in_x_y + measurement_mahalonobis_distance
-                print("measurement_mahalonobis_distance",measurement_mahalonobis_distance)
-                print("measurement_mahalonobis_distance_in_x_y",measurement_mahalonobis_distance_in_x_y)
-                if measurement_mahalonobis_distance < minimum_mal_dist:
-                    minimum_mal_dist  = measurement_mahalonobis_distance
-                    minimum_mal_dist_index = i
-                # if measurement_mahalonobis_distance_in_x_y < minimum_mal_dist:
-                #     minimum_mal_dist  = measurement_mahalonobis_distance_in_x_y
-                #     minimum_mal_dist_index = i
-                # if combined_mahalanobis_distance < minimum_mal_dist:
-                #     minimum_mal_dist  = combined_mahalanobis_distance
-                #     minimum_mal_dist_index = i
+        # if self.max_aoa_measurement - self.min_aoa_measurement > self.min_aoa_diff_to_start:
+        updated_using_ekf = False
+        minimum_mal_dist = np.inf
+        minimum_mal_dist_index = -1
+        for i,emitter_param in enumerate(self.estimated_emmiter_params):
+            measurement_mahalonobis_distance = self.mahalonobis_distance(measurement_value, measurement_location, emitter_param, self.estimated_emmiter_params_covariances[i])
+            measurement_mahalonobis_distance_in_x_y = self.mahalonobis_distance_in_x_y_space(measurement_value[0], measurement_location, emitter_param[0:2], self.estimated_emmiter_params_covariances[i][0:2,0:2])
+            combined_mahalanobis_distance = measurement_mahalonobis_distance_in_x_y + measurement_mahalonobis_distance
+            print("measurement_mahalonobis_distance",measurement_mahalonobis_distance)
+            print("measurement_mahalonobis_distance_in_x_y",measurement_mahalonobis_distance_in_x_y)
+            if measurement_mahalonobis_distance < minimum_mal_dist:
+                minimum_mal_dist  = measurement_mahalonobis_distance
+                minimum_mal_dist_index = i
+            # if measurement_mahalonobis_distance_in_x_y < minimum_mal_dist:
+            #     minimum_mal_dist  = measurement_mahalonobis_distance_in_x_y
+            #     minimum_mal_dist_index = i
+            # if combined_mahalanobis_distance < minimum_mal_dist:
+            #     minimum_mal_dist  = combined_mahalanobis_distance
+            #     minimum_mal_dist_index = i
 
-            if minimum_mal_dist < self.mahalonobis_distance_inlier_threshold:
-                
-                estimated_emmiter_param,  estimated_emmiter_params_covariances = self.ekf_update(measurement_location, measurement_value, self.measurement_cov, self.estimated_emmiter_params[minimum_mal_dist_index], self.estimated_emmiter_params_covariances[minimum_mal_dist_index])
-                if estimated_emmiter_param[2] < 0:
-                    print("estimated power level too small")
-                    updated_using_ekf = False
-                else:
-                    self.estimated_emmiter_params[minimum_mal_dist_index] = estimated_emmiter_param
-                    self.estimated_emmiter_params_covariances[minimum_mal_dist_index] = estimated_emmiter_params_covariances
-                    self.group_lists[minimum_mal_dist_index] = np.append(self.group_lists[minimum_mal_dist_index],(len(self.measurement_values)-1))
-                    updated_using_ekf = True
+        if minimum_mal_dist < self.mahalonobis_distance_inlier_threshold:
+            
+            estimated_emmiter_param,  estimated_emmiter_params_covariances = self.ekf_update(measurement_location, measurement_value, self.measurement_cov, self.estimated_emmiter_params[minimum_mal_dist_index], self.estimated_emmiter_params_covariances[minimum_mal_dist_index])
+            if estimated_emmiter_param[2] < 0:
+                print("estimated power level too small")
+                updated_using_ekf = False
+            else:
+                self.estimated_emmiter_params[minimum_mal_dist_index] = estimated_emmiter_param
+                self.estimated_emmiter_params_covariances[minimum_mal_dist_index] = estimated_emmiter_params_covariances
+                self.group_lists[minimum_mal_dist_index] = np.append(self.group_lists[minimum_mal_dist_index],(len(self.measurement_values)-1))
+                updated_using_ekf = True
 
-            if not updated_using_ekf:
-                self.outlier_indicies = np.append(self.outlier_indicies, len(self.measurement_values)-1)
-                self.fit_ransac_model(np.array(self.measurement_locations)[self.outlier_indicies], np.array(self.measurement_values)[self.outlier_indicies], self.outlier_indicies)
-            self.delete_lowest_probability_model()
-            print("ransac prediction", self.estimated_emmiter_params)
-            print("covariance", self.estimated_emmiter_params_covariances)
-            print("group lists", self.group_lists)
-            print("outliers", self.outlier_indicies)
-            print()
-            # if len(self.estimated_emmiter_params) >0:
-            #     self.best_measurement_location_map = self.create_best_measurement_location_map(self.estimated_emmiter_params, self.estimated_emmiter_params_covariances)
-        # elif len(self.measurement_values) == 2:
-        #     self.outlier_indicies = np.append(self.outlier_indicies, 1)
-        else:
-            # self.outlier_indicies = np.append(self.outlier_indicies, 0)
+        if not updated_using_ekf:
+            # self.update_aoa_diff_value(measurement_value)
             self.outlier_indicies = np.append(self.outlier_indicies, len(self.measurement_values)-1)
+            # print("Angle diff",self.max_aoa_measurement - self.min_aoa_measurement) 
+            # if self.max_aoa_measurement - self.min_aoa_measurement > self.min_aoa_diff_to_start:
+            self.fit_ransac_model(np.array(self.measurement_locations)[self.outlier_indicies], np.array(self.measurement_values)[self.outlier_indicies], self.outlier_indicies)
+                # self.recompute_aoa_diff(np.array(self.measurement_values)[self.outlier_indicies])
+                # if foundFit:
+                    
+        print("ransac prediction", self.estimated_emmiter_params)
+        print("covariance", self.estimated_emmiter_params_covariances)
+        print("group lists", self.group_lists)
+        print("outliers", self.outlier_indicies)
+        print()
+
+        # else:
+        #     # self.outlier_indicies = np.append(self.outlier_indicies, 0)
+        #     self.outlier_indicies = np.append(self.outlier_indicies, len(self.measurement_values)-1)
     
     def power_basis_function(self, radial_distance):
         return self.radar_measurement_coeff/radial_distance**2
