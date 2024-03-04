@@ -41,7 +41,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         #these will be used to make sure aoa are different enough before starting estimate
         self.min_aoa_measurement = None
         self.max_aoa_measurement = None
-        self.min_aoa_diff_to_start = .3
+        self.min_aoa_diff_to_start = .2
     
     def delete_lowest_probability_model(self):
         remove_indicies = []

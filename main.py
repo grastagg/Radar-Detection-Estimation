@@ -15,7 +15,7 @@ from probabilityOfDetectionMap import ProbabilityOfDetectionMap
 import params
 from pathPlanning import SplinePathPlanningLowPriority 
 
-np.random.seed(1234)
+# np.random.seed(1234)
 
 fig,ax = plt.subplots()
 ax.set_xlim((0,params.bounds[0]))
@@ -92,6 +92,22 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
             cb = plt.colorbar(c)
         plt.title(numMeasurements-1)
         plt.savefig('images/objective_function/'+str(plotIndex)+'.png')
+        if c is not None:
+            if cb is not None:
+                cb.remove()
+            c.remove()
+            cb = None
+            c = None
+
+    if params.plotChanceConstraints:
+        if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
+            c = lowPriorityPathPlanner.plot_chance_constraints(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements)
+            # c = lowPriorityPathPlanner.plot_chance_constraints(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements)
+            # proxy = [plt.Rectangle((0,0),1,1,fc = pc.get_facecolor()[0]) for pc in c.collections]
+            # ax.legend(proxy, ['safe', 'unsafe'])
+            cb = plt.colorbar(c)
+        plt.title(numMeasurements-1)
+        plt.savefig('images/chance_constraints/'+str(plotIndex)+'.png')
         if c is not None:
             if cb is not None:
                 cb.remove()

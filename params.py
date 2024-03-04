@@ -26,20 +26,55 @@ def frequency_to_wavelength(freq):
     return c/freq
         
 #TODO: To make simulation more realistic compute the max range the radar can detect a UAV and the max range the UAV can detect the radar or define them probabalistically
-        
+
+    
 
 #simulation parameters
-bounds = (20000, 20000) #meters
+bounds = (18000, 18000) #meters
 numTestPoints = 30
 simulationEndTime = 900
 simulationTimestep = 0.1
 plotTimeStep = 0.5
 
 #radar parameters
-radarPositions = [(6000,10000),(16000, 10000)]
-# radarPositions = [(3000,10000),(8000, 10000)]
-radarPhases = [0,np.pi, np.pi/2, np.pi/3]
+radarPositions = [(6000,10000),(16000, 10000), (18000,3000),(2000,3000)]
+radarPhases = [0,np.pi, np.pi/2, np.pi/3, .123]
 radarAngularRates = [3,2.5,3.5,4]
+radarPositions = []
+radarPhases = []
+radarAngularRates = []
+numRadar = 3
+
+minRadarDistFromStart = 5000
+minInterRadarDist = 5000
+def find_min_dist_to_other_radar(potentialRadarPosition, currentRadarPositions):
+    mindist = 1000000
+    for tempRadar in currentRadarPositions:
+        dist = np.linalg.norm(tempRadar - potentialRadarPosition)
+        if dist < mindist:
+            mindist = dist
+    return mindist
+
+def find_radar_position(currentRadarPositions):
+    potentialRadarPosition = np.random.uniform(0,bounds[0]-2000,2) 
+    distToStart = np.linalg.norm(potentialRadarPosition)
+    minDistToOtherRadar = find_min_dist_to_other_radar(potentialRadarPosition, currentRadarPositions)
+    notFound = distToStart < minRadarDistFromStart or minDistToOtherRadar < minInterRadarDist
+
+    while notFound:
+        potentialRadarPosition = np.random.uniform(0,bounds[0]-2000,2) 
+        distToStart = np.linalg.norm(potentialRadarPosition)
+        minDistToOtherRadar = find_min_dist_to_other_radar(potentialRadarPosition, currentRadarPositions)
+        notFound = distToStart < minRadarDistFromStart or minDistToOtherRadar < minInterRadarDist
+    return potentialRadarPosition
+
+
+for i in range(numRadar):
+            
+    radarPositions.append(find_radar_position(radarPositions))
+    radarPhases.append(np.random.uniform(0,np.pi,1)[0])
+    radarAngularRates.append(np.random.uniform(2,4,1)[0])
+# radarPositions = [(3000,10000),(8000, 10000)]
 radarOutputPower = 10000
 radarTransmitGaindb = 18
 radarRecieveGaindb = 18
@@ -61,7 +96,8 @@ print("Actual ERP in DB", 10*np.log10(radarOutputPower * radarTransmitGain))
 # agentInitialStates = [[10000,4010,0],[6000,6000,-np.pi/4]]
 # agentInitialStates = [[10000,4010,0]]
 # agentInitialStates = [[5000,5000,0],[5000,15000,0]]
-agentInitialStates = [[11000,2000,np.pi/2]]
+# agentInitialStates = [[11000,2000,np.pi/2]]
+agentInitialStates = [[100,100,np.pi/4]]
 # agentInitialStates = [[5000,2000,np.pi/2]]
 agentSensingRange = 10000
 agentPowerMeasurementStdDev = .001
@@ -100,6 +136,7 @@ radarSystemTemperaturePriorVariance = 0
 
 #plotting
 plotObjectiveFunction = True 
+plotChanceConstraints = True
 plotPd = False 
 plotPdCov = False 
 plotBestMeasurement = False 
