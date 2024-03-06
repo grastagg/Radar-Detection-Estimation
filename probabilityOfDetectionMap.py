@@ -14,6 +14,8 @@ class ProbabilityOfDetectionMap():
         self.estimatedRadarParamsList = None
         self.estimatedRadarParamsCovList = None
 
+        self.groundTruthpdMap = self.ground_truth_probability_of_detection(X_test, params.radarList) 
+
     
     
     def probability_of_detection(self, probabilityOfFalseAlarm, snr):
@@ -285,7 +287,10 @@ class ProbabilityOfDetectionMap():
             x_test = self.X_test[:,0].reshape((params.numTestPoints,params.numTestPoints))
             y_test = self.X_test[:,1].reshape((params.numTestPoints,params.numTestPoints))
 
-            c = ax.pcolormesh(x_test, y_test, self.pdMap.reshape((params.numTestPoints, params.numTestPoints)))
+            plotMap = np.square(np.subtract(self.pdMap, self.groundTruthpdMap))
+
+            # c = ax.pcolormesh(x_test, y_test, self.pdMap.reshape((params.numTestPoints, params.numTestPoints)))
+            c = ax.pcolormesh(x_test, y_test, plotMap.reshape((params.numTestPoints, params.numTestPoints)))
             return c
 
     def plot_cov(self, ax):
@@ -307,7 +312,20 @@ class ProbabilityOfDetectionMap():
             c = ax.pcolormesh(X_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), X_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), best_measurement_location_map.reshape((params.numTestPoints,params.numTestPoints)))
 
         return c
-            
+
+    def ground_truth_probability_of_detection(self, X_test, trueRadarParametersList):
+        probabilityOfNoDetection = np.ones(len(X_test))
+        
+
+        for i,position in enumerate(X_test):
+            pd_list = []
+            pd_cov_list = []
+            for j, radar in enumerate(trueRadarParametersList):
+                pdi = self.compute_probability_of_detection_at_xy(position, (radar.position[0], radar.position[1], params.radarOutputPower*params.radarTransmitGain))
+                probabilityOfNoDetection[i] *= (1-pdi)
+        
+        
+        return 1-probabilityOfNoDetection   
             
 
 if __name__ == '__main__':

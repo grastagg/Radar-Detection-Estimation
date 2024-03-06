@@ -24,6 +24,11 @@ class SplinePathPlanningLowPriority():
 
         self.bestMeasurementLocPlot = None
         self.firstPlot = True
+        
+        
+        #desired heading list to unwrap heading
+        self.numHeadingsToSave = 10
+        self.savedHeadings = []
 
     def spline_seg(self,control_points,t):
         '''
@@ -61,6 +66,15 @@ class SplinePathPlanningLowPriority():
 
     def get_turn_rate_and_velocity_waypoint(self, bestMeasurementLoc, currentPose):
         desiredHeading = np.arctan2(bestMeasurementLoc[1]-currentPose[1], bestMeasurementLoc[0]-currentPose[0])
+        if len(self.savedHeadings) > self.numHeadingsToSave:
+            self.savedHeadings.pop(0)
+            self.savedHeadings.append(desiredHeading)
+        else:
+            self.savedHeadings.append(desiredHeading)
+        # print("original",self.savedHeadings)
+        # print("unwrapped",np.unwrap(np.array(self.savedHeadings)))
+        self.savedHeadings = np.unwrap(np.array(self.savedHeadings)).tolist()
+        desiredHeading = self.savedHeadings[-1]
         v = (params.velocityBounds[0]+params.velocityBounds[1])/2
         u = self.kp * (desiredHeading - currentPose[2])
         return u,v

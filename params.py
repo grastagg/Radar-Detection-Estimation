@@ -92,13 +92,7 @@ print("Actual ERP in DB", 10*np.log10(radarOutputPower * radarTransmitGain))
 
 
 #agent parameters
-# agentInitialStates = [[10,10,0]]
-# agentInitialStates = [[10000,4010,0],[6000,6000,-np.pi/4]]
-# agentInitialStates = [[10000,4010,0]]
-# agentInitialStates = [[5000,5000,0],[5000,15000,0]]
-# agentInitialStates = [[11000,2000,np.pi/2]]
 agentInitialStates = [[100,100,np.pi/4]]
-# agentInitialStates = [[5000,2000,np.pi/2]]
 agentSensingRange = 10000
 agentPowerMeasurementStdDev = .001
 agentAngleMeasurementStdDev = (3*np.pi/180)
@@ -137,7 +131,7 @@ radarSystemTemperaturePriorVariance = 0
 #plotting
 plotObjectiveFunction = True 
 plotChanceConstraints = True
-plotPd = False 
+plotPd = True 
 plotPdCov = False 
 plotBestMeasurement = False 
 
