@@ -35,7 +35,7 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
         radar.plot_view_area(ax)
 
     if multipleEmitterOnlineLocationAndPowerEstimator is not None:
-        measurement_lines = multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
+        measurement_lines,estimator_locs = multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
 
     if params.plotBestMeasurement:
         if probabilityOfDetectionMap is not None:
@@ -105,18 +105,21 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
             # c = lowPriorityPathPlanner.plot_chance_constraints(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements)
             # proxy = [plt.Rectangle((0,0),1,1,fc = pc.get_facecolor()[0]) for pc in c.collections]
             # ax.legend(proxy, ['safe', 'unsafe'])
-            cb = plt.colorbar(c)
+            cb = plt.colorbar(c[-1])
         plt.title(numMeasurements-1)
         plt.savefig('images/chance_constraints/'+str(plotIndex)+'.png')
         if c is not None:
             if cb is not None:
                 cb.remove()
-            c.remove()
+            for temp in c:
+                temp.remove()
             cb = None
             c = None
 
     for line in measurement_lines:
         line.remove()
+    for loc in estimator_locs:
+        loc.remove()
 
 
 def main():
@@ -151,19 +154,22 @@ def main():
     currentNumberOfMeasurements = 0
     currentNumberOfMeasurementsArray = np.zeros(len(agentList),dtype=int)
 
+    timeSinceLastPlot = 0
 
     
 
     while tCurrent < tEnd:
         start = time.time()
-        plot_scene(radarList, agentList, bounds, plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner)
+        if timeSinceLastPlot >= params.plotTimeStep:
+            plot_scene(radarList, agentList, bounds, plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner)
+            timeSinceLastPlot = 0
+            plotIndex += 1
         # print("plot time", time.time()-start)
         for radar in radarList:
             radar.update(dt)
         for i,agent in enumerate(agentList):
             # agent.update(134,.0,dt,radarList)
             turnRate, velocity = lowPriorityPathPlanner.get_control(dt,agent.position)
-            # agent.update(params.agentSpeed,.0,dt,radarList)
             agent.update(velocity,turnRate,dt,radarList)
             if len(agent.measurementAngleOfArrivalValues) != currentNumberOfMeasurementsArray[i]:
                 print("adding measurement:", currentNumberOfMeasurementsArray[i], "from agent",i)
@@ -185,7 +191,7 @@ def main():
 
 
 
-        plotIndex += 1
+        timeSinceLastPlot+=dt
         tCurrent += dt
 
     

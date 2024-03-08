@@ -289,8 +289,9 @@ class ProbabilityOfDetectionMap():
 
             plotMap = np.square(np.subtract(self.pdMap, self.groundTruthpdMap))
 
+            c = ax.pcolormesh(x_test, y_test, self.groundTruthpdMap.reshape((params.numTestPoints, params.numTestPoints)))
             # c = ax.pcolormesh(x_test, y_test, self.pdMap.reshape((params.numTestPoints, params.numTestPoints)))
-            c = ax.pcolormesh(x_test, y_test, plotMap.reshape((params.numTestPoints, params.numTestPoints)))
+            # c = ax.pcolormesh(x_test, y_test, plotMap.reshape((params.numTestPoints, params.numTestPoints)))
             return c
 
     def plot_cov(self, ax):
@@ -298,6 +299,7 @@ class ProbabilityOfDetectionMap():
             x_test = self.X_test[:,0].reshape((params.numTestPoints,params.numTestPoints))
             y_test = self.X_test[:,1].reshape((params.numTestPoints,params.numTestPoints))
 
+            # c1 = ax.contour(x_test, y_test, self.pdMap.reshape((params.numTestPoints,params.numTestPoints)), levels = [params.probabilityOfDetectionThreshold])
             c = ax.pcolormesh(x_test, y_test, self.pdCovMap.reshape((params.numTestPoints, params.numTestPoints)))
             return c
     def plot_best_measurement_map(self, ax):

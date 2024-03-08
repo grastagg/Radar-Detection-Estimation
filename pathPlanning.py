@@ -5,6 +5,7 @@ from scipy import interpolate
 from pyoptsparse import Optimization, OPT, IPOPT
 from matplotlib.patches import Circle
 
+from statistics import NormalDist
 
 class SplinePathPlanningLowPriority():
     def __init__(self):
@@ -230,21 +231,23 @@ class SplinePathPlanningLowPriority():
         return out/currCovSum
 
     def chance_constraint(self,rho, delta, mean, var):
-        return (mean - rho) < (-erfinv(2*delta-1)*np.sqrt(2*var))
+        # return (mean - rho) > (-erfinv(2*delta-1)*np.sqrt(2*var))
+        # return (mean - rho) > (erfinv(-2*delta+1)*np.sqrt(2*var))
+        # print(var)
+        return (NormalDist(mu=mean, sigma=np.sqrt(var)).cdf(rho)) > delta
+        # return (mean - rho) > (erfinv(-2*delta+1)*np.sqrt(2*var))
 
-    def objective_function_chance_constraints(self, X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap):
-        objectivFunctionVal = np.zeros((len(X_test),1))
+    def chance_constraints_at_points(self, X_test, probabilityOfDetectionMap):
         constraintMet = np.zeros((len(X_test),1))
-        # pdMean, pdVar = probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, estimatedRadarParams, estimatedRadarParamsCov)
+
         pdMean = probabilityOfDetectionMap.pdMap
         pdVar = probabilityOfDetectionMap.pdCovMap
         rho = params.probabilityOfDetectionThreshold
         delta = params.thresholdConfidence
         for i, mean in enumerate(pdMean):
             var = pdVar[i]
-            objectivFunctionVal[i] = self.next_measurement_covariance_determinant(X_test[i,:], estimatedRadarParams, estimatedRadarParamsCov)   
             constraintMet[i] = self.chance_constraint(rho, delta, mean, var)
-        return objectivFunctionVal,  constraintMet
+        return constraintMet
 
     def objective_function(self, X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap, currentPosition):
         alpha = params.lowPrioritySafetyBestMeasurementTradeoff
@@ -346,22 +349,18 @@ class SplinePathPlanningLowPriority():
         return c
 
     def plot_chance_constraints(self, ax,X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap, currPos, numMeasurements):
-        objectiveFunctionVal, constraintMet = self.objective_function_chance_constraints(X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap)
-        objectiveFunctionVal[constraintMet ==0] = 1
-        objectiveFunctionVal[constraintMet ==1] = 0
+        constraintMet = self.chance_constraints_at_points(X_test, probabilityOfDetectionMap)
+        groundTruthConstraint = probabilityOfDetectionMap.groundTruthpdMap
+
+        c1 = ax.contour(X_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), X_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), groundTruthConstraint.reshape((params.numTestPoints,params.numTestPoints)), levels = [params.probabilityOfDetectionThreshold])
+
+        c2 = ax.contour(X_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), X_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), probabilityOfDetectionMap.pdMap.reshape((params.numTestPoints,params.numTestPoints)), levels = [params.probabilityOfDetectionThreshold], cmap = 'hsv')
+
+        # c4 = ax.pcolormesh(X_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), X_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), probabilityOfDetectionMap.pdCovMap.reshape((params.numTestPoints,params.numTestPoints)))
         
-        c = ax.contourf(X_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), X_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), objectiveFunctionVal.reshape((params.numTestPoints,params.numTestPoints)), levels = [-1,0,1], cmap = 'coolwarm')
-        # if self.splinePath is not None:
-        #     self.plot_spline(ax, self.splinePath, 100)
-            
-        # if numMeasurements != self.numMeasurements:
-        #     bestPos = self.optimize_next_best_measurement(currPos, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap)
-        #     print("bestPos", bestPos)
-        #     if self.bestMesurementPlot is not None:
-        #         self.bestMesurementPlot.remove()
-        #     ax.scatter(bestPos[0], bestPos[1],zorder = 1000000)
-        #     self.numMeasurements = numMeasurements
-        return c
+        c3 = ax.contour(X_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), X_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), constraintMet.reshape((params.numTestPoints,params.numTestPoints)), levels = [-1,0,1], cmap = 'coolwarm')
+        # c3 = ax.contourf(X_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), X_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), constraintMet.reshape((params.numTestPoints,params.numTestPoints)), levels = [-1,0,1], cmap = 'coolwarm')
+        return [c1,c2,c3]
     
     
     

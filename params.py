@@ -3,6 +3,8 @@ from radar import RadarCircularPattern
 from agent import Agent
 from scipy.constants import c
 
+np.random.seed(1962)
+
 def create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm):
     radarList = []
     
@@ -31,7 +33,8 @@ def frequency_to_wavelength(freq):
 
 #simulation parameters
 bounds = (18000, 18000) #meters
-numTestPoints = 30
+# numTestPoints = 30
+numTestPoints =100 
 simulationEndTime = 900
 simulationTimestep = 0.1
 plotTimeStep = 0.5
@@ -76,8 +79,11 @@ for i in range(numRadar):
     radarAngularRates.append(np.random.uniform(2,4,1)[0])
 # radarPositions = [(3000,10000),(8000, 10000)]
 radarOutputPower = 10000
-radarTransmitGaindb = 18
-radarRecieveGaindb = 18
+# radarOutputPower = 2500 
+radarTransmitGaindb = 10
+# radarTransmitGaindb = 16
+radarRecieveGaindb = 10
+# radarRecieveGaindb = 16
 radarTransmitGain = db_to_amplitude(radarTransmitGaindb)
 radarRecieveGain = db_to_amplitude(radarRecieveGaindb)
 radarFrequency = 3e9
@@ -129,15 +135,15 @@ radarSystemTemperaturePriorMean = radarSystemTemperature
 radarSystemTemperaturePriorVariance = 0
 
 #plotting
-plotObjectiveFunction = True 
+plotObjectiveFunction = False 
 plotChanceConstraints = True
-plotPd = True 
-plotPdCov = False 
+plotPd = False 
+plotPdCov = True 
 plotBestMeasurement = False 
 
 #chance constraints
-probabilityOfDetectionThreshold = 0.5
-thresholdConfidence = 0.5
+probabilityOfDetectionThreshold = 0.1
+thresholdConfidence = 0.95
 
 
 #path planning
