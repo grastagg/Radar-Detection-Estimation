@@ -2,6 +2,8 @@ import numpy as np
 from radar import RadarCircularPattern
 from agent import Agent
 from scipy.constants import c
+import jax.numpy as jnp
+import jax
 
 np.random.seed(1962)
 
@@ -33,8 +35,8 @@ def frequency_to_wavelength(freq):
 
 #simulation parameters
 bounds = (18000, 18000) #meters
-# numTestPoints = 30
-numTestPoints =100 
+numTestPoints = 30
+# numTestPoints =100 
 simulationEndTime = 900
 simulationTimestep = 0.1
 plotTimeStep = 0.5
@@ -46,9 +48,9 @@ radarAngularRates = [3,2.5,3.5,4]
 radarPositions = []
 radarPhases = []
 radarAngularRates = []
-numRadar = 3
+numRadar = 8
 
-minRadarDistFromStart = 5000
+minRadarDistFromStart = 7000
 minInterRadarDist = 5000
 def find_min_dist_to_other_radar(potentialRadarPosition, currentRadarPositions):
     mindist = 1000000
@@ -99,7 +101,8 @@ print("Actual ERP in DB", 10*np.log10(radarOutputPower * radarTransmitGain))
 
 #agent parameters
 agentInitialStates = [[100,100,np.pi/4]]
-agentSensingRange = 10000
+# agentSensingRange = 10000
+agentSensingRange = 5000
 agentPowerMeasurementStdDev = .001
 agentAngleMeasurementStdDev = (3*np.pi/180)
 agentELINTAnteneaGaindb = 18
@@ -135,10 +138,10 @@ radarSystemTemperaturePriorMean = radarSystemTemperature
 radarSystemTemperaturePriorVariance = 0
 
 #plotting
-plotObjectiveFunction = False 
-plotChanceConstraints = True
+plotObjectiveFunction = True 
+plotChanceConstraints =False 
 plotPd = False 
-plotPdCov = True 
+plotPdCov = False 
 plotBestMeasurement = False 
 
 #chance constraints
@@ -157,6 +160,14 @@ maxTurnRate = 1
 velocityBounds = [100,134]
 numConstraintSamples = 20
 splineOrder = 3
+
+
+#high priority path plannings
+highPriorityStart = (100,100)
+highPriorityEnd = (17900,17900)
+highPriorityStraitLineA = highPriorityStart[1] - highPriorityEnd[1]
+highPriorityStraitLineB = highPriorityEnd[0] - highPriorityStart[0]
+highPriorityStraitLineC = highPriorityStart[0]*highPriorityEnd[1] - highPriorityEnd[0] * highPriorityStart[1]
 
 
 def create_test_points(numTestPoints, bounds):
@@ -200,5 +211,16 @@ def measurement_jacobian(xem, yem, erp, x, y):
     d_h2_d_p_emmitter = radarMeasurementCoeff/((yem-y)**2+(xem-x)**2)
 
     return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
+@jax.jit
+def measurement_jacobian_jax(xem, yem, erp, x, y):
+    d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
+    d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
+    d_h1_d_p_emmitter = 0
+
+    d_h2_d_x_emmitter = -(2*erp*radarMeasurementCoeff*(xem-x))/((xem-x)**2+(yem-y)**2)**2 
+    d_h2_d_y_emmitter = -(2*erp*radarMeasurementCoeff*(yem-y))/((yem-y)**2+(xem-x)**2)**2 
+    d_h2_d_p_emmitter = radarMeasurementCoeff/((yem-y)**2+(xem-x)**2)
+
+    return jnp.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
 
     

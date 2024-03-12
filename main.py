@@ -85,7 +85,7 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
     
     if params.plotObjectiveFunction:
         if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
-            c = lowPriorityPathPlanner.plot_objective_and_constraint(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements)
+            c = lowPriorityPathPlanner.plot_objective_and_constraint(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements,multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations)
             # c = lowPriorityPathPlanner.plot_chance_constraints(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements)
             # proxy = [plt.Rectangle((0,0),1,1,fc = pc.get_facecolor()[0]) for pc in c.collections]
             # ax.legend(proxy, ['safe', 'unsafe'])
@@ -164,7 +164,7 @@ def main():
             plot_scene(radarList, agentList, bounds, plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner)
             timeSinceLastPlot = 0
             plotIndex += 1
-        # print("plot time", time.time()-start)
+            # print("plot time", time.time()-start)
         for radar in radarList:
             radar.update(dt)
         for i,agent in enumerate(agentList):
@@ -185,7 +185,7 @@ def main():
                     probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances)
                     # print("pd map time", time.time()-start_pd)
             start_p = time.time()
-            lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agent.position, len(agent.measurementAngleOfArrivalValues))
+            lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agent.position, len(agent.measurementAngleOfArrivalValues),multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations )
             # print("path planning time", time.time()-start_p)
         # print("time for step:", time.time()-start)
 
