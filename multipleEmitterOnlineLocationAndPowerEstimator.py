@@ -28,7 +28,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.inlier_mask = None
         self.group_lists = []
 
-        self.mahalonobis_distance_inlier_threshold = 3.5
+        self.mahalonobis_distance_inlier_threshold = 4.5
         # self.mahalonobis_distance_inlier_threshold = 2.5
         self.mal_dist_opt_point = None
         
@@ -42,6 +42,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.min_aoa_measurement = None
         self.max_aoa_measurement = None
         self.min_aoa_diff_to_start = .2
+        self.minDistBetweenModels = params.minInterRadarDist-500
     
     def delete_lowest_probability_model(self):
         remove_indicies = []
@@ -74,6 +75,19 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                 max_measurement = measurement[0]
         return max_measurement - min_measurement
 
+    def get_min_dist_to_other_models(self, new_model):
+        if len(self.estimated_emmiter_params) == 0:
+            return np.inf
+        else:
+            minDist = np.inf
+            for mod in self.estimated_emmiter_params:
+                dist = np.linalg.norm(mod[0:2]-new_model[0:2])
+                if dist < minDist:
+                    minDist = dist
+            return minDist 
+            
+            
+
     def fit_ransac_model(self, measurement_locations, measurements, original_index):
         if len(measurements) > 3:
             # try:
@@ -85,14 +99,16 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             # ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = 'squared_error')#,residual_threshold=.09)
             ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = loss, residual_threshold=2)#,residual_threshold=.09)
             ransacRegressor.fit(np.array(measurement_locations), np.array(measurements))
-            if len(original_index[ransacRegressor.inlier_mask_== True]) >= 5:
-                inlier_aoa_diff = self.compute_inlier_aoa_diff(measurements[ransacRegressor.inlier_mask_==True])
-                if inlier_aoa_diff > self.min_aoa_diff_to_start:
-                    self.estimated_emmiter_params.append(ransacRegressor.estimator_.get_estimate_emmitor_params())
-                    self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
-                    self.estimated_emmiter_params_covariances.append(ransacRegressor.estimator_.compute_emmitor_estimate_covariance(np.array(self.measurement_locations)[self.group_lists[-1]], np.array(self.measurement_values)[self.group_lists[-1]]))
-                    for ind in original_index[ransacRegressor.inlier_mask_== True]:
-                        self.outlier_indicies = np.delete(self.outlier_indicies, np.argwhere(self.outlier_indicies == ind))
+            closestModelDist = self.get_min_dist_to_other_models(ransacRegressor.estimator_.get_estimate_emmitor_params())
+            if closestModelDist > self.minDistBetweenModels:
+                if len(original_index[ransacRegressor.inlier_mask_== True]) >= 5:
+                    inlier_aoa_diff = self.compute_inlier_aoa_diff(measurements[ransacRegressor.inlier_mask_==True])
+                    if inlier_aoa_diff > self.min_aoa_diff_to_start:
+                        self.estimated_emmiter_params.append(ransacRegressor.estimator_.get_estimate_emmitor_params())
+                        self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
+                        self.estimated_emmiter_params_covariances.append(ransacRegressor.estimator_.compute_emmitor_estimate_covariance(np.array(self.measurement_locations)[self.group_lists[-1]], np.array(self.measurement_values)[self.group_lists[-1]]))
+                        for ind in original_index[ransacRegressor.inlier_mask_== True]:
+                            self.outlier_indicies = np.delete(self.outlier_indicies, np.argwhere(self.outlier_indicies == ind))
             self.fit_ransac_model(measurement_locations[ransacRegressor.inlier_mask_== False],measurements[ransacRegressor.inlier_mask_== False], original_index[ransacRegressor.inlier_mask_== False])
             # except:
             #     pass

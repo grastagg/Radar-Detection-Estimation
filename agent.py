@@ -2,6 +2,7 @@ import numpy as np
 from matplotlib.patches import Circle
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
+import params
 
 
 class Agent:
@@ -30,6 +31,10 @@ class Agent:
         self.plotLine = Line2D(xdata=[self.position[0],x_end],ydata=[self.position[1],y_end],linewidth=3, color = 'b',zorder = 100000000)
         self.firstPlot = True
         
+        self.pathHistory = []
+        self.timeSinceLastPathUpdate = 0
+
+        
         
         
         
@@ -38,6 +43,13 @@ class Agent:
         self.position[0] +=  v * np.cos(self.position[2]) * dt
         self.position[1] +=  v * np.sin(self.position[2]) * dt
         self.position[2] += u*dt
+        self.timeSinceLastPathUpdate += dt
+
+        if self.timeSinceLastPathUpdate > params.agentPathHistorydt:
+            self.pathHistory.append(self.position[0:2])
+            self.timeSinceLastPathUpdate = 0
+        
+        
 
     def get_distance(self,p1,p2):
         return np.linalg.norm(np.array(p1)-np.array(p2))

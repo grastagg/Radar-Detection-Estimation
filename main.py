@@ -157,6 +157,7 @@ def main():
     timeSinceLastPlot = 0
 
     
+    updateLowPriorityPathPlanner = False
 
     while tCurrent < tEnd:
         start = time.time()
@@ -167,6 +168,7 @@ def main():
             # print("plot time", time.time()-start)
         for radar in radarList:
             radar.update(dt)
+        
         for i,agent in enumerate(agentList):
             # agent.update(134,.0,dt,radarList)
             turnRate, velocity = lowPriorityPathPlanner.get_control(dt,agent.position)

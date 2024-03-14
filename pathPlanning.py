@@ -50,8 +50,8 @@ def objective_function_at_pos_new(pos, estimatedRadarParams, estimatedRadarParam
     distFromStraitScale = 5000
     coeffSeperation = .6
     coeffCovariance = .4
-    coeffDistanceFromStrait = .4
-    lengthScale = 5000
+    coeffDistanceFromStrait = 1
+    lengthScale = 3000
     x0 = pos[0]
     y0 = pos[1]
     x1 = params.highPriorityStart[0]
@@ -107,6 +107,8 @@ class SplinePathPlanningLowPriority():
         xStart = np.linspace(params.bounds[0]/(self.numOptStartLocations+1),params.bounds[0]-params.bounds[0]/(self.numOptStartLocations+1), self.numOptStartLocations)
         yStart = np.linspace(params.bounds[1]/(self.numOptStartLocations+1),params.bounds[1]-params.bounds[1]/(self.numOptStartLocations+1), self.numOptStartLocations)
         self.optStartLocationsX, self.optStartLocationsY = np.meshgrid(xStart, yStart)
+        
+        self.
     
 
     def spline_seg(self,control_points,t):
@@ -362,7 +364,8 @@ class SplinePathPlanningLowPriority():
                 optProb.addVarGroup(name = "pos", nVars = 2, varType = 'c', value = [x_start,y_start], lower = 0, upper=params.bounds[1])
                 optProb.addObj("obj")
                 opt = OPT("ipopt")
-                opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+                #opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+                opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
                 opt.options['linear_solver'] = 'ma97'
                 opt.options['print_level'] = 0
                 opt.options['derivative_test'] = 'first-order'

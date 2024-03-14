@@ -5,7 +5,7 @@ from scipy.constants import c
 import jax.numpy as jnp
 import jax
 
-np.random.seed(1962)
+np.random.seed(1992)
 
 def create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm):
     radarList = []
@@ -113,6 +113,8 @@ radarMeasurementCoeff = (agentELINTAnteneaGain * radarWavelength**2)/((4*np.pi)*
 radarMeasurementCoeffDB = 10*np.log10(radarMeasurementCoeff)
 agentRadarCrossSection = .1
 agentList = create_agent_list(agentInitialStates, len(radarList), agentSensingRange, agentPowerMeasurementStdDev, agentAngleMeasurementStdDev, agentELINTAnteneaGain, agentELINTSystemLoss, radarWavelength, agentRadarCrossSection)
+
+agentPathHistorydt = 5
 
 measurementCov = np.array([[agentAngleMeasurementStdDev**2,0],[0,agentPowerMeasurementStdDev**2]])
 
