@@ -38,8 +38,8 @@ class Agent:
         
         
         
-    def update(self,v,u,dt,radar_list):
-        self.measure_radar(radar_list)
+    def update(self,v,u,dt,radar_list, measurementNumber):
+        self.measure_radar(radar_list, measurementNumber)
         self.position[0] +=  v * np.cos(self.position[2]) * dt
         self.position[1] +=  v * np.sin(self.position[2]) * dt
         self.position[2] += u*dt
@@ -61,7 +61,7 @@ class Agent:
             angle -= 2*np.pi
         return angle
 
-    def measure_radar(self, radar_list):
+    def measure_radar(self, radar_list, measurementNumber):
         angle_of_arrivals = []
         power_measurements = []
         radar_distances = []
@@ -92,14 +92,16 @@ class Agent:
             self.measurementPowerValues.append(power_measurements[0])
             self.measurementLocations.append(self.position[0:2])
             self.measurementAngleOfArrivalValues.append(angle_of_arrivals[0])
-            self.truthEmitterCorrespondence[radar_indecies[0]].append(len(self.measurementLocations)-1)
+            # self.truthEmitterCorrespondence[radar_indecies[0]].append(len(self.measurementLocations)-1)
+            self.truthEmitterCorrespondence[radar_indecies[0]].append(measurementNumber)
             # print("truth group lists",self.truthEmitterCorrespondence)
         elif len(angle_of_arrivals) > 1:
             closest_radar_index = radar_distances.index(min(radar_distances))
             self.measurementPowerValues.append(power_measurements[closest_radar_index])
             self.measurementLocations.append(self.position[0:2])
             self.measurementAngleOfArrivalValues.append(angle_of_arrivals[closest_radar_index])
-            self.truthEmitterCorrespondence[radar_indecies[closest_radar_index]].append(len(self.measurementLocations)-1)
+            # self.truthEmitterCorrespondence[radar_indecies[closest_radar_index]].append(len(self.measurementLocations)-1)
+            self.truthEmitterCorrespondence[radar_indecies[closest_radar_index]].append(measurementNumber)
         
         
 

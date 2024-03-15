@@ -171,7 +171,7 @@ def main():
         for i,agent in enumerate(agentList):
             # agent.update(134,.0,dt,radarList)
             turnRate, velocity = lowPriorityPathPlanner.get_control(dt,agent.position)
-            agent.update(velocity,turnRate,dt,radarList)
+            agent.update(velocity,turnRate,dt,radarList,currentNumberOfMeasurements)
             if len(agent.measurementAngleOfArrivalValues) != currentNumberOfMeasurementsArray[i]:
                 print("adding measurement:", currentNumberOfMeasurementsArray[i], "from agent",i)
                 print("measurement:", currentNumberOfMeasurements)

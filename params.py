@@ -100,7 +100,8 @@ print("Actual ERP in DB", 10*np.log10(radarOutputPower * radarTransmitGain))
 
 
 #agent parameters
-agentInitialStates = [[100,100,np.pi/4]]
+# agentInitialStates = [[100,100,np.pi/4]]
+agentInitialStates = [[100,100,np.pi/4],[200,200,np.pi/3]]
 # agentSensingRange = 10000
 agentSensingRange = 5000
 agentPowerMeasurementStdDev = .001

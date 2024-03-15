@@ -367,8 +367,8 @@ class SplinePathPlanningLowPriority():
                 optProb.addVarGroup(name = "pos", nVars = 2, varType = 'c', value = [x_start,y_start], lower = 0, upper=params.bounds[1])
                 optProb.addObj("obj")
                 opt = OPT("ipopt")
-                #opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
-                opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+                opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+                # opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
                 opt.options['linear_solver'] = 'ma97'
                 opt.options['print_level'] = 0
                 opt.options['derivative_test'] = 'first-order'
