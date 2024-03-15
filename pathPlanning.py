@@ -43,7 +43,7 @@ def distance_from_line(x0,y0,x1,y1,x2,y2):
     return np.abs((x2-x1)*(y1-y0)-(x1-x0)*(y2-y1))/np.sqrt((x2-x1)**2+(y2-y1)**2)
 
 @jax.jit
-def objective_function_at_pos_new(pos, estimatedRadarParams, estimatedRadarParamsCov, measuremetLocations, currentPosition):
+def objective_function_at_pos_new(pos, estimatedRadarParams, estimatedRadarParamsCov, measuremetLocations):
 
     minSeperationScale = np.sqrt(2)*params.bounds[0]
     covScale = 3e15
@@ -51,7 +51,7 @@ def objective_function_at_pos_new(pos, estimatedRadarParams, estimatedRadarParam
     coeffSeperation = .6
     coeffCovariance = .4
     coeffDistanceFromStrait = 1
-    lengthScale = 3000
+    lengthScale = 1000
     x0 = pos[0]
     y0 = pos[1]
     x1 = params.highPriorityStart[0]
@@ -108,7 +108,6 @@ class SplinePathPlanningLowPriority():
         yStart = np.linspace(params.bounds[1]/(self.numOptStartLocations+1),params.bounds[1]-params.bounds[1]/(self.numOptStartLocations+1), self.numOptStartLocations)
         self.optStartLocationsX, self.optStartLocationsY = np.meshgrid(xStart, yStart)
         
-        self.
     
 
     def spline_seg(self,control_points,t):
@@ -181,12 +180,12 @@ class SplinePathPlanningLowPriority():
                 
         return False
     
-    def update_path(self, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos,numMeasurements, measurementLocations):
+    def update_path(self, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, agentList,numMeasurements, measurementLocations):
         if numMeasurements != self.numMeasurements and len(estimatedRadarParamsList)>0:
             self.numMeasurements = numMeasurements
             if len(estimatedRadarParamsList)>0:
                 if (len(self.previousEmittorParamsList)!=len(estimatedRadarParamsList) or self.newParamsDifferent(estimatedRadarParamsList)):
-                    self.bestMeasurementLoc = self.optimize_next_best_measurement(currPos, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations)
+                    self.bestMeasurementLoc = self.optimize_next_best_measurement(agentList, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations)
                     # self.bestMeasurementLoc = self.optimize_next_best_measurement_casadi(currPos, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations)
                     if self.useSpline:
                         self.optimize_spline_path(estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos, self.bestMeasurementLoc)
@@ -312,7 +311,7 @@ class SplinePathPlanningLowPriority():
         pdMean = probabilityOfDetectionMap.pdMap
         pdVar = probabilityOfDetectionMap.pdCovMap
         for i, pos in enumerate(X_test):
-            objectivFunctionVal[i] = objective_function_at_pos_new(pos, estimatedRadarParams, estimatedRadarParamsCov, np.array(measurementLocations), np.array(currentPosition)) 
+            objectivFunctionVal[i] = objective_function_at_pos_new(pos, estimatedRadarParams, estimatedRadarParamsCov, np.array(measurementLocations)) 
         return objectivFunctionVal
 
     def probability_of_detection_at_points(self, X_test, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap):
@@ -336,11 +335,15 @@ class SplinePathPlanningLowPriority():
         objectivFunctionVal = alpha * self.next_measurement_covariance_determinant(pos, estimatedRadarParams, estimatedRadarParamsCov) - (1-alpha) * dist 
         return objectivFunctionVal
 
-    def optimize_next_best_measurement(self, currPos, estimatedParams_list, estimatedRadarCovariance_list, probabilityOfDetectionMap, measurementLocations):
+    def optimize_next_best_measurement(self, agentList, estimatedParams_list, estimatedRadarCovariance_list, probabilityOfDetectionMap, measurementLocations):
+        allAgentPathHistory = []
+        for agent in agentList:
+            allAgentPathHistory += agent.pathHistory
+        
         def objective_function(xdict):
             pos = xdict['pos']
             # obj = -next_measurement_covariance_determinant(pos, estimatedParams_list, estimatedRadarCovariance_list)
-            obj = -objective_function_at_pos_new(pos, estimatedParams_list, estimatedRadarCovariance_list, np.array(measurementLocations), np.array(currPos[0:2]))
+            obj = -objective_function_at_pos_new(pos, estimatedParams_list, estimatedRadarCovariance_list, np.array(allAgentPathHistory))
             funcs = {}
             funcs['obj'] = obj
             fail = False
@@ -350,7 +353,7 @@ class SplinePathPlanningLowPriority():
         def sens(xDict, funcs):
             pos = xDict['pos']
             funcsSens = {}
-            funcsSens['obj'] = {"pos" : -grad(objective_function_at_pos_new)(pos, estimatedParams_list, estimatedRadarCovariance_list, np.array(measurementLocations), np.array(currPos[0:2]))}
+            funcsSens['obj'] = {"pos" : -grad(objective_function_at_pos_new)(pos, estimatedParams_list, estimatedRadarCovariance_list, np.array(measurementLocations))}
             return funcsSens, False
     
         
@@ -379,53 +382,6 @@ class SplinePathPlanningLowPriority():
                     minObjFuncValLoc =sol.xStar['pos']
         
         print("BEST VAL:", minObjectiveFunctionVal)
-        print("time for optimization", time.time()-start)
-                    
-
-        return minObjFuncValLoc
-        
-    def optimize_next_best_measurement_casadi(self, currPos, estimatedParams_list, estimatedRadarCovariance_list, probabilityOfDetectionMap, measurementLocations):
-        def objective_function(pos):
-            # obj = -next_measurement_covariance_determinant(pos, estimatedParams_list, estimatedRadarCovariance_list)
-            obj = -self.objective_function_at_pos_new(pos, estimatedParams_list, estimatedRadarCovariance_list, measurementLocations, currPos[0:2])
-            funcs = {}
-            funcs['obj'] = obj
-            fail = False
-            return funcs, fail
-
-
-        pos = SX.sym("pos",2)
-
-        minObjectiveFunctionVal = 1000000
-        minObjFuncValLoc = None
-        
-        start = time.time()
-        for i in range(self.numOptStartLocations):
-            for j in range(self.numOptStartLocations):
-                opti = Opti()
-                MySolver = "ipopt"
-                opts = {}
-                opts['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
-                opts['linear_solver'] = 'ma97'
-                opts['print_level'] = 0
-                opts['derivative_test'] = 'first-order'
-                opts['tol'] = 1e-8
-                p_opts = {"expand":True}
-                s_opts = opts
-                
-                x_start = self.optStartLocationsX[i][j]
-                y_start = self.optStartLocationsY[i][j]
-                opti.minimize(objective_function(pos))
-
-                opti.solver = nlpsol(MySolver, p_opts,s_opts)
-                sol = opti.solve()
-
-
-                
-                print("VAL:", sol['f'])
-                if sol['f'] < minObjectiveFunctionVal:
-                    minObjectiveFunctionVal = sol['f']
-                    minObjFuncValLoc =sol['pos']
         print("time for optimization", time.time()-start)
                     
 

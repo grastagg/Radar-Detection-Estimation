@@ -157,7 +157,6 @@ def main():
     timeSinceLastPlot = 0
 
     
-    updateLowPriorityPathPlanner = False
 
     while tCurrent < tEnd:
         start = time.time()
@@ -186,8 +185,8 @@ def main():
                     start_pd = time.time()
                     probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances)
                     # print("pd map time", time.time()-start_pd)
-            start_p = time.time()
-            lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agent.position, len(agent.measurementAngleOfArrivalValues),multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations )
+        start_p = time.time()
+        lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList, len(agent.measurementAngleOfArrivalValues),multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations )
             # print("path planning time", time.time()-start_p)
         # print("time for step:", time.time()-start)
 

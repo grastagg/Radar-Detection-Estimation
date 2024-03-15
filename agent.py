@@ -2,7 +2,6 @@ import numpy as np
 from matplotlib.patches import Circle
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
-import params
 
 
 class Agent:
@@ -33,6 +32,7 @@ class Agent:
         
         self.pathHistory = []
         self.timeSinceLastPathUpdate = 0
+        self.pathHistorydt = 2
 
         
         
@@ -45,7 +45,7 @@ class Agent:
         self.position[2] += u*dt
         self.timeSinceLastPathUpdate += dt
 
-        if self.timeSinceLastPathUpdate > params.agentPathHistorydt:
+        if self.timeSinceLastPathUpdate > self.pathHistorydt:
             self.pathHistory.append(self.position[0:2])
             self.timeSinceLastPathUpdate = 0
         
