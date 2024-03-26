@@ -42,7 +42,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.min_aoa_measurement = None
         self.max_aoa_measurement = None
         self.min_aoa_diff_to_start = .2
-        self.minDistBetweenModels = params.minInterRadarDist-500
+        self.minDistBetweenModels = params.minInterRadarDist
     
     def delete_lowest_probability_model(self):
         remove_indicies = []

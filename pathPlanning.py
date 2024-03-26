@@ -49,7 +49,8 @@ def objective_function_at_pos_new(pos, estimatedRadarParams, estimatedRadarParam
     covScale = 3e15
     distFromStraitScale = 5000
     coeffSeperation = .6
-    coeffCovariance = .4
+    # coeffCovariance = .4
+    coeffCovariance = .0
     coeffDistanceFromStrait = 1
     lengthScale = 1000
     x0 = pos[0]
@@ -101,8 +102,10 @@ class SplinePathPlanningLowPriority():
         self.covScale = 3e20
         self.distFromStraitScale = 5000
 
+        self.bestMeasurementLocSeperation = 2000.0
+
         
-        self.numOptStartLocations = 3
+        self.numOptStartLocations = 1
         
         xStart = np.linspace(params.bounds[0]/(self.numOptStartLocations+1),params.bounds[0]-params.bounds[0]/(self.numOptStartLocations+1), self.numOptStartLocations)
         yStart = np.linspace(params.bounds[1]/(self.numOptStartLocations+1),params.bounds[1]-params.bounds[1]/(self.numOptStartLocations+1), self.numOptStartLocations)
@@ -128,7 +131,7 @@ class SplinePathPlanningLowPriority():
 
         return spline
     
-    def get_control(self, dt, currentPose):
+    def get_control(self, dt, currentPose, low_priority_agent_index):
         u = 0
         v = (params.velocityBounds[0]+params.velocityBounds[1])/2
         if self.useSpline:
@@ -185,7 +188,8 @@ class SplinePathPlanningLowPriority():
             self.numMeasurements = numMeasurements
             if len(estimatedRadarParamsList)>0:
                 if (len(self.previousEmittorParamsList)!=len(estimatedRadarParamsList) or self.newParamsDifferent(estimatedRadarParamsList)):
-                    self.bestMeasurementLoc = self.optimize_next_best_measurement(agentList, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations)
+                    # self.bestMeasurementLoc = self.optimize_next_best_measurement(agentList, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations)
+                    self.bestMeasurementLocList = self.optimize_next_best_measurement(agentList, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations)
                     # self.bestMeasurementLoc = self.optimize_next_best_measurement_casadi(currPos, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations)
                     if self.useSpline:
                         self.optimize_spline_path(estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos, self.bestMeasurementLoc)
@@ -334,58 +338,88 @@ class SplinePathPlanningLowPriority():
         dist = np.linalg.norm(pos - currentPosition) / 20000
         objectivFunctionVal = alpha * self.next_measurement_covariance_determinant(pos, estimatedRadarParams, estimatedRadarParamsCov) - (1-alpha) * dist 
         return objectivFunctionVal
+    
+    def agent_seperation_constraint(self, pos, agentBestMeausrementLocList):
+        print("TEST")
+        return np.linalg.norm(agentBestMeausrementLocList-pos) - self.bestMeasurementLocSeperation
 
     def optimize_next_best_measurement(self, agentList, estimatedParams_list, estimatedRadarCovariance_list, probabilityOfDetectionMap, measurementLocations):
         allAgentPathHistory = []
         for agent in agentList:
             allAgentPathHistory += agent.pathHistory
-        
-        def objective_function(xdict):
-            pos = xdict['pos']
-            # obj = -next_measurement_covariance_determinant(pos, estimatedParams_list, estimatedRadarCovariance_list)
-            obj = -objective_function_at_pos_new(pos, estimatedParams_list, estimatedRadarCovariance_list, np.array(allAgentPathHistory))
-            funcs = {}
-            funcs['obj'] = obj
-            fail = False
-            return funcs, fail
-        minObjectiveFunctionVal = 1000000
-        minObjFuncValLoc = None
-        def sens(xDict, funcs):
-            pos = xDict['pos']
-            funcsSens = {}
-            funcsSens['obj'] = {"pos" : -grad(objective_function_at_pos_new)(pos, estimatedParams_list, estimatedRadarCovariance_list, np.array(measurementLocations))}
-            return funcsSens, False
-    
-        
-        start = time.time()
-        for i in range(self.numOptStartLocations):
-            for j in range(self.numOptStartLocations):
-                x_start = self.optStartLocationsX[i][j]
-                y_start = self.optStartLocationsY[i][j]
+        # allAgentPathHistory = np.concatenate([agent.pathHistory for agent in agentList])
 
-                optProb = Optimization("find best measurement location", objective_function)
-                optProb.addVarGroup(name = "pos", nVars = 2, varType = 'c', value = [x_start,y_start], lower = 0, upper=params.bounds[1])
-                optProb.addObj("obj")
-                opt = OPT("ipopt")
-                opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
-                # opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
-                opt.options['linear_solver'] = 'ma97'
-                opt.options['print_level'] = 0
-                opt.options['derivative_test'] = 'first-order'
-                opt.options['max_iter'] = 100
-                opt.options['tol'] = 1e-8
-                sol = opt(optProb, sens = sens)
+
+        bestMeasurementLocList = []
+        for k in range(len(agentList)):
                 
-                print("VAL:", sol.fStar)
-                if sol.fStar < minObjectiveFunctionVal:
-                    minObjectiveFunctionVal = sol.fStar
-                    minObjFuncValLoc =sol.xStar['pos']
+            
+            def objective_function(xdict):
+                pos = xdict['pos']
+                # obj = -next_measurement_covariance_determinant(pos, estimatedParams_list, estimatedRadarCovariance_list)
+                obj = -objective_function_at_pos_new(pos, estimatedParams_list, estimatedRadarCovariance_list, np.array(allAgentPathHistory))
+                funcs = {}
+                funcs['obj'] = obj
+                if k > 0:
+                    funcs['seperation'] = self.agent_seperation_constraint(np.array(pos), np.array(bestMeasurementLocList)).squeeze()
+                fail = False
+                return funcs, fail
+            minObjectiveFunctionVal = np.inf
+            minObjFuncValLoc = None
+            def sens(xDict, funcs):
+                pos = xDict['pos']
+                funcsSens = {}
+                funcsSens['obj'] = {"pos" : -grad(objective_function_at_pos_new)(pos, estimatedParams_list, estimatedRadarCovariance_list, np.array(measurementLocations))}
+                if k > 0:
+                    funcsSens['seperation'] = {"pos" : grad(self.agent_seperation_constraint)( np.array(pos), np.array(bestMeasurementLocList)).squeeze()}
+                    print(funcsSens['speration']['pos'])
+                    # funcsSens['seperation'] = {"pos" : [0.0,0.0]}
+                    print("TEST1")
+                    print(funcsSens)
+                    print(funcs)
+                return funcsSens, False
         
-        print("BEST VAL:", minObjectiveFunctionVal)
-        print("time for optimization", time.time()-start)
+            
+            start = time.time()
+            for i in range(self.numOptStartLocations):
+                for j in range(self.numOptStartLocations):
+                    x_start = self.optStartLocationsX[i][j]
+                    y_start = self.optStartLocationsY[i][j]
+                    if k > 0:
+                        x_start += 1000
+                        y_start += 1000
+
+                    optProb = Optimization("find best measurement location", objective_function)
+                    optProb.addVarGroup(name = "pos", nVars = 2, varType = 'c', value = [x_start,y_start], lower = 0, upper=params.bounds[1])
+                    optProb.addObj("obj")
+                    if k > 0:
+                        optProb.addConGroup("seperation", k, lower = 0, upper=10000000)
+                    opt = OPT("ipopt")
+                    opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+                    # opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+                    opt.options['linear_solver'] = 'ma97'
+                    opt.options['print_level'] = 0
+                    if k == 1:
+                        opt.options['print_level'] = 5
+                        
+                    # opt.options['derivative_test'] = 'first-order'
+                    opt.options['max_iter'] = 100
+                    opt.options['tol'] = 1e-8
+                    sol = opt(optProb, sens = sens)
+                    
+                    print("VAL:", sol.fStar)
+                    if sol.fStar < minObjectiveFunctionVal:
+                        minObjectiveFunctionVal = sol.fStar
+                        minObjFuncValLoc =sol.xStar['pos']
+            
+            bestMeasurementLocList.append(minObjFuncValLoc)
+            print("BEST VAL:", minObjectiveFunctionVal)
+            print("BEST Loc:", bestMeasurementLocList[-1])
+            print("time for optimization", time.time()-start)
                     
 
-        return minObjFuncValLoc
+        # return minObjFuncValLoc
+        return bestMeasurementLocList 
         
         
 
