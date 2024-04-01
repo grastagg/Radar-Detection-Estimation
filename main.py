@@ -15,6 +15,9 @@ from probabilityOfDetectionMap import ProbabilityOfDetectionMap
 import params
 from pathPlanning import SplinePathPlanningLowPriority 
 
+
+from main_helper import create_agent_list, create_radar_list
+
 # np.random.seed(1234)
 
 fig,ax = plt.subplots()
@@ -85,7 +88,7 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
     
     if params.plotObjectiveFunction:
         if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
-            c = lowPriorityPathPlanner.plot_objective_and_constraint(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements,multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations)
+            c = lowPriorityPathPlanner.plot_objective_and_constraint(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements,agentList)
             # c = lowPriorityPathPlanner.plot_chance_constraints(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements)
             # proxy = [plt.Rectangle((0,0),1,1,fc = pc.get_facecolor()[0]) for pc in c.collections]
             # ax.legend(proxy, ['safe', 'unsafe'])
@@ -128,16 +131,18 @@ def main():
     X_test = params.create_test_points(numTestPoints, bounds)
     
 
+    radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGain, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
+    agentList = create_agent_list(params.agentInitialStates, len(radarList), params.agentSensingRange, params.agentPowerMeasurementStdDev, params.agentAngleMeasurementStdDev, params.agentELINTAnteneaGain, params.agentELINTSystemLoss, params.radarWavelength, params.agentRadarCrossSection)
 
-    radarList = params.radarList
-    agentList = params.agentList
+    # radarList = params.radarList
+    # agentList = params.agentList
 
 
 
 
 
     multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=params.agentSensingRange, angle_measurement_std_dev=params.agentAngleMeasurementStdDev, measurement_cov=params.measurementCov, X_test=X_test, radar_measurement_coeff=params.radarMeasurementCoeff)
-    probabilityOfDetectionMap = ProbabilityOfDetectionMap(X_test)
+    probabilityOfDetectionMap = ProbabilityOfDetectionMap(X_test, radarList)
     lowPriorityPathPlanner = SplinePathPlanningLowPriority()
 
 

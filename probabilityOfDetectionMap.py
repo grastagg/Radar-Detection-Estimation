@@ -7,14 +7,15 @@ from numpy.random import multivariate_normal
 from params import measurement_jacobian
 
 class ProbabilityOfDetectionMap():
-    def __init__(self, X_test):
+    def __init__(self, X_test,radarList):
         self.X_test = np.array(X_test)
         self.pdMap = None
         self.pdCovMap = None
         self.estimatedRadarParamsList = None
         self.estimatedRadarParamsCovList = None
 
-        self.groundTruthpdMap = self.ground_truth_probability_of_detection(X_test, params.radarList) 
+        # self.groundTruthpdMap = self.ground_truth_probability_of_detection(X_test, params.radarList) 
+        self.groundTruthpdMap = self.ground_truth_probability_of_detection(X_test, radarList) 
 
     
     

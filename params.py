@@ -1,27 +1,9 @@
 import numpy as np
-from radar import RadarCircularPattern
-from agent import Agent
 from scipy.constants import c
 import jax.numpy as jnp
 import jax
 
 np.random.seed(1992)
-
-def create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm):
-    radarList = []
-    
-    for i in range(len(radarPositions)):
-        radarList.append(RadarCircularPattern(position=radarPositions[i], phase=radarPhases[i], angular_rate=radarAngularRates[i], outputPower=radarOutputPower, transmitGain = radarTransmitGain, recieveGain = radarRecieveGain, wavelength = radarWavelength, pulseWidth = radarPulseWidth, systemTemperature = radarSystemTemperature, probabilityOfFalseAlarm=radarProbabilityOfFalseAlarm))
-        
-    return radarList
-
-
-def create_agent_list(agentInitialStates, numRadar, agentSensingRange, agentPowerMeasurementStdDev, agentAngleMeasurementStdDev, agentELINTAnteneaGain, agentELINTSystemLoss, radarWavelength, radarCrossSection):
-    agentList =[]
-    for i in range(len(agentInitialStates)):
-        agentList.append(Agent(initialPosition=agentInitialStates[i], numRadar = numRadar, sensingRange = agentSensingRange, powerMeasurementStdDev=agentPowerMeasurementStdDev,angleMeasurementStdDev=agentAngleMeasurementStdDev, elintAntenneaGain=agentELINTAnteneaGain, elintSystemLoss=agentELINTSystemLoss, emittorWavelength=radarWavelength, radarCrossSection = radarCrossSection))
-    
-    return agentList
         
 def db_to_amplitude(db):
     return 10**(db/10)
@@ -94,7 +76,6 @@ radarWavelength = frequency_to_wavelength(radarFrequency)
 radarProbabilityOfFalseAlarm = 1e-6
 radarPulseWidth = 1.1e-5
 radarSystemTemperature = 745.4148
-radarList = create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm)
 print("Actual ERP", radarOutputPower * radarTransmitGain)
 print("Actual ERP in DB", 10*np.log10(radarOutputPower * radarTransmitGain))
 
@@ -114,9 +95,8 @@ agentELINTSystemLoss = 1
 radarMeasurementCoeff = (agentELINTAnteneaGain * radarWavelength**2)/((4*np.pi)**2 * agentELINTSystemLoss)
 radarMeasurementCoeffDB = 10*np.log10(radarMeasurementCoeff)
 agentRadarCrossSection = .1
-agentList = create_agent_list(agentInitialStates, len(radarList), agentSensingRange, agentPowerMeasurementStdDev, agentAngleMeasurementStdDev, agentELINTAnteneaGain, agentELINTSystemLoss, radarWavelength, agentRadarCrossSection)
 
-agentPathHistorydt = 5
+agentPathHistorydt = 2
 
 measurementCov = np.array([[agentAngleMeasurementStdDev**2,0],[0,agentPowerMeasurementStdDev**2]])
 
@@ -166,13 +146,16 @@ numConstraintSamples = 20
 splineOrder = 3
 
 distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)/2
-distFromStraitWeight = 1/3
+# distFromStraitWeight = 1/3
+distFromStraitWeight = 0
 
 seperationScale = 1
-seperationWeight = 1/3
+# seperationWeight = 1/3
+seperationWeight = 1
 
 nextCovarianceScale = 1e20
-nextCovarianceWeight = 1/3
+# nextCovarianceWeight = 1/3
+nextCovarianceWeight = 0
 
 
 #high priority path plannings
