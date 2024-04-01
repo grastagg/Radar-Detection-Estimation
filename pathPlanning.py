@@ -45,13 +45,12 @@ def distance_from_line(x0,y0,x1,y1,x2,y2):
 @jax.jit
 def objective_function_at_pos_new(pos, estimatedRadarParams, estimatedRadarParamsCov, measuremetLocations):
 
-    minSeperationScale = np.sqrt(2)*params.bounds[0]
-    covScale = 3e15
-    distFromStraitScale = 5000
-    coeffSeperation = .6
+    # # covScale = 3e15
+    # covScale = 1
+    # distFromStraitScale = np.sqrt(params.bounds[0]**2+bounds[1]**2)
+    # coeffSeperation = .6
     # coeffCovariance = .4
-    coeffCovariance = .0
-    coeffDistanceFromStrait = 1
+    # coeffDistanceFromStrait = 1
     lengthScale = 1000
     x0 = pos[0]
     y0 = pos[1]
@@ -61,18 +60,18 @@ def objective_function_at_pos_new(pos, estimatedRadarParams, estimatedRadarParam
     y2 = params.highPriorityEnd[1]
 
 
-    distanceFromStraitLinePath = distance_from_line(x0,y0,x1,y1,x2,y2)/distFromStraitScale
+    distanceFromStraitLinePath = -distance_from_line(x0,y0,x1,y1,x2,y2)/params.distFromStraitScale
 
     # dist = np.linalg.norm(pos - currentPosition) / 20000
     # objectivFunctionVal = alpha * self.next_measurement_covariance_determinant(pos, estimatedRadarParams, estimatedRadarParamsCov) - (1-alpha) * dist 
     
     # minDistFromOtherMeasurements = np.average(np.linalg.norm(measuremetLocations-pos, axis=1))/self.minSeperationScale
-    minDistFromOtherMeasurements = -np.sum(np.exp(-np.linalg.norm(measuremetLocations-pos, axis=1)/lengthScale))
-    nexMeasCov = next_measurement_covariance_determinant(pos, estimatedRadarParams, estimatedRadarParamsCov)/covScale
+    kernelSeperation = -np.sum(np.exp(-np.linalg.norm(measuremetLocations-pos, axis=1)/lengthScale))/params.seperationScale
+    nexMeasCov = next_measurement_covariance_determinant(pos, estimatedRadarParams, estimatedRadarParamsCov)/params.nextCovarianceScale
 
-    objectiveFunctionVal = coeffCovariance * nexMeasCov + coeffSeperation*minDistFromOtherMeasurements - coeffDistanceFromStrait * distanceFromStraitLinePath
+    objectiveFunctionVal = params.nextCovarianceWeight * nexMeasCov + params.seperationWeight*kernelSeperation + params.distFromStraitWeight * distanceFromStraitLinePath
     
-    return objectiveFunctionVal 
+    return objectiveFunctionVal
 
 class SplinePathPlanningLowPriority():
     def __init__(self):
@@ -87,10 +86,11 @@ class SplinePathPlanningLowPriority():
         self.first = False
 
         self.useSpline = False
-        self.bestMeasurementLoc = None
+        # self.bestMeasurementLoc = None
+        self.bestMeasurementLocList = None
         self.kp = 1
 
-        self.bestMeasurementLocPlot = None
+        self.bestMeasurementLocPlotList = [] 
         self.firstPlot = True
         
         
@@ -102,10 +102,10 @@ class SplinePathPlanningLowPriority():
         self.covScale = 3e20
         self.distFromStraitScale = 5000
 
-        self.bestMeasurementLocSeperation = 2000.0
+        self.bestMeasurementLocSeperation = 5000.0
 
         
-        self.numOptStartLocations = 1
+        self.numOptStartLocations = 2
         
         xStart = np.linspace(params.bounds[0]/(self.numOptStartLocations+1),params.bounds[0]-params.bounds[0]/(self.numOptStartLocations+1), self.numOptStartLocations)
         yStart = np.linspace(params.bounds[1]/(self.numOptStartLocations+1),params.bounds[1]-params.bounds[1]/(self.numOptStartLocations+1), self.numOptStartLocations)
@@ -142,8 +142,8 @@ class SplinePathPlanningLowPriority():
                 self.currentSplineTime += dt
             self.currentVelocity = v
         else:
-            if self.bestMeasurementLoc is not None:
-                u,v = self.get_turn_rate_and_velocity_waypoint(self.bestMeasurementLoc, currentPose)
+            if self.bestMeasurementLocList is not None:
+                u,v = self.get_turn_rate_and_velocity_waypoint(self.bestMeasurementLocList[low_priority_agent_index], currentPose)
                 
         return u,v
 
@@ -340,8 +340,11 @@ class SplinePathPlanningLowPriority():
         return objectivFunctionVal
     
     def agent_seperation_constraint(self, pos, agentBestMeausrementLocList):
-        print("TEST")
         return np.linalg.norm(agentBestMeausrementLocList-pos) - self.bestMeasurementLocSeperation
+    def agent_speeration_constraint_jacobian(self, pos, agentBestMeausrementLocList):
+        return ((agentBestMeausrementLocList-pos)/numpy.linalg.norm(agentBestMeausrementLocList-pos)).reshape((1,2))
+
+        
 
     def optimize_next_best_measurement(self, agentList, estimatedParams_list, estimatedRadarCovariance_list, probabilityOfDetectionMap, measurementLocations):
         allAgentPathHistory = []
@@ -361,7 +364,7 @@ class SplinePathPlanningLowPriority():
                 funcs = {}
                 funcs['obj'] = obj
                 if k > 0:
-                    funcs['seperation'] = self.agent_seperation_constraint(np.array(pos), np.array(bestMeasurementLocList)).squeeze()
+                    funcs['sep'] = self.agent_seperation_constraint(np.array(pos), np.array(bestMeasurementLocList)).squeeze()
                 fail = False
                 return funcs, fail
             minObjectiveFunctionVal = np.inf
@@ -370,13 +373,11 @@ class SplinePathPlanningLowPriority():
                 pos = xDict['pos']
                 funcsSens = {}
                 funcsSens['obj'] = {"pos" : -grad(objective_function_at_pos_new)(pos, estimatedParams_list, estimatedRadarCovariance_list, np.array(measurementLocations))}
+
                 if k > 0:
-                    funcsSens['seperation'] = {"pos" : grad(self.agent_seperation_constraint)( np.array(pos), np.array(bestMeasurementLocList)).squeeze()}
-                    print(funcsSens['speration']['pos'])
+                    # funcsSens['seperation'] = {"pos" : grad(self.agent_seperation_constraint)( np.array(pos), np.array(bestMeasurementLocList))}
+                    funcsSens['sep'] = {"pos" : self.agent_speeration_constraint_jacobian(numpy.array(pos), numpy.array(bestMeasurementLocList))}
                     # funcsSens['seperation'] = {"pos" : [0.0,0.0]}
-                    print("TEST1")
-                    print(funcsSens)
-                    print(funcs)
                 return funcsSens, False
         
             
@@ -386,29 +387,33 @@ class SplinePathPlanningLowPriority():
                     x_start = self.optStartLocationsX[i][j]
                     y_start = self.optStartLocationsY[i][j]
                     if k > 0:
-                        x_start += 1000
-                        y_start += 1000
+                        print()
 
-                    optProb = Optimization("find best measurement location", objective_function)
+                    optProb = Optimization("find best measurement location"+str(k), objective_function)
                     optProb.addVarGroup(name = "pos", nVars = 2, varType = 'c', value = [x_start,y_start], lower = 0, upper=params.bounds[1])
                     optProb.addObj("obj")
                     if k > 0:
-                        optProb.addConGroup("seperation", k, lower = 0, upper=10000000)
+                        optProb.addConGroup("sep", k, lower = 0, upper=10000000)
                     opt = OPT("ipopt")
                     opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
                     # opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
                     opt.options['linear_solver'] = 'ma97'
                     opt.options['print_level'] = 0
-                    if k == 1:
-                        opt.options['print_level'] = 5
                         
                     # opt.options['derivative_test'] = 'first-order'
-                    opt.options['max_iter'] = 100
-                    opt.options['tol'] = 1e-8
+                    opt.options['max_iter'] = 2000
+                    opt.options['tol'] = 1e-3
                     sol = opt(optProb, sens = sens)
+                    if sol.optInform['value'] == 0:
+                        print("OPTIMIZATION SUCCESSFUL")
+                    else:
+                        print("OPTIMIZATION FAILED")
+                        print(sol.optInform)
+                        print(sol)
                     
                     print("VAL:", sol.fStar)
-                    if sol.fStar < minObjectiveFunctionVal:
+                    if sol.fStar < minObjectiveFunctionVal and (sol.optInform['value'] == 0 or sol.optInform['value'] == 1):
+                        print("TEST")
                         minObjectiveFunctionVal = sol.fStar
                         minObjFuncValLoc =sol.xStar['pos']
             
@@ -453,13 +458,15 @@ class SplinePathPlanningLowPriority():
         if self.splinePath is not None:
             self.plot_spline(ax, self.splinePath, 100)
         
-        if self.bestMeasurementLoc is not None:
-            if self.firstPlot:
-                self.bestMeasurementLocPlot = Circle((self.bestMeasurementLoc[0],self.bestMeasurementLoc[1]),radius = 200,fill = True, color = 'r', zorder = 100000000)
-                ax.add_patch(self.bestMeasurementLocPlot)
-                self.firstPlot = False
-            else:
-                self.bestMeasurementLocPlot.center = self.bestMeasurementLoc[0], self.bestMeasurementLoc[1]
+        # if self.bestMeasurementLoc is not None:
+        if self.bestMeasurementLocList is not None:
+            for i in range(params.numAgents):
+                if self.firstPlot:
+                    self.bestMeasurementLocPlotList.append(Circle((self.bestMeasurementLocList[i][0],self.bestMeasurementLocList[i][1]),radius = 200,fill = True, color = 'r', zorder = 100000000))
+                    ax.add_patch(self.bestMeasurementLocPlotList[i])
+                else:
+                    self.bestMeasurementLocPlotList[i].center = self.bestMeasurementLocList[i][0], self.bestMeasurementLocList[i][1]
+            self.firstPlot = False
             
         # if numMeasurements != self.numMeasurements:
         #     bestPos = self.optimize_next_best_measurement(currPos, estimatedRadarParams, estimatedRadarParamsCov, probabilityOfDetectionMap)
