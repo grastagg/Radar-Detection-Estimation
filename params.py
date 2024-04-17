@@ -122,7 +122,7 @@ radarSystemTemperaturePriorMean = radarSystemTemperature
 radarSystemTemperaturePriorVariance = 0
 
 #plotting
-plotObjectiveFunction = False 
+plotObjectiveFunction = True 
 plotChanceConstraints =False 
 plotPd = False 
 plotPdCov = False 
