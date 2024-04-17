@@ -8,6 +8,9 @@ from params import measurement_jacobian, measurement_model
 
 from sklearn.linear_model import RANSACRegressor
 
+import matplotlib.pyplot as plt
+
+
 class MultipleEmitterOnlineLocationAndPowerEstimator:
     def __init__(self, sensing_range, angle_measurement_std_dev, measurement_cov, X_test, radar_measurement_coeff):
         self.ekf_list = []
@@ -89,6 +92,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             
 
     def fit_ransac_model(self, measurement_locations, measurements, original_index):
+        # if len(measurements) > 3:
         if len(measurements) > 3:
             # try:
             def loss(y_true, y_pred, X, estimator):
@@ -346,6 +350,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         # if self.mal_dist_opt_point is not None:
         #     ax.scatter(self.mal_dist_opt_point[0], self.mal_dist_opt_point[1])
         # c = self.plot_power(ax)
+        # if len(self.estimated_emmiter_params) > 0:
+        #     self.plot_esimate_1_sigma_bounds(ax, self.estimated_emmiter_params[0], self.estimated_emmiter_params_covariances[0])
 
 
         return all_lines,all_scatter
@@ -477,4 +483,37 @@ class NonlinearEstimator():
         return {"measurement_cov": self.measurement_covariance, "radar_measurement_coeff":self.radar_measurement_coeff}
     
 
+def plotMalhalanobisDistance(pursuerPosition, pursuerPositionCov, ax):
+    x = np.linspace(-100, 100, 50)
+    y = np.linspace(-100, 100, 50)
+    [X, Y] = np.meshgrid(x, y)
+
+    malhalanobisDistance = np.zeros(X.shape)
+
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            malhalanobisDistance[i,j] = np.linalg.norm((np.array([[X[i,j]],[Y[i,j]]]) - pursuerPosition).T@np.linalg.inv(pursuerPositionCov)@(np.array([[X[i,j]],[Y[i,j]]]) - pursuerPosition))
+    c = ax.contourf(X, Y, malhalanobisDistance, levels=[0,1,2,3])
+    ax.scatter(pursuerPosition[0], pursuerPosition[1], color='red')
+    
+if __name__ == '__main__':
+    fig,ax = plt.subplots()
+    ax.set_aspect('equal')
+    X_test = params.create_test_points(params.numTestPoints, params.bounds)
+
+    
+    # estimator = MultipleEmitterOnlineLocationAndPowerEstimator(100, .1, np.eye(2)*.1, [[0,0],[1,1],[2,2]], 1)
+    estimator =  MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=params.agentSensingRange, angle_measurement_std_dev=params.agentAngleMeasurementStdDev, measurement_cov=params.measurementCov, X_test=X_test, radar_measurement_coeff=params.radarMeasurementCoeff)
+    nonlinear = NonlinearEstimator(params.measurementCov, params.radarMeasurementCoeff)
+    estimator.add_measurement([-3000,3000],[-np.pi/4, 10])
+    # estimator.add_measurement([0,50*np.sqrt(2)],[-np.pi/2, 10])
+    estimator.add_measurement([3000,3000],[-3*np.pi/4, 10])
+    nonlinear.fit(np.array(estimator.measurement_locations), np.array(estimator.measurement_values))
+    params = nonlinear.get_estimate_emmitor_params()
+    print(params)
+    cov = nonlinear.compute_emmitor_estimate_covariance(np.array(estimator.measurement_locations), np.array(estimator.measurement_values))
+    print(cov)
+    estimator.plot(ax)
+    plotMalhalanobisDistance(params[0:2], cov[0:2,0:2], ax)
+    plt.show()
     

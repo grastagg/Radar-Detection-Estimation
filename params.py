@@ -3,7 +3,7 @@ from scipy.constants import c
 import jax.numpy as jnp
 import jax
 
-np.random.seed(1992)
+np.random.seed(19121234)
         
 def db_to_amplitude(db):
     return 10**(db/10)
@@ -81,8 +81,8 @@ print("Actual ERP in DB", 10*np.log10(radarOutputPower * radarTransmitGain))
 
 
 #agent parameters
-# agentInitialStates = [[100,100,np.pi/4]]
-agentInitialStates = [[100,100,np.pi/4],[200,200,np.pi/3]]
+agentInitialStates = [[100,100,np.pi/4]]
+# agentInitialStates = [[100,100,np.pi/4],[200,200,np.pi/3]]
 numAgents = len(agentInitialStates)
 # agentSensingRange = 10000
 agentSensingRange = 5000
@@ -122,7 +122,7 @@ radarSystemTemperaturePriorMean = radarSystemTemperature
 radarSystemTemperaturePriorVariance = 0
 
 #plotting
-plotObjectiveFunction = True 
+plotObjectiveFunction = False 
 plotChanceConstraints =False 
 plotPd = False 
 plotPdCov = False 
@@ -146,16 +146,16 @@ numConstraintSamples = 20
 splineOrder = 3
 
 distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)/2
-# distFromStraitWeight = 1/3
-distFromStraitWeight = 0
+distFromStraitWeight = 1/3
+# distFromStraitWeight = 0
 
 seperationScale = 1
-# seperationWeight = 1/3
-seperationWeight = 1
+seperationWeight = 1/3
+# seperationWeight = 1
 
-nextCovarianceScale = 1e20
-# nextCovarianceWeight = 1/3
-nextCovarianceWeight = 0
+nextCovarianceScale = 1e19
+nextCovarianceWeight = 1/3
+# nextCovarianceWeight = 0
 
 
 #high priority path plannings
