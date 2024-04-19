@@ -39,7 +39,6 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
 
     if multipleEmitterOnlineLocationAndPowerEstimator is not None:
         measurement_lines,estimator_locs = multipleEmitterOnlineLocationAndPowerEstimator.plot(ax)
-        plt.savefig('images/temp/'+str(plotIndex)+'.png')
     
 
     if params.plotBestMeasurement:
