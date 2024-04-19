@@ -328,6 +328,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             
     def plot(self, ax):
         color_list = ['tab:blue','tab:orange','tab:green','tab:purple', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
+        # color_list = ['tab:blue','tab:orange']
         c = None
 
         all_lines = []
@@ -339,7 +340,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                 all_lines += line
         if len(self.estimated_emmiter_params) > 0:
             for i,angle_indicies in enumerate(self.group_lists):
-                line = self.plot_angle_of_arrival_measurements(ax, color_list[i], np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
+                line = self.plot_angle_of_arrival_measurements(ax, color_list[i%len(color_list)], np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
                 all_lines += line
             
 

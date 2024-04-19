@@ -146,12 +146,12 @@ numConstraintSamples = 20
 splineOrder = 3
 
 distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)/2
+# distFromStraitWeight = 1
 distFromStraitWeight = 1/3
-# distFromStraitWeight = 0
 
 seperationScale = 1
 seperationWeight = 1/3
-# seperationWeight = 1
+# seperationWeight = 0
 
 nextCovarianceScale = 1e19
 nextCovarianceWeight = 1/3
