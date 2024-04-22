@@ -24,7 +24,6 @@ fig,ax = plt.subplots()
 ax.set_xlim((0,params.bounds[0]))
 ax.set_ylim((0,params.bounds[1]))
 ax.set_aspect('equal')
-
 def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner):
     c = None
 
@@ -87,22 +86,24 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
             cb = None
             c = None
     
-    for i,agent in enumerate(agentList):
-        if params.plotObjectiveFunction:
-            if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
-                c = lowPriorityPathPlanner.plot_objective_and_constraint(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements,agentList,i)
-                # c = lowPriorityPathPlanner.plot_chance_constraints(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements)
-                # proxy = [plt.Rectangle((0,0),1,1,fc = pc.get_facecolor()[0]) for pc in c.collections]
-                # ax.legend(proxy, ['safe', 'unsafe'])
-                cb = plt.colorbar(c)
-            plt.title(numMeasurements-1)
-            plt.savefig('images/objective_function/'+str(i)+'/'+str(plotIndex)+'.png')
-            if c is not None:
-                if cb is not None:
-                    cb.remove()
-                c.remove()
-                cb = None
-                c = None
+    # for i,agent in enumerate(agentList):
+    if params.plotObjectiveFunction:
+        if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
+            # c = lowPriorityPathPlanner.plot_objective_and_constraint(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements,agentList,i)
+            c = lowPriorityPathPlanner.plot_objective_and_constraint(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements,agentList,0)
+            # c = lowPriorityPathPlanner.plot_chance_constraints(ax, probabilityOfDetectionMap.X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList[0].position, numMeasurements)
+            # proxy = [plt.Rectangle((0,0),1,1,fc = pc.get_facecolor()[0]) for pc in c.collections]
+            # ax.legend(proxy, ['safe', 'unsafe'])
+            cb = plt.colorbar(c)
+        plt.title(numMeasurements-1)
+        # plt.savefig('images/objective_function/'+str(i)+'/'+str(plotIndex)+'.png')
+        plt.savefig('images/objective_function/'+str(plotIndex)+'.png')
+        if c is not None:
+            if cb is not None:
+                cb.remove()
+            c.remove()
+            cb = None
+            c = None
 
     if params.plotChanceConstraints:
         if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
@@ -193,7 +194,9 @@ def main():
                     probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances)
                     # print("pd map time", time.time()-start_pd)
         start_p = time.time()
-        lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList, len(agent.measurementAngleOfArrivalValues),multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations )
+        # print("main: current number of measurements", currentNumberOfMeasurements)
+        # lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList, len(agent.measurementAngleOfArrivalValues),multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations )
+        lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList, currentNumberOfMeasurements,multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations )
             # print("path planning time", time.time()-start_p)
         # print("time for step:", time.time()-start)
 
