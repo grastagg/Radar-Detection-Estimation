@@ -81,8 +81,8 @@ print("Actual ERP in DB", 10*np.log10(radarOutputPower * radarTransmitGain))
 
 
 #agent parameters
-# agentInitialStates = [[100,100,np.pi/4]]
-agentInitialStates = [[100,100,np.pi/4],[200,200,np.pi/3]]
+agentInitialStates = [[100,100,np.pi/4]]
+# agentInitialStates = [[100,100,np.pi/4],[200,200,np.pi/3]]
 # agentInitialStates = [[100,100,np.pi/4],[200,200,np.pi/3],[150,150,np.pi/5]]
 numAgents = len(agentInitialStates)
 # agentSensingRange = 10000
@@ -148,20 +148,20 @@ splineOrder = 3
 
 distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)/2
 # distFromStraitWeight = 1
-distFromStraitWeight = 1/3
+distFromStraitWeight = .3
 # distFromStraitWeight = 0
 
 seperationScale = 1
-seperationWeight = 1/3
+seperationWeight = .2
 # seperationWeight = 0
 
 # nextCovarianceScale = 1e19
 nextCovarianceScale = 1e20
-nextCovarianceWeight = 1/3
+nextCovarianceWeight = .5
 # nextCovarianceWeight = 0
 
-pathOptTime = 10
-lengthScale = 100
+pathOptTime = 20
+lengthScale = 300
 
 
 #high priority path plannings
