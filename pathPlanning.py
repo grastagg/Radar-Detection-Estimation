@@ -466,6 +466,18 @@ class SplinePathPlanningLowPriority():
             
         # return np.hstack((-np.sin(heading).reshape((len(heading),1)),np.cos(heading).reshape((len(heading),1))))*velocity*pathTime
         return out
+    
+    def find_initial_headings(self, agentList, estimatedParams_list):
+        initialHeadings = numpy.linspace(0,2*np.pi,len(agentList))
+        for i in range(len(agentList)):
+            closesEmmiterIndex = self.find_closest_emitter(agentList[i].position[0:2], estimatedParams_list)
+            initialHeadings[i] = np.arctan2(-agentList[i].position[1]+ estimatedParams_list[closesEmmiterIndex][1], -agentList[i].position[0]+ estimatedParams_list[closesEmmiterIndex][0])
+        print("initialHeadings",initialHeadings)
+        print("initial waypoint", np.array(agentList[0].position[0:2]) + params.pathOptTime *params.agentSpeed * np.array([np.cos(initialHeadings[0]), np.sin(initialHeadings[0])]))
+        print("initial waypoint", np.array(agentList[1].position[0:2]) + params.pathOptTime *params.agentSpeed * np.array([np.cos(initialHeadings[1]), np.sin(initialHeadings[1])]))
+        print("constraint", self.waypoint_position_constraint(initialHeadings, np.array([agentList[0].position[0:2], agentList[1].position[0:2]]), params.agentSpeed, params.pathOptTime))
+        print()
+        return initialHeadings
         
     def optimize_next_best_measurement_distance_constrained(self, agentList, estimatedParams_list, estimatedRadarCovariance_list, probabilityOfDetectionMap, measurementLocations, allAgentesCurrentPos):
         allAgentPathHistory = []
@@ -475,11 +487,7 @@ class SplinePathPlanningLowPriority():
         allAgentPathHistory = np.array(allAgentPathHistory)
         
         
-        initialHeadings = numpy.linspace(0,2*np.pi,len(agentList))
-        for i in range(len(agentList)):
-            closesEmmiterIndex = self.find_closest_emitter(agentList[i].position[0:2], estimatedParams_list)
-            initialHeadings[i] = np.arctan2(agentList[i].position[1]- estimatedParams_list[closesEmmiterIndex][1], agentList[i].position[0]- estimatedParams_list[closesEmmiterIndex][0])
-        # initialHeadings = np.array([-2.2])
+        initialHeadings = self.find_initial_headings(agentList, estimatedParams_list)
         
         tempObjectiveFuncScale = np.abs(self.objective_function_for_best_measurement_dist_constrained(initialHeadings, agentList, estimatedParams_list, estimatedRadarCovariance_list, allAgentPathHistory, params.agentSpeed, params.pathOptTime))
 
@@ -514,14 +522,14 @@ class SplinePathPlanningLowPriority():
         optProb.addConGroup("pos_con", 2*len(agentList), lower = 0, upper=params.bounds[1])
         optProb.addObj("obj")
         opt = OPT("ipopt")
-        opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
-        # opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+        # opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+        opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['linear_solver'] = 'ma97'
         opt.options['print_level'] = 5
             
         # opt.options['derivative_test'] = 'first-order'
         # opt.options['derivative_test_perturbation'] = 1e-5
-        opt.options['max_iter'] = 50
+        opt.options['max_iter'] = 200
         opt.options['tol'] = 1e-8
         sol = opt(optProb, sens = sens)
         # sol = opt(optProb, sens = 'fd')
@@ -536,7 +544,6 @@ class SplinePathPlanningLowPriority():
         [X,Y] = numpy.meshgrid(headingPlot1,headingPlot2)
         Z = numpy.zeros_like(X)
         for i in range(len(headingPlot1)):
-            print(i)
             for j in range(len(headingPlot2)):
                 Z[j,i] = -self.objective_function_for_best_measurement_dist_constrained(numpy.array([X[j,i],Y[j,i]]), agentList, estimatedParams_list, estimatedRadarCovariance_list, allAgentPathHistory, params.agentSpeed, params.pathOptTime)/tempObjectiveFuncScale
         ax.pcolormesh(X,Y,Z)

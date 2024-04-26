@@ -4,8 +4,8 @@ import cProfile
 from pstats import Stats
 import matplotlib.style as mplstyle
 import matplotlib
-# mplstyle.use('fast')
-matplotlib.use('TkAgg')
+mplstyle.use('fast')
+# matplotlib.use('TkAgg')
 import time
 
 

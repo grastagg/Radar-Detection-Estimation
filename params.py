@@ -160,7 +160,7 @@ nextCovarianceScale = 1e20
 nextCovarianceWeight = .5
 # nextCovarianceWeight = 0
 
-pathOptTime = 20
+pathOptTime = 10
 lengthScale = 300
 
 
