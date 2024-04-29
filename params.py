@@ -148,8 +148,8 @@ splineOrder = 3
 
 distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)/2
 # distFromStraitWeight = 1
-distFromStraitWeight = .3
-# distFromStraitWeight = 0
+# distFromStraitWeight = .3
+distFromStraitWeight = 0
 
 seperationScale = 1
 seperationWeight = .2
@@ -160,7 +160,7 @@ nextCovarianceScale = 1e20
 nextCovarianceWeight = .5
 # nextCovarianceWeight = 0
 
-pathOptTime = 10
+pathOptTime = 30
 lengthScale = 300
 
 
