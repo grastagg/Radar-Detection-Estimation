@@ -452,7 +452,13 @@ class SplinePathPlanningLowPriority():
         return agentOrder
 
         
-
+    def get_agent_future_path(self, heading, agent, time):
+        num_future_points = time//params.agentPathHistorydt
+        first_point = np.array(agent.position[0:2])
+        last_point = np.array(agent.position[0:2]) + time * params.agentSpeed * np.array([np.cos(heading), np.sin(heading)])
+        points = np.linspace(first_point, last_point, num_future_points)
+        # print("points",points)
+        return points
             
     def objective_function_for_best_measurement_dist_constrained(self, headings, agentList, estimatedRadarParams, estimatedRadarParamsCov, allAgentPathHistory, velocity, pathTime,agentOrder):
         x1 = params.highPriorityStart[0]
@@ -462,6 +468,7 @@ class SplinePathPlanningLowPriority():
         estimatedRadarParamsCov_temp = estimatedRadarParamsCov.copy()
         distanceFromStraitLinePathObj = 0
         kernelSeperationObj = 0
+        allAgentPathHistory_temp = allAgentPathHistory.copy()
 
         for k in range(len(headings)):
             next_measurement = np.array(agentList[agentOrder[k]].position[0:2]) + velocity * pathTime * np.array([np.cos(headings[agentOrder[k]]), np.sin(headings[agentOrder[k]])])
@@ -474,7 +481,12 @@ class SplinePathPlanningLowPriority():
             y0 = next_measurement[1]
             distanceFromStraitLinePathObj += distance_from_line(x0,y0,x1,y1,x2,y2)/params.distFromStraitScale
             # kernelSeperationObj += -np.sum(np.exp(-np.linalg.norm(allAgentPathHistory-next_measurement, axis=1)/lengthScale))/params.seperationScale
-            kernelSeperationObj += kernel_seperation(allAgentPathHistory, next_measurement)/params.seperationScale
+            kernelSeperationObj += kernel_seperation(allAgentPathHistory_temp, next_measurement)/params.seperationScale
+            futurePath = self.get_agent_future_path(headings[agentOrder[k]], agentList[agentOrder[k]], pathTime)
+            allAgentPathHistory_temp = np.vstack((allAgentPathHistory_temp, futurePath))
+            
+
+            
         
         obj_cov = 0
         for i in range(len(estimatedRadarParams)):
@@ -515,11 +527,11 @@ class SplinePathPlanningLowPriority():
         for i in range(len(agentList)):
             closesEmmiterIndex = self.find_closest_emitter(agentList[i].position[0:2], estimatedParams_list)
             initialHeadings[i] = np.arctan2(-agentList[i].position[1]+ estimatedParams_list[closesEmmiterIndex][1], -agentList[i].position[0]+ estimatedParams_list[closesEmmiterIndex][0])
-        print("initialHeadings",initialHeadings)
-        print("initial waypoint", np.array(agentList[0].position[0:2]) + params.pathOptTime *params.agentSpeed * np.array([np.cos(initialHeadings[0]), np.sin(initialHeadings[0])]))
-        print("initial waypoint", np.array(agentList[1].position[0:2]) + params.pathOptTime *params.agentSpeed * np.array([np.cos(initialHeadings[1]), np.sin(initialHeadings[1])]))
-        print("constraint", self.waypoint_position_constraint(initialHeadings, np.array([agentList[0].position[0:2], agentList[1].position[0:2]]), params.agentSpeed, params.pathOptTime))
-        print()
+        # print("initialHeadings",initialHeadings)
+        # print("initial waypoint", np.array(agentList[0].position[0:2]) + params.pathOptTime *params.agentSpeed * np.array([np.cos(initialHeadings[0]), np.sin(initialHeadings[0])]))
+        # print("initial waypoint", np.array(agentList[1].position[0:2]) + params.pathOptTime *params.agentSpeed * np.array([np.cos(initialHeadings[1]), np.sin(initialHeadings[1])]))
+        # print("constraint", self.waypoint_position_constraint(initialHeadings, np.array([agentList[0].position[0:2], agentList[1].position[0:2]]), params.agentSpeed, params.pathOptTime))
+        # print()
         return initialHeadings
         
     def optimize_next_best_measurement_distance_constrained(self, agentList, estimatedParams_list, estimatedRadarCovariance_list, probabilityOfDetectionMap, measurementLocations, allAgentesCurrentPos):
@@ -618,7 +630,7 @@ class SplinePathPlanningLowPriority():
         # opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['linear_solver'] = 'ma97'
-        opt.options['print_level'] = 5
+        opt.options['print_level'] = 0
             
         # opt.options['derivative_test'] = 'first-order'
         # opt.options['derivative_test_perturbation'] = 1e-5

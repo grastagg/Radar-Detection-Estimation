@@ -26,14 +26,15 @@ fig,ax = plt.subplots()
 ax.set_xlim((0,params.bounds[0]))
 ax.set_ylim((0,params.bounds[1]))
 ax.set_aspect('equal')
-def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner):
+
+def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner,numMeasurements):
     c = None
 
 
-    numMeasurements = 0
+    # numMeasurements = 0
     for agent in agentList:
         agent.plot_agent(ax)
-        numMeasurements += len(agent.measurementPowerValues)
+        # numMeasurements += len(agent.measurementPowerValues)
 
     for radar in radarList:
         radar.plot_view_area(ax)
@@ -97,7 +98,8 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
             # proxy = [plt.Rectangle((0,0),1,1,fc = pc.get_facecolor()[0]) for pc in c.collections]
             # ax.legend(proxy, ['safe', 'unsafe'])
             cb = plt.colorbar(c)
-        plt.title(numMeasurements-1)
+        # plt.title(numMeasurements-1)
+        ax.set_title(str(numMeasurements-1))
         # plt.savefig('images/objective_function/'+str(i)+'/'+str(plotIndex)+'.png')
         fig.savefig('images/objective_function/'+str(plotIndex)+'.png')
         if c is not None:
@@ -171,7 +173,7 @@ def main():
     while tCurrent < tEnd:
         start = time.time()
         if timeSinceLastPlot >= params.plotTimeStep:
-            plot_scene(radarList, agentList, bounds, plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner)
+            plot_scene(radarList, agentList, bounds, plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner,currentNumberOfMeasurements)
             timeSinceLastPlot = 0
             plotIndex += 1
             # print("plot time", time.time()-start)

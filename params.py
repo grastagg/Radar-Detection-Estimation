@@ -3,7 +3,7 @@ from scipy.constants import c
 import jax.numpy as jnp
 import jax
 
-np.random.seed(19121234)
+np.random.seed(191234)
         
 def db_to_amplitude(db):
     return 10**(db/10)
