@@ -588,12 +588,28 @@ class SplinePathPlanningLowPriority():
 
         optHeadings = None
         bestOptVal = np.inf
+        totalTime = 0
+        numOptimization = 0
         for itialHeadings in self.initialHeadingList:
-            headings, fStar = self.run_optimization(objective_function, sens, agentList, itialHeadings)
-            if fStar is not None:
-                if fStar < bestOptVal:
-                    bestOptVal = fStar
-                    optHeadings = headings 
+            start = time.time()
+            constraints = self.waypoint_position_constraint(itialHeadings, allAgentesCurrentPos, params.agentSpeed, params.pathOptTime)
+            if np.any(constraints < 0):
+                print("initial heading out of bounds")
+                continue
+            elif np.any(constraints > params.bounds[1]):
+                print("initial heading out of bounds")
+                continue
+            else:
+                headings, fStar = self.run_optimization(objective_function, sens, agentList, itialHeadings)
+                numOptimization += 1
+                totalTime += time.time()-start
+                if fStar is not None:
+                    if fStar < bestOptVal:
+                        bestOptVal = fStar
+                        optHeadings = headings 
+        print("totalTime",totalTime)
+        print("averageTime",totalTime/numOptimization)
+        print("number of optimizations",numOptimization)
 
         
         

@@ -90,6 +90,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             return minDist 
             
             
+    def compute_max_distance_measurement_to_model(self, measurement_locations, estimated_emitter_params):
+        return np.max(np.linalg.norm(measurement_locations-estimated_emitter_params[0:2],axis = 1))
 
     def fit_ransac_model(self, measurement_locations, measurements, original_index):
         # if len(measurements) > 3:
@@ -107,7 +109,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             if closestModelDist > self.minDistBetweenModels:
                 if len(original_index[ransacRegressor.inlier_mask_== True]) >= 5:
                     inlier_aoa_diff = self.compute_inlier_aoa_diff(measurements[ransacRegressor.inlier_mask_==True])
-                    if inlier_aoa_diff > self.min_aoa_diff_to_start:
+                    max_distance_measurement_to_model = self.compute_max_distance_measurement_to_model(measurement_locations[ransacRegressor.inlier_mask_==True],ransacRegressor.estimator_.get_estimate_emmitor_params())
+                    if inlier_aoa_diff > self.min_aoa_diff_to_start and max_distance_measurement_to_model < 1.5*params.agentSensingRange:
                         self.estimated_emmiter_params.append(ransacRegressor.estimator_.get_estimate_emmitor_params())
                         self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
                         self.estimated_emmiter_params_covariances.append(ransacRegressor.estimator_.compute_emmitor_estimate_covariance(np.array(self.measurement_locations)[self.group_lists[-1]], np.array(self.measurement_values)[self.group_lists[-1]]))
