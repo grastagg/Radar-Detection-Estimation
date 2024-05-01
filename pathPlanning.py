@@ -129,6 +129,7 @@ class SplinePathPlanningLowPriority():
         #desired heading list to unwrap heading
         self.numHeadingsToSave = 10
         self.savedHeadings = []
+        self.savedDesiredHeadings = []
 
         self.minSeperationScale = np.sqrt(2)*params.bounds[0]
         self.covScale = 3e20
@@ -207,15 +208,21 @@ class SplinePathPlanningLowPriority():
 
     def get_turn_rate_and_velocity_waypoint(self, bestMeasurementLoc, currentPose):
         desiredHeading = np.arctan2(bestMeasurementLoc[1]-currentPose[1], bestMeasurementLoc[0]-currentPose[0])
+        currentHeading = currentPose[2]
         if len(self.savedHeadings) > self.numHeadingsToSave:
             self.savedHeadings.pop(0)
-            self.savedHeadings.append(desiredHeading)
+            self.savedHeadings.append(currentHeading)
+            self.savedDesiredHeadings.append(desiredHeading)
         else:
-            self.savedHeadings.append(desiredHeading)
+            self.savedDesiredHeadings.append(desiredHeading)
+            self.savedHeadings.append(currentHeading)
         self.savedHeadings = np.unwrap(np.array(self.savedHeadings)).tolist()
-        desiredHeading = self.savedHeadings[-1]
+        self.savedDesiredHeadings = np.unwrap(np.array(self.savedDesiredHeadings)).tolist()
+        currentHeading = self.savedHeadings[-1]
+        desiredHeading = self.savedDesiredHeadings[-1]
         v = (params.velocityBounds[0]+params.velocityBounds[1])/2
-        u = self.kp * (desiredHeading - currentPose[2])
+        # u = self.kp * (desiredHeading - currentPose[2])
+        u = self.kp * (desiredHeading - currentHeading)
         return u,v
             
     def get_turn_rate_and_velocity(self, t, spl):

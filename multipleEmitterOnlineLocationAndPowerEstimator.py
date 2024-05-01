@@ -261,6 +261,9 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         minimum_mal_dist = np.inf
         minimum_mal_dist_index = -1
         minimum_mal_dist_dist_from_measurement_to_model = np.inf
+        mal_dist_list = []
+        distance_list = []
+        index_list = []
         for i,emitter_param in enumerate(self.estimated_emmiter_params):
             measurement_mahalonobis_distance = self.mahalonobis_distance(measurement_value, measurement_location, emitter_param, self.estimated_emmiter_params_covariances[i])
             measurement_mahalonobis_distance_in_x_y = self.mahalonobis_distance_in_x_y_space(measurement_value[0], measurement_location, emitter_param[0:2], self.estimated_emmiter_params_covariances[i][0:2,0:2])
@@ -269,16 +272,28 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             print("dist_from_measurement_to_model",dist_from_measurement_to_model)
             print("measurement_mahalonobis_distance",measurement_mahalonobis_distance)
             print("measurement_mahalonobis_distance_in_x_y",measurement_mahalonobis_distance_in_x_y)
-            if measurement_mahalonobis_distance < minimum_mal_dist:
-                minimum_mal_dist  = measurement_mahalonobis_distance
-                minimum_mal_dist_index = i
-                minimum_mal_dist_dist_from_measurement_to_model = dist_from_measurement_to_model
+            if measurement_mahalonobis_distance < self.mahalonobis_distance_inlier_threshold:
+                mal_dist_list.append(measurement_mahalonobis_distance)
+                distance_list.append(dist_from_measurement_to_model)
+                index_list.append(i)
+            # if measurement_mahalonobis_distance < minimum_mal_dist:
+            #     minimum_mal_dist  = measurement_mahalonobis_distance
+            #     minimum_mal_dist_index = i
+            #     minimum_mal_dist_dist_from_measurement_to_model = dist_from_measurement_to_model
             # if measurement_mahalonobis_distance_in_x_y < minimum_mal_dist:
             #     minimum_mal_dist  = measurement_mahalonobis_distance_in_x_y
             #     minimum_mal_dist_index = i
             # if combined_mahalanobis_distance < minimum_mal_dist:
             #     minimum_mal_dist  = combined_mahalanobis_distance
             #     minimum_mal_dist_index = i
+        
+        if len(mal_dist_list) > 0:
+            min_index = np.argmin(np.array(distance_list))
+            minimum_mal_dist = mal_dist_list[min_index]
+            minimum_mal_dist_index = index_list[min_index]
+            minimum_mal_dist_dist_from_measurement_to_model = distance_list[min_index]
+        
+            
 
         if minimum_mal_dist < self.mahalonobis_distance_inlier_threshold and minimum_mal_dist_dist_from_measurement_to_model < 1.5*params.agentSensingRange:
             

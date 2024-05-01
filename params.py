@@ -3,7 +3,7 @@ from scipy.constants import c
 import jax.numpy as jnp
 import jax
 
-np.random.seed(191234)
+np.random.seed(19114)
         
 def db_to_amplitude(db):
     return 10**(db/10)
@@ -148,8 +148,8 @@ splineOrder = 3
 
 distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)/2
 # distFromStraitWeight = 1
-# distFromStraitWeight = .3
-distFromStraitWeight = 0
+distFromStraitWeight = .3
+# distFromStraitWeight = 0
 
 seperationScale = 1
 seperationWeight = .2
