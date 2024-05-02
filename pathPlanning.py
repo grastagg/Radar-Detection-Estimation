@@ -14,16 +14,10 @@ import time
 
 from statistics import NormalDist
 import matplotlib.pyplot as plt
+import timeit
 
 # from casadi import *
 
-@jax.jit
-def find_closest_emitter(pos, estimatedRadarParams):
-    closetEmittorIndex = 0
-    for i in range(len(estimatedRadarParams)):
-        if np.linalg.norm(estimatedRadarParams[i][0:2]-pos) < np.linalg.norm(estimatedRadarParams[closetEmittorIndex][0:2]-pos):
-            closetEmittorIndex = i
-    return closetEmittorIndex
 
 @jax.jit
 def next_measurement_covariance(pos, estimatedRadarParams, estimatedRadarCovariance):
@@ -104,6 +98,13 @@ def objective_function_at_pos_new(pos, estimatedRadarParams, estimatedRadarParam
     objectiveFunctionVal = params.nextCovarianceWeight * nexMeasCov + params.seperationWeight*kernelSeperation + params.distFromStraitWeight * distanceFromStraitLinePath
     
     return objectiveFunctionVal
+
+@jax.jit
+def find_closest_emitter(pos, estimatedRadarParams):
+
+    
+    return closetEmittorIndex
+
 
 class SplinePathPlanningLowPriority():
     def __init__(self):
@@ -205,7 +206,6 @@ class SplinePathPlanningLowPriority():
                 u,v = self.get_turn_rate_and_velocity_waypoint(self.bestMeasurementLocList[low_priority_agent_index], currentPose)
                 
         return u,v
-
     def get_turn_rate_and_velocity_waypoint(self, bestMeasurementLoc, currentPose):
         desiredHeading = np.arctan2(bestMeasurementLoc[1]-currentPose[1], bestMeasurementLoc[0]-currentPose[0])
         currentHeading = currentPose[2]
@@ -224,22 +224,7 @@ class SplinePathPlanningLowPriority():
         # u = self.kp * (desiredHeading - currentPose[2])
         u = self.kp * (desiredHeading - currentHeading)
         return u,v
-            
-    def get_turn_rate_and_velocity(self, t, spl):
-        out_d1 = spl.derivative(1)(t)
-        out_d2 = spl.derivative(2)(t)
-        x1_dot = out_d1[:,0]
-        x2_dot = out_d1[:,1]
-        x1_ddot = out_d2[:,0]
-        x2_ddot = out_d2[:,1]
-        f_num = (np.multiply(x1_dot, x2_ddot) - np.multiply(x2_dot, x1_ddot))
-        g_den = (np.square(x1_dot) + np.square(x2_dot))
-        u = f_num / g_den
 
-        v = np.sqrt(np.square(x1_dot) + np.square(x2_dot))
-        return u,v
-            
-    
     def newParamsDifferent(self, estimatedRadarParamsList):
         for i in range(len(estimatedRadarParamsList)):
             for j in range(len(estimatedRadarParamsList[i])):
@@ -274,94 +259,6 @@ class SplinePathPlanningLowPriority():
         #             # bestMeasurementLoc = self.optimize_next_best_measurement(currPos, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap)
         #             # self.optimize_spline_path(estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos, bestMeasurementLoc)
         #             # self.first = True
-                    
-
-        
-    
-    def create_evenly_spaced_control_points(self, start, stop, numControlPoints):
-        xPoints = np.linspace(start[0] + .1, stop[0], numControlPoints, endpoint=False) 
-        yPoints = np.linspace(start[1]+.1, stop[1], numControlPoints, endpoint=False) 
-        points = np.hstack((xPoints.reshape((len(xPoints),1)), yPoints.reshape((len(xPoints),1))))
-        return points
-    
-    
-    def compute_spline_constraints(self,tf, spl):
-        t = np.linspace(0,tf,params.numConstraintSamples)
-        u,v = self.get_turn_rate_and_velocity(t, spl)
-
-        pos = spl(t)
-
-        return u,v,pos
-
-    def spline_objective_function(self, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, controlPoints, knotPoints):
-        spline = self.spline_seg(controlPoints, knotPoints)
-        tObjective = np.linspace(0,knotPoints[-1], params.numObjectiveFunctionSamples)
-        pdMean, pdVar = probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(spline(tObjective), estimatedRadarParamsList, estimatedRadarParamsCovList, False)
-        u,v,pos = self.compute_spline_constraints(knotPoints[-1], spline)
-        # return np.max(pdMean), u, v, pos
-        return np.sum(pdMean), u, v, pos
-
-    def create_knot_points(self, t0, tf, numControlPoints):
-        #the number of control points
-        l = numControlPoints
-
-        #create evenly spaced knot points
-        t = np.linspace(t0, tf, l - 2, endpoint=True)
-
-        #add repeated knot points at begining and end
-        t = np.append([t0, t0, t0], t)
-        t = np.append(t, [tf, tf, tf])
-        return t
-    
-    def create_control_points(self, optimizedControlPoints, currPose, currVelocity, splineOrder, bestMeasurementLocation, knotPoints):
-        controlPoints = np.zeros((params.numControlPoints,2))
-        controlPoints[0,:] = currPose[0:2]
-        controlPoints[2:-1,:] = optimizedControlPoints.reshape((params.numControlPoints-3,2))
-
-        controlPoints[1,0] = np.cos(currPose[2]) * self.currentVelocity * knotPoints[splineOrder + 1] / splineOrder + currPose[0]
-        controlPoints[1,1] = np.sin(currPose[2]) * self.currentVelocity * knotPoints[splineOrder + 1] / splineOrder + currPose[1]
-
-
-        controlPoints[-1,:] = bestMeasurementLocation 
-        return controlPoints
-        
-
-
-    def optimize_spline_path(self, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, currPos, bestMeasurementLocation):
-        straitLineDist = np.linalg.norm(currPos[0:2] - bestMeasurementLocation)
-        initialControlPoints = self.create_evenly_spaced_control_points(currPos, bestMeasurementLocation, params.numControlPoints-3)
-        def objective_function(xDict):
-            tf = xDict['tf']
-            knotPoints = self.create_knot_points(0, tf, params.numControlPoints)
-            controlPoints = self.create_control_points(xDict['control_points'], currPos, self.currentVelocity, params.splineOrder, bestMeasurementLocation, knotPoints)
-            funcs = {}
-            obj,u,v,pos = self.spline_objective_function(estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, controlPoints, knotPoints)
-            funcs['obj'] = obj
-            funcs['turn_rate'] = u 
-            funcs['velocity'] = v 
-            funcs['position'] = pos
-            return funcs, False
-            
-
-        optProb = Optimization("low priority path", objective_function)
-        optProb.addVarGroup(name = "control_points", nVars = 2*(params.numControlPoints-3), varType = 'c', value = initialControlPoints.reshape((2*(params.numControlPoints-3))), lower = 0, upper=params.bounds[1])
-        optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = straitLineDist/params.agentSpeed, lower = 0, upper=params.pathLengthMultiplier * straitLineDist/params.agentSpeed)
-        optProb.addConGroup("turn_rate", params.numConstraintSamples, lower=-params.maxTurnRate, upper=params.maxTurnRate, scale=1.0 / params.maxTurnRate)
-        optProb.addConGroup("velocity", params.numConstraintSamples, lower=-params.velocityBounds[0], upper=params.velocityBounds[1], scale=1.0 / params.velocityBounds[1])
-        optProb.addObj("obj")
-        opt = OPT("ipopt")
-        opt.options['print_level'] = 0
-        opt.options['tol'] = 1e-10
-        sol = opt(optProb, sens = 'FD')
-        knotPoints = self.create_knot_points(0, sol.xStar['tf'], params.numControlPoints)
-        controlPoints = self.create_control_points(sol.xStar['control_points'], currPos, self.currentVelocity, params.splineOrder, bestMeasurementLocation, knotPoints)
-        # controlPoints = np.zeros((params.numControlPoints,2))
-        # controlPoints[0,:] = currPos[0:2]
-        # controlPoints[-1,:] = bestMeasurementLocation 
-        # controlPoints[1:-1,:] = sol.xStar['control_points'].reshape((params.numControlPoints-2,2))
-        # tf = sol.xStar['tf']
-        self.splinePath = self.spline_seg(controlPoints, knotPoints)
-    
 
 
     def chance_constraint(self,rho, delta, mean, var):
@@ -418,19 +315,8 @@ class SplinePathPlanningLowPriority():
     def agent_speeration_constraint_jacobian(self, pos, agentBestMeausrementLocList):
         return ((agentBestMeausrementLocList-pos)/numpy.linalg.norm(agentBestMeausrementLocList-pos)).reshape((1,2))
     
-    
-    # def get_control_gradient_based(self, agentList, estimatedParamsList, estimatedCovarianceList):
-    #     allAgentPathHistory = []
-    #     for agent in agentList:
-    #         allAgentPathHistory += agent.pathHistory
-    #     # allAgentPathHistory = np.concatenate([agent.pathHistory for agent in agentList])
-    #     allAgentPathHistory = np.array(allAgentPathHistory)
-    #     for k in range(len(agentList)):
-
-    #             funcsSens['obj'] = {"pos" : -grad(objective_function_at_pos_new)(pos, estimatedParams_list, tempEstimatedParamsCovList, allAgentPathHistory)}
-
-
 ############# NEW TEST PATH PLANNER ####################
+
     def find_closest_emitter(self, pos, estimatedRadarParams):
         closetEmittorIndex = 0
         for i in range(len(estimatedRadarParams)):
@@ -488,7 +374,8 @@ class SplinePathPlanningLowPriority():
             y0 = next_measurement[1]
             distanceFromStraitLinePathObj += distance_from_line(x0,y0,x1,y1,x2,y2)/params.distFromStraitScale
             # kernelSeperationObj += -np.sum(np.exp(-np.linalg.norm(allAgentPathHistory-next_measurement, axis=1)/lengthScale))/params.seperationScale
-            kernelSeperationObj += kernel_seperation(allAgentPathHistory_temp, next_measurement)/params.seperationScale
+            kernelSeperationObj += kernel_seperation(allAgentPathHistory_temp, next_measurement)
+            # kernelSeperationObj += -np.sum(np.exp(-np.linalg.norm(allAgentPathHistory-next_measurement, axis=1)/params.lengthScale))
             futurePath = self.get_agent_future_path(headings[agentOrder[k]], agentList[agentOrder[k]], pathTime)
             allAgentPathHistory_temp = np.vstack((allAgentPathHistory_temp, futurePath))
             
@@ -562,6 +449,17 @@ class SplinePathPlanningLowPriority():
         # print("TEST constraint jac", jacfwd(self.waypoint_position_constraint)(initialHeadings, allAgentesCurrentPos, params.agentSpeed, params.pathOptTime))
         # print("test my jac", self.waypoint_position_constraint_jac(initialHeadings, allAgentesCurrentPos, params.agentSpeed, params.pathOptTime))
         # print("TEST")
+
+        
+        #run once to compile
+        grad(self.objective_function_for_best_measurement_dist_constrained)(initialHeadings, agentList, estimatedParams_list, estimatedRadarCovariance_list, allAgentPathHistory, params.agentSpeed, params.pathOptTime, agentOrder)
+
+        # print("TEST")
+        # numTest = 100
+        # objtime = timeit.timeit(lambda: self.objective_function_for_best_measurement_dist_constrained(initialHeadings, agentList, estimatedParams_list, estimatedRadarCovariance_list, allAgentPathHistory, params.agentSpeed, params.pathOptTime, agentOrder), number=numTest)
+        # gradTime = timeit.timeit(lambda: grad(self.objective_function_for_best_measurement_dist_constrained)(initialHeadings, agentList, estimatedParams_list, estimatedRadarCovariance_list, allAgentPathHistory, params.agentSpeed, params.pathOptTime, agentOrder), number=numTest)
+        # print("objtime",objtime/numTest)
+        # print("gradTime",gradTime/numTest)
 
 
         def objective_function(xdict):
@@ -653,7 +551,7 @@ class SplinePathPlanningLowPriority():
         # opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['linear_solver'] = 'ma97'
-        opt.options['print_level'] = 0
+        opt.options['print_level'] = 5
             
         # opt.options['derivative_test'] = 'first-order'
         # opt.options['derivative_test_perturbation'] = 1e-5
@@ -665,7 +563,7 @@ class SplinePathPlanningLowPriority():
         
         optHeadings = sol.xStar['headings']
 
-        if sol.optInform['value'] == 0:
+        if sol.optInform['value'] == 0 or sol.optInform['value'] == 1:
             print("OPTIMIZATION SUCCESSFUL")
             return optHeadings, sol.fStar
         else:
