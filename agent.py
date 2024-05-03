@@ -32,7 +32,7 @@ class Agent:
         self.firstPlot = True
         
         self.pathHistory = []
-        self.timeSinceLastPathUpdate = 0
+        self.timeSinceLastPathUpdate = params.agentPathHistorydt+1
         self.pathHistorydt = params.agentPathHistorydt
         
         
