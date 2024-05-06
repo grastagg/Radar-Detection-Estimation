@@ -161,7 +161,7 @@ class SplinePathPlanningLowPriority():
 
         self.numOptStartLocations = 10
 
-        self.initialHeadingList = scale(LatinHypercube(params.numAgents).random(self.numOptStartLocations-1),lowerBound,upperBound)
+        self.initialHeadingList = scale(LatinHypercube(params.numAgents).random(self.numOptStartLocations-2),lowerBound,upperBound)
         self.initialHeadingList = numpy.append(self.initialHeadingList, numpy.zeros((1,params.numAgents)),axis=0)
 
 
@@ -636,6 +636,10 @@ class SplinePathPlanningLowPriority():
             agentOrder = range(len(agentList))
         
         
+        intialHeadingsTemp = self.find_initial_headings(agentList, estimatedParams_list)
+        initialHeadingsListTemp = self.initialHeadingList.copy()
+
+        initialHeadingsListTemp = numpy.append(initialHeadingsListTemp, intialHeadingsTemp.reshape((1,params.numAgents)),axis=0)
         initialHeadings = self.initialHeadingList[0]
         
         tempObjectiveFuncScale = np.abs(self.objective_function_for_best_measurement_dist_constrained(initialHeadings, agentList, estimatedParams_list, estimatedRadarCovariance_list, allAgentPathHistory, params.agentSpeed, params.pathOptTime, agentOrder))
@@ -683,7 +687,8 @@ class SplinePathPlanningLowPriority():
         bestOptVal = np.inf
         totalTime = 0
         numOptimization = 0
-        for itialHeadings in self.initialHeadingList:
+        # for itialHeadings in self.initialHeadingList:
+        for itialHeadings in initialHeadingsListTemp:
             start = time.time()
             constraints = self.waypoint_position_constraint(itialHeadings, allAgentesCurrentPos, params.agentSpeed, params.pathOptTime)
             if np.any(constraints < 0):

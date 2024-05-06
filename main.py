@@ -216,7 +216,7 @@ def main():
         lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList, currentNumberOfMeasurements,multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations ,dt,allAgentCurrentPositions)
         # print("path planning time", time.time()-start_p)
 
-        print("time for step:", time.time()-start)
+        # print("time for step:", time.time()-start)
 
 
 
@@ -229,15 +229,15 @@ def main():
 
 
 if __name__ == '__main__':
-    do_profile = False 
+    do_profile =  True
     if do_profile:
         with cProfile.Profile() as pr:
             main()
         with open('profile_state.txt','w') as stream:
             stats = Stats(pr, stream=stream)
             stats.strip_dirs()
-            stats.sort_stats('time')
+            stats.sort_stats('cumulative')
             stats.dump_stats('.prof_stats')
             stats.print_stats()
-            
-    main()
+    else:
+        main()

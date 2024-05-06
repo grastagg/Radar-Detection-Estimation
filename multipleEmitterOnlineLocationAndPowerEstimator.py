@@ -367,7 +367,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             
 
             for i,estimated_emmiter_params in enumerate(self.estimated_emmiter_params):
-                scatter = ax.scatter(estimated_emmiter_params[0], estimated_emmiter_params[1], marker='x', c = 'g')
+                scatter = ax.scatter(estimated_emmiter_params[0], estimated_emmiter_params[1], marker='x', c = 'g',zorder=100000)
                 all_scatter.append(scatter)
                 # c = self.plot_esimate_1_sigma_bounds(ax, estimated_emmiter_params, self.estimated_emmiter_params_covariances[i])
         # if self.mal_dist_opt_point is not None:
