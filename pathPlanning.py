@@ -100,12 +100,6 @@ def objective_function_at_pos_new(pos, estimatedRadarParams, estimatedRadarParam
     
     return objectiveFunctionVal
 
-@jax.jit
-def find_closest_emitter(pos, estimatedRadarParams):
-
-    
-    return closetEmittorIndex
-
 
 class SplinePathPlanningLowPriority():
     def __init__(self):
@@ -183,23 +177,6 @@ class SplinePathPlanningLowPriority():
         
     
 
-    def spline_seg(self,control_points,t):
-        '''
-        Wrapper function for scipy bspline class, this creates a clamped bpline with evenly spaced knot points (expect for first few and last few which are repeated)
-            with control points and start and stop time specified by parameters
-        params:
-            control_points: control points of the spline
-            t0: intial time of the spline (usually 0)
-            tf: final time of the spline (this is changed by the optimizer
-        returns:
-            scipy bspline class
-        '''
-
-
-        #create scipy bpline object
-        spline = interpolate.BSpline(t, control_points, 3)
-
-        return spline
     
     def get_control(self, dt, currentPose, low_priority_agent_index):
         u = 0

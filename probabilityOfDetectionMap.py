@@ -283,17 +283,25 @@ class ProbabilityOfDetectionMap():
         return best_measurement_location_map/max_entropy
         
     
-    def plot_mean(self, ax):
-        if self.pdMap is not None:
+    def plot_mean(self, ax, plotGroundTruth = False):
+        if plotGroundTruth:
             x_test = self.X_test[:,0].reshape((params.numTestPoints,params.numTestPoints))
             y_test = self.X_test[:,1].reshape((params.numTestPoints,params.numTestPoints))
 
-            plotMap = np.square(np.subtract(self.pdMap, self.groundTruthpdMap))
 
             c = ax.pcolormesh(x_test, y_test, self.groundTruthpdMap.reshape((params.numTestPoints, params.numTestPoints)))
-            # c = ax.pcolormesh(x_test, y_test, self.pdMap.reshape((params.numTestPoints, params.numTestPoints)))
-            # c = ax.pcolormesh(x_test, y_test, plotMap.reshape((params.numTestPoints, params.numTestPoints)))
-            return c
+            
+        else:
+            if self.pdMap is not None:
+                x_test = self.X_test[:,0].reshape((params.numTestPoints,params.numTestPoints))
+                y_test = self.X_test[:,1].reshape((params.numTestPoints,params.numTestPoints))
+
+                # plotMap = np.square(np.subtract(self.pdMap, self.groundTruthpdMap))
+
+                # c = ax.pcolormesh(x_test, y_test, self.groundTruthpdMap.reshape((params.numTestPoints, params.numTestPoints)))
+                c = ax.pcolormesh(x_test, y_test, self.pdMap.reshape((params.numTestPoints, params.numTestPoints)))
+                # c = ax.pcolormesh(x_test, y_test, plotMap.reshape((params.numTestPoints, params.numTestPoints)))
+                return c
 
     def plot_cov(self, ax):
         if self.pdCovMap is not None:
