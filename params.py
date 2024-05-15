@@ -5,7 +5,7 @@ import jax
 # from scipy.constants import boltzman
 from scipy.constants import k as boltzman
 
-np.random.seed(5423670)
+np.random.seed(15986435)
         
 def db_to_amplitude(db):
     return 10**(db/10)
@@ -27,8 +27,8 @@ simulationTimestep = 0.1
 plotTimeStep = 0.5
 
 #high priority path plannings
-highPriorityStart = (100,100)
-highPriorityEnd = (bounds[0]-100,bounds[1]-100)
+highPriorityStart = (0,0)
+highPriorityEnd = (bounds[0],bounds[1])
 highPriorityStraitLineA = highPriorityStart[1] - highPriorityEnd[1]
 highPriorityStraitLineB = highPriorityEnd[0] - highPriorityStart[0]
 highPriorityStraitLineC = highPriorityStart[0]*highPriorityEnd[1] - highPriorityEnd[0] * highPriorityStart[1]
@@ -78,8 +78,8 @@ radarAngularRates = []
 numRadar = 8
 
 # minRadarDistFromStart = 7000
-minInterRadarDist = 2. * find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
-minRadarDistFromStart = 1.7*(minInterRadarDist/2) 
+minInterRadarDist = 2.1 * find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
+minRadarDistFromStart = 1.1*(minInterRadarDist/2) 
 print("minRadarDistFromStart", minRadarDistFromStart)
 # minInterRadarDist = 6000
 # minInterRadarDist = 4000
