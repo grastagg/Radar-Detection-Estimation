@@ -5,7 +5,7 @@ import jax
 # from scipy.constants import boltzman
 from scipy.constants import k as boltzman
 
-np.random.seed(15986435)
+np.random.seed(94123)
         
 def db_to_amplitude(db):
     return 10**(db/10)
@@ -32,7 +32,7 @@ highPriorityEnd = (bounds[0],bounds[1])
 highPriorityStraitLineA = highPriorityStart[1] - highPriorityEnd[1]
 highPriorityStraitLineB = highPriorityEnd[0] - highPriorityStart[0]
 highPriorityStraitLineC = highPriorityStart[0]*highPriorityEnd[1] - highPriorityEnd[0] * highPriorityStart[1]
-probabilityOfDetectionThreshold = 0.05
+probabilityOfDetectionThreshold = 0.02
 thresholdConfidence = 0.95
 highPriorityAgentRadarCrossSection = .1
 
@@ -50,7 +50,6 @@ def find_radius_from_radar_pd(radarOuputPower, radarTransmitGain, radarRecieveGa
     Ts = radarSystemTemperature
     k = boltzman
     R = (((erp*G_r*lamb**2*sigma*tua)/((np.log(Pfa)/np.log(pd))-1))*(1/((4*np.pi)**3*k*Ts)))**.25
-    print("R", R)
     return R
 
 # radarPositions = [(3000,10000),(8000, 10000)]
@@ -65,12 +64,9 @@ radarTransmitGain = db_to_amplitude(radarTransmitGaindb)
 radarRecieveGain = db_to_amplitude(radarRecieveGaindb)
 radarFrequency = 3e9
 radarWavelength = frequency_to_wavelength(radarFrequency)
-# print("radarWavelength",radarWavelength)
 radarProbabilityOfFalseAlarm = 1e-6
 radarPulseWidth = 1.1e-5
 radarSystemTemperature = 745.4148
-print("Actual ERP", radarOutputPower * radarTransmitGain)
-print("Actual ERP in DB", 10*np.log10(radarOutputPower * radarTransmitGain))
 
 radarPositions = []
 radarPhases = []
@@ -78,12 +74,10 @@ radarAngularRates = []
 numRadar = 8
 
 # minRadarDistFromStart = 7000
-minInterRadarDist = 2.1 * find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
-minRadarDistFromStart = 1.1*(minInterRadarDist/2) 
-print("minRadarDistFromStart", minRadarDistFromStart)
+minInterRadarDist = 2.0 * find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
+minRadarDistFromStart = 1.0*(minInterRadarDist/2) 
 # minInterRadarDist = 6000
 # minInterRadarDist = 4000
-print("minInterRadarDist", minInterRadarDist)
 def find_min_dist_to_other_radar(potentialRadarPosition, currentRadarPositions):
     mindist = 1000000
     for tempRadar in currentRadarPositions:
@@ -128,7 +122,6 @@ agentPowerMeasurementStdDev = .001
 agentAngleMeasurementStdDev = (3*np.pi/180)
 agentELINTAnteneaGaindb = 18
 agentELINTAnteneaGain = db_to_amplitude(agentELINTAnteneaGaindb)
-print(agentELINTAnteneaGain)
 agentELINTSystemLoss = 1
 radarMeasurementCoeff = (agentELINTAnteneaGain * radarWavelength**2)/((4*np.pi)**2 * agentELINTSystemLoss)
 radarMeasurementCoeffDB = 10*np.log10(radarMeasurementCoeff)
@@ -177,7 +170,7 @@ agentSpeed = 134
 numControlPoints = 20
 maxTurnRate = 1
 velocityBounds = [100,134]
-numConstraintSamples = 30
+numConstraintSamples = 50
 splineOrder = 3
 
 distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)/2

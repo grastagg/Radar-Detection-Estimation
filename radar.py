@@ -42,7 +42,6 @@ class RadarCircularPattern:
         y_middle = self.position[1]
         
         # self.plotLine = Line2D(xdata=[x_left, x_middle, x_right], ydata=[y_left, y_middle, y_right])
-        print("test", np.array([[x_left,y_left],[x_middle, y_middle],[x_right,y_right]]).shape)
         self.plotPoly = Polygon(xy = np.array([[x_left,y_left],[x_middle, y_middle],[x_right,y_right]]), closed=False, fill = False,zorder = 101, color='r')
         
         
