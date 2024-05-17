@@ -150,6 +150,7 @@ class HighPriorityPathPlannerDeterministic:
         initialControlPoints, tfIntial,ax = self.get_initial_guess_voronoi(radarList,params.bounds,plot=plot)
         print("Time to find initial guess", time.time()-startTimer)
         initialControlPoints = initialControlPoints[1:-1,:]
+        plt.show()
 
 
         def objective_function(xDict):
