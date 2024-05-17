@@ -245,7 +245,8 @@ class HighPriorityPathPlannerDeterministic:
         tf=np.linalg.norm(controlPoints[0]-controlPoints[-1])/params.agentSpeed
         print("tf",tf)
         while np.max(v) > params.velocityBounds[1]:
-            # print(np.max(v))
+            print(np.max(v))
+            print("tf",tf)
             tf += 3
             combined_knot_points = self.create_knot_points(0, tf, num_control_points)
             pd, u, v, pos = self.spline_constraints(radarList, controlPoints, combined_knot_points,params.numConstraintSamples)
