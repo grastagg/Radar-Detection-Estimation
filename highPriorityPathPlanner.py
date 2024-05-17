@@ -66,8 +66,6 @@ class HighPriorityPathPlannerDeterministic:
     def get_turn_rate_and_velocity(self, t, spl):
         out_d1 = spl.derivative(1)(t)
         out_d2 = spl.derivative(2)(t)
-        print("t[11]",t[11])
-        print("out_d1[11]",out_d1[11])
         x1_dot = out_d1[:,0]
         x2_dot = out_d1[:,1]
         x1_ddot = out_d2[:,0]
@@ -246,10 +244,7 @@ class HighPriorityPathPlannerDeterministic:
     def assure_velocity_constraint(self, radarList, controlPoints, knotPoints,num_control_points):
         pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,params.numConstraintSamples)
         tf=np.linalg.norm(controlPoints[0]-controlPoints[-1])/params.agentSpeed
-        print("tf",tf)
         while np.max(v) > params.velocityBounds[1]:
-            print(np.max(v))
-            print("tf",tf)
             tf += 3
             combined_knot_points = self.create_knot_points(0, tf, num_control_points)
             pd, u, v, pos = self.spline_constraints(radarList, controlPoints, combined_knot_points,params.numConstraintSamples)
@@ -670,9 +665,9 @@ if __name__ == "__main__":
     # hpp.find_initial_guess_rrt_star(radarList,plot=True)
     pdMap = ProbabilityOfDetectionMap(params.X_test,radarList)
     startTime = time.time()
-    ax = hpp.plan_deterministic_path(radarList,plot=True)
-    print("path planning time", time.time()-startTime)
-    # _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=True)
+    # ax = hpp.plan_deterministic_path(radarList,plot=True)
+    # print("path planning time", time.time()-startTime)
+    _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=True)
     
     # fig,ax = plt.subplots
     # ax.set_aspect('equal')
@@ -680,7 +675,7 @@ if __name__ == "__main__":
         fig,ax = plt.subplots()
     c = pdMap.plot_mean(ax,plotGroundTruth=True)
     # fig.colorbar(c, ax=ax)
-    hpp.plot_spline(hpp.spline,ax)
-    hpp.plot_constraints(hpp.spline, radarList)
+    # hpp.plot_spline(hpp.spline,ax)
+    # hpp.plot_constraints(hpp.spline, radarList)
     plt.show()
         
