@@ -18,7 +18,6 @@ from probabilityOfDetectionMap import ProbabilityOfDetectionMap
 from PythonRobotics.PathPlanning.RRTStar import rrt_star
 
 from scipy.interpolate import make_lsq_spline,make_smoothing_spline, splrep, splev, splprep
-from scipy.interpolate import BSpline
 
 from scipy.spatial import Voronoi, voronoi_plot_2d
 
@@ -66,7 +65,7 @@ class HighPriorityPathPlannerDeterministic:
         return 1-probabilityOfNoDetection   
 
 
-    def get_turn_rate_and_velocity(self, numPointsPerInterval, spl,splinescipy):
+    def get_turn_rate_and_velocity(self, numPointsPerInterval, spl):
         # out_d1 = spl.derivative(1)(t)
         # out_d2 = spl.derivative(2)(t)
         # out_d1 = spl.get_spline_derivative_data(len(t),1)
@@ -82,9 +81,9 @@ class HighPriorityPathPlannerDeterministic:
         out_d1,t = spl.get_spline_derivative_data(numPointsPerInterval,1)
         out_d2,t = spl.get_spline_derivative_data(numPointsPerInterval,2)
 
-        print("TEST with scipy position", np.all(np.isclose(out,splinescipy(t))))
-        print("Test with scipy derivative", np.all(np.isclose(out_d1,splinescipy.derivative(1)(t))))
-        print("Test with scipy second derivative", np.all(np.isclose(out_d2,splinescipy.derivative(2)(t))))
+        # print("TEST with scipy position", np.all(np.isclose(out,splinescipy(t))))
+        # print("Test with scipy derivative", np.all(np.isclose(out_d1,splinescipy.derivative(1)(t))))
+        # print("Test with scipy second derivative", np.all(np.isclose(out_d2,splinescipy.derivative(2)(t))))
         
         x1_dot = out_d1[:,0]
         x2_dot = out_d1[:,1]
@@ -110,10 +109,10 @@ class HighPriorityPathPlannerDeterministic:
 
 
     def spline_constraints(self, radarList, controlPoints, knotPoints,numConstraintSamplesPerInterval):
-        spline,splinescipy = self.spline_seg(controlPoints, knotPoints)
+        spline = self.spline_seg(controlPoints, knotPoints)
         # tf = knotPoints[-1]
         # t = np.linspace(0,tf,numConstraintSamples)
-        u,v = self.get_turn_rate_and_velocity(numConstraintSamplesPerInterval, spline,splinescipy)
+        u,v = self.get_turn_rate_and_velocity(numConstraintSamplesPerInterval, spline)
 
         pos,t = spline.get_spline_data(numConstraintSamplesPerInterval)
         # pos = spline(t)
@@ -137,10 +136,10 @@ class HighPriorityPathPlannerDeterministic:
 
 
         #create scipy bpline object
-        spline2 = interpolate.BSpline(t, control_points, 3)
+        # spline2 = interpolate.BSpline(t, control_points, 3)
         spline = BsplineEvaluation(control_points,order= 3,scale_factor=t[-1],clamped=True)
 
-        return spline,spline2
+        return spline
 
     def create_knot_points(self, t0, tf, numControlPoints):
         #the number of control points
@@ -172,9 +171,11 @@ class HighPriorityPathPlannerDeterministic:
         startTimer = time.time()
         # initialControlPoints, tfIntial,ax = self.find_initial_guess_rrt_star(radarList,plot=plot)
         initialControlPoints, tfIntial,ax = self.get_initial_guess_voronoi(radarList,params.bounds,plot=plot)
+        pd, u, v, pos = self.spline_constraints(radar_list, initialControlPoints, self.create_knot_points(0, tfIntial, params.numControlPoints),params.numConstraintSamplesPerInterval)
+        numConstraintSamples = len(pd)
         print("Time to find initial guess", time.time()-startTimer)
         initialControlPoints = initialControlPoints[1:-1,:]
-        plt.show()
+
 
 
         def objective_function(xDict):
@@ -183,7 +184,7 @@ class HighPriorityPathPlannerDeterministic:
             controlPoints = self.create_control_points(xDict['control_points'], params.highPriorityStart, params.highPriorityEnd, params.splineOrder, knotPoints)
             funcs = {}
             # pd, u, v, pos = self.spline_constraints(radar_list, controlPoints, knotPoints,params.numConstraintSamples)
-            pd, u, v, pos = self.spline_constraints(radar_list, controlPoints, knotPoints,2)
+            pd, u, v, pos = self.spline_constraints(radar_list, controlPoints, knotPoints,params.numConstraintSamplesPerInterval)
             funcs['obj'] = tf 
             funcs['turn_rate'] = u 
             funcs['velocity'] = v 
@@ -198,9 +199,9 @@ class HighPriorityPathPlannerDeterministic:
         optProb.addVarGroup(name = "control_points", nVars = 2*(params.numControlPoints-2), varType = 'c', value = initialControlPoints.reshape((2*(params.numControlPoints-2))), lower = 0, upper=params.bounds[1])
         # optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = straitLineDist/params.agentSpeed, lower = 0, upper=params.pathLengthMultiplier * straitLineDist/params.agentSpeed)
         optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = tfIntial, lower = 0, upper=params.pathLengthMultiplier * straitLineDist/params.agentSpeed)
-        optProb.addConGroup("turn_rate", params.numConstraintSamples, lower=-params.maxTurnRate, upper=params.maxTurnRate, scale=1.0 / params.maxTurnRate)
-        optProb.addConGroup("velocity", params.numConstraintSamples, lower=-params.velocityBounds[0], upper=params.velocityBounds[1], scale=1.0 / params.velocityBounds[1])
-        optProb.addConGroup("pd", params.numConstraintSamples, lower=0, upper=params.probabilityOfDetectionThreshold, scale=1.0)
+        optProb.addConGroup("turn_rate", numConstraintSamples, lower=-params.maxTurnRate, upper=params.maxTurnRate, scale=1.0 / params.maxTurnRate)
+        optProb.addConGroup("velocity", numConstraintSamples, lower=-params.velocityBounds[0], upper=params.velocityBounds[1], scale=1.0 / params.velocityBounds[1])
+        optProb.addConGroup("pd", numConstraintSamples, lower=0, upper=params.probabilityOfDetectionThreshold, scale=1.0)
         optProb.addObj("obj")
         opt = OPT("ipopt")
         opt.options['print_level'] = 0
@@ -272,10 +273,10 @@ class HighPriorityPathPlannerDeterministic:
     def assure_velocity_constraint(self, radarList, controlPoints, knotPoints,num_control_points):
         pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,params.numConstraintSamplesPerInterval)
         tf=np.linalg.norm(controlPoints[0]-controlPoints[-1])/params.agentSpeed
-        print("tf",tf)
+        # print("tf",tf)
         while np.max(v) > params.velocityBounds[1]:
-            print("np.max(v)",np.max(v))
-            print("tf",tf)
+            # print("np.max(v)",np.max(v))
+            # print("tf",tf)
             # print(np.max(v))
             tf += 3
             combined_knot_points = self.create_knot_points(0, tf, num_control_points)
@@ -638,7 +639,7 @@ class HighPriorityPathPlannerDeterministic:
 
 
         if plot:
-            tmpSpline,_ = self.spline_seg(controlPoints, knotPoints)
+            tmpSpline = self.spline_seg(controlPoints, knotPoints)
             self.plot_spline(tmpSpline,ax)
 
             ax.plot(path[:,0], path[:,1], 'r--')
@@ -677,12 +678,15 @@ class HighPriorityPathPlannerDeterministic:
         ax.plot(pos[:,0], pos[:,1])
     
     def plot_constraints(self, spline, radarList,numConstraintSamples=100):
-        tf = spline.t[-1]
+        # tf = spline.t[-1]
         # t = np.linspace(0, tf, params.numConstraintSamples)
-        t = np.linspace(0, tf, numConstraintSamples)
-        controlPoints = spline.c
-        knotPoints = spline.t
-        pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,numConstraintSamples)
+        # t = np.linspace(0, tf, numConstraintSamples)
+        controlPoints = spline._control_points
+        knotPoints = spline._knot_points
+        print("controlPoints",controlPoints)
+        print("knotPoints",knotPoints)
+        pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,params.numConstraintSamplesPerInterval)
+        t = np.linspace(0, knotPoints[-1], len(pd))
 
         fig,axes = plt.subplots(3)
         axes[0].plot(t, pd)
@@ -698,7 +702,7 @@ if __name__ == "__main__":
     # hpp.find_initial_guess_rrt_star(radarList,plot=True)
     pdMap = ProbabilityOfDetectionMap(params.X_test,radarList)
     startTime = time.time()
-    ax = hpp.plan_deterministic_path(radarList,plot=True)
+    ax = hpp.plan_deterministic_path(radarList,plot=False)
     print("path planning time", time.time()-startTime)
     # _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=True)
     
@@ -709,6 +713,6 @@ if __name__ == "__main__":
     c = pdMap.plot_mean(ax,plotGroundTruth=True)
     # fig.colorbar(c, ax=ax)
     hpp.plot_spline(hpp.spline,ax)
-    hpp.plot_constraints(hpp.spline, radarList)
+    # hpp.plot_constraints(hpp.spline, radarList)
     plt.show()
         
