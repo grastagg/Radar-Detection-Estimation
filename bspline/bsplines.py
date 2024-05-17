@@ -24,8 +24,8 @@ class BsplineEvaluation:
         Constructor for the BsplinEvaluation class, each column of
         control_points is a control point. Start time should be an integer.
         '''
-        self._control_points = control_points.reshape(2,-1)
-        print("control_points",control_points)
+        # self._control_points = control_points.reshape((2,-1))
+        self._control_points = np.vstack((control_points[:,0].reshape((1,-1)),control_points[:,1].reshape((1,-1))))
         self._num_control_points = count_number_of_control_points(self._control_points)
         if order >= self._num_control_points:
             raise Exception("Polynomial of order " , order, " needs at least " , order + 1 , " control points")
@@ -61,6 +61,8 @@ class BsplineEvaluation:
             spline_data = self.__get_spline_data_point_by_point_method(time_data)
         else:
             spline_data = matrix_bspline_evaluation_for_dataset(self._control_points, self._knot_points, num_data_points_per_interval, self._clamped)
+        # spline_data = np.array(spline_data).reshape((2,-1))
+        spline_data = np.hstack((spline_data[0,:].reshape((-1,1)),spline_data[1,:].reshape((-1,1))))
         return spline_data, time_data
 
     def __get_spline_data_point_by_point_method(self,time_data):
@@ -89,6 +91,8 @@ class BsplineEvaluation:
             spline_derivative_data = self.__get_spline_derivative_data_point_by_point_method(rth_derivative,time_data)
         else:
             spline_derivative_data = matrix_bspline_derivative_evaluation_for_dataset(rth_derivative, self._scale_factor, self._control_points, self._knot_points, num_data_points_per_interval, self._clamped)
+        
+        spline_derivative_data = np.hstack((spline_derivative_data[0,:].reshape((-1,1)),spline_derivative_data[1,:].reshape((-1,1))))
         return spline_derivative_data, time_data
 
     def __get_spline_derivative_data_point_by_point_method(self,rth_derivative,time_data):

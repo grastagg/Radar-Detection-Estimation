@@ -66,16 +66,28 @@ class HighPriorityPathPlannerDeterministic:
         return 1-probabilityOfNoDetection   
 
 
-    def get_turn_rate_and_velocity(self, t, spl):
+    def get_turn_rate_and_velocity(self, numPointsPerInterval, spl):
         # out_d1 = spl.derivative(1)(t)
         # out_d2 = spl.derivative(2)(t)
-        out_d1 = spl.get_spline_derivative_data(len(t),1)
-        out_d2 = spl.get_spline_derivative_data(len(t),2)
+        # out_d1 = spl.get_spline_derivative_data(len(t),1)
+        # out_d2 = spl.get_spline_derivative_data(len(t),2)
+        # plt.figure()
+        # spl.get_
+        out,t = spl.get_spline_data(numPointsPerInterval)
+
+        
+        out_d1,t = spl.get_spline_derivative_data(numPointsPerInterval,1)
+        # print(out_d1)
+        out_d2,t = spl.get_spline_derivative_data(numPointsPerInterval,2)
         
         x1_dot = out_d1[:,0]
         x2_dot = out_d1[:,1]
         x1_ddot = out_d2[:,0]
         x2_ddot = out_d2[:,1]
+        # x1_dot = out_d1[0,:]
+        # x2_dot = out_d1[1,:]
+        # x1_ddot = out_d2[0,:]
+        # x2_ddot = out_d2[1,:]
         f_num = (np.multiply(x1_dot, x2_ddot) - np.multiply(x2_dot, x1_ddot))
         g_den = (np.square(x1_dot) + np.square(x2_dot))
         u = f_num / g_den
@@ -91,14 +103,15 @@ class HighPriorityPathPlannerDeterministic:
         return points
 
 
-    def spline_constraints(self, radarList, controlPoints, knotPoints,numConstraintSamples):
+    def spline_constraints(self, radarList, controlPoints, knotPoints,numConstraintSamplesPerInterval):
         spline = self.spline_seg(controlPoints, knotPoints)
-        tf = knotPoints[-1]
-        t = np.linspace(0,tf,numConstraintSamples)
-        u,v = self.get_turn_rate_and_velocity(t, spline)
+        # tf = knotPoints[-1]
+        # t = np.linspace(0,tf,numConstraintSamples)
+        u,v = self.get_turn_rate_and_velocity(numConstraintSamplesPerInterval, spline)
 
-        pos = spline(t)
-        pd = self.ground_truth_probability_of_detection(spline(t), radarList)
+        pos,t = spline.get_spline_data(numConstraintSamplesPerInterval)
+        # pos = spline(t)
+        pd = self.ground_truth_probability_of_detection(pos, radarList)
         # return np.max(pdMean), u, v, pos
         return pd, u, v, pos
 
@@ -162,7 +175,8 @@ class HighPriorityPathPlannerDeterministic:
             knotPoints = self.create_knot_points(0, tf, params.numControlPoints)
             controlPoints = self.create_control_points(xDict['control_points'], params.highPriorityStart, params.highPriorityEnd, params.splineOrder, knotPoints)
             funcs = {}
-            pd, u, v, pos = self.spline_constraints(radar_list, controlPoints, knotPoints,params.numConstraintSamples)
+            # pd, u, v, pos = self.spline_constraints(radar_list, controlPoints, knotPoints,params.numConstraintSamples)
+            pd, u, v, pos = self.spline_constraints(radar_list, controlPoints, knotPoints,2)
             funcs['obj'] = tf 
             funcs['turn_rate'] = u 
             funcs['velocity'] = v 
@@ -183,7 +197,7 @@ class HighPriorityPathPlannerDeterministic:
         optProb.addObj("obj")
         opt = OPT("ipopt")
         opt.options['print_level'] = 0
-        opt.options['max_iter'] = 1
+        opt.options['max_iter'] = 2000
         opt.options['tol'] = 1e-8
         sol = opt(optProb, sens = 'FD')
         print(sol)
@@ -238,7 +252,8 @@ class HighPriorityPathPlannerDeterministic:
         return combined_control_points,combined_knot_points
     
     def assure_pd_less_than_threshold(self, radarList, controlPoints, knotPoints):
-        pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,params.numConstraintSamples)
+        # pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,params.numConstraintSamples)
+        pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,)
         num_control_points = len(controlPoints)
         while np.max(pd) > params.probabilityOfDetectionThreshold:
             num_control_points += 1
@@ -248,14 +263,14 @@ class HighPriorityPathPlannerDeterministic:
         return combined_control_points,combined_knot_points
     
     def assure_velocity_constraint(self, radarList, controlPoints, knotPoints,num_control_points):
-        pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,params.numConstraintSamples)
+        pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,params.numConstraintSamplesPerInterval)
         tf=np.linalg.norm(controlPoints[0]-controlPoints[-1])/params.agentSpeed
         print("tf",tf)
         while np.max(v) > params.velocityBounds[1]:
             # print(np.max(v))
             tf += 3
             combined_knot_points = self.create_knot_points(0, tf, num_control_points)
-            pd, u, v, pos = self.spline_constraints(radarList, controlPoints, combined_knot_points,params.numConstraintSamples)
+            pd, u, v, pos = self.spline_constraints(radarList, controlPoints, combined_knot_points,params.numConstraintSamplesPerInterval)
         return combined_knot_points,tf
         
     
