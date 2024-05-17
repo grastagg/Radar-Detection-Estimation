@@ -73,11 +73,10 @@ class HighPriorityPathPlannerDeterministic:
         # out_d2 = spl.get_spline_derivative_data(len(t),2)
         # plt.figure()
         # spl.get_
-        out,t = spl.get_spline_data(numPointsPerInterval)
 
         
         out_d1,t = spl.get_spline_derivative_data(numPointsPerInterval,1)
-        # print(out_d1)
+        # print("test",out_d1[11])
         out_d2,t = spl.get_spline_derivative_data(numPointsPerInterval,2)
         
         x1_dot = out_d1[:,0]
@@ -132,7 +131,7 @@ class HighPriorityPathPlannerDeterministic:
 
         #create scipy bpline object
         # spline = interpolate.BSpline(t, control_points, 3)
-        spline = BsplineEvaluation(control_points, t, 3,clamped=True)
+        spline = BsplineEvaluation(control_points,order= 3,scale_factor=t[-1],clamped=True)
 
         return spline
 
@@ -267,6 +266,8 @@ class HighPriorityPathPlannerDeterministic:
         tf=np.linalg.norm(controlPoints[0]-controlPoints[-1])/params.agentSpeed
         print("tf",tf)
         while np.max(v) > params.velocityBounds[1]:
+            print("np.max(v)",np.max(v))
+            print("tf",tf)
             # print(np.max(v))
             tf += 3
             combined_knot_points = self.create_knot_points(0, tf, num_control_points)

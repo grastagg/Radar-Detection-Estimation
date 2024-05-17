@@ -124,6 +124,11 @@ def matrix_bspline_derivative_evaluation_for_dataset(derivative_order, scale_fac
         # Find M matrix if clamped
         if clamped:
             M = get_M_matrix(i, order, knot_points, True)
+        # print("P", P)
+        # print("M", M)
+        # print("K", K)
+        # print("L_r", L_r)
+        # print("K*L_r", np.dot(K,L_r))
         spline_derivative_data_over_interval = np.dot(np.dot(P,M),np.dot(K,L_r))
         if dimension > 1:
             if i == num_intervals-1:

@@ -19,7 +19,7 @@ class BsplineEvaluation:
     """
 
     # def __init__(self, control_points, order, start_time, scale_factor=1, clamped=False):
-    def __init__(self, control_points,knot_points, order, scale_factor=1, clamped=True):
+    def __init__(self, control_points, order, scale_factor=1, clamped=True):
         '''
         Constructor for the BsplinEvaluation class, each column of
         control_points is a control point. Start time should be an integer.
@@ -30,15 +30,19 @@ class BsplineEvaluation:
         if order >= self._num_control_points:
             raise Exception("Polynomial of order " , order, " needs at least " , order + 1 , " control points")
         self._order = order
-        self._scale_factor = scale_factor
+        number_of_knot_points = self._num_control_points + self._order + 1
+        number_of_unique_knot_points = number_of_knot_points - 2*self._order
+        self._scale_factor = scale_factor/(number_of_unique_knot_points-1)
         # self._start_time = start_time
-        self._start_time =knot_points[0] 
+        # self._start_time =knot_points[0] 
+        self._start_time = 0
         self._clamped = clamped
-        self._knot_points = knot_points
-        # if clamped:
-        #     self._knot_points = self.__create_clamped_knot_points()
-        # else:
-        #     self._knot_points = self.__create_knot_points()
+        # self._knot_points = knot_points
+        if clamped:
+            self._knot_points = self.__create_clamped_knot_points()
+        else:
+            self._knot_points = self.__create_knot_points()
+        # print("knot points",self._knot_points)
         self._end_time = self._knot_points[self._num_control_points]
 
     def get_start_time(self):
