@@ -66,7 +66,7 @@ class HighPriorityPathPlannerDeterministic:
         return 1-probabilityOfNoDetection   
 
 
-    def get_turn_rate_and_velocity(self, numPointsPerInterval, spl):
+    def get_turn_rate_and_velocity(self, numPointsPerInterval, spl,splinescipy):
         # out_d1 = spl.derivative(1)(t)
         # out_d2 = spl.derivative(2)(t)
         # out_d1 = spl.get_spline_derivative_data(len(t),1)
@@ -77,11 +77,14 @@ class HighPriorityPathPlannerDeterministic:
         # plt.figure()
         # plt.plot(out[:,0],out[:,1])
         # plt.show()
-
+        out,t = spl.get_spline_data(numPointsPerInterval)
         
         out_d1,t = spl.get_spline_derivative_data(numPointsPerInterval,1)
-        print("test",out_d1[11])
         out_d2,t = spl.get_spline_derivative_data(numPointsPerInterval,2)
+
+        print("TEST with scipy position", np.all(np.isclose(out,splinescipy(t))))
+        print("Test with scipy derivative", np.all(np.isclose(out_d1,splinescipy.derivative(1)(t))))
+        print("Test with scipy second derivative", np.all(np.isclose(out_d2,splinescipy.derivative(2)(t))))
         
         x1_dot = out_d1[:,0]
         x2_dot = out_d1[:,1]
@@ -107,10 +110,10 @@ class HighPriorityPathPlannerDeterministic:
 
 
     def spline_constraints(self, radarList, controlPoints, knotPoints,numConstraintSamplesPerInterval):
-        spline = self.spline_seg(controlPoints, knotPoints)
+        spline,splinescipy = self.spline_seg(controlPoints, knotPoints)
         # tf = knotPoints[-1]
         # t = np.linspace(0,tf,numConstraintSamples)
-        u,v = self.get_turn_rate_and_velocity(numConstraintSamplesPerInterval, spline)
+        u,v = self.get_turn_rate_and_velocity(numConstraintSamplesPerInterval, spline,splinescipy)
 
         pos,t = spline.get_spline_data(numConstraintSamplesPerInterval)
         # pos = spline(t)
@@ -134,10 +137,10 @@ class HighPriorityPathPlannerDeterministic:
 
 
         #create scipy bpline object
-        # spline = interpolate.BSpline(t, control_points, 3)
+        spline2 = interpolate.BSpline(t, control_points, 3)
         spline = BsplineEvaluation(control_points,order= 3,scale_factor=t[-1],clamped=True)
 
-        return spline
+        return spline,spline2
 
     def create_knot_points(self, t0, tf, numControlPoints):
         #the number of control points
@@ -171,6 +174,7 @@ class HighPriorityPathPlannerDeterministic:
         initialControlPoints, tfIntial,ax = self.get_initial_guess_voronoi(radarList,params.bounds,plot=plot)
         print("Time to find initial guess", time.time()-startTimer)
         initialControlPoints = initialControlPoints[1:-1,:]
+        plt.show()
 
 
         def objective_function(xDict):
@@ -634,7 +638,7 @@ class HighPriorityPathPlannerDeterministic:
 
 
         if plot:
-            tmpSpline = self.spline_seg(controlPoints, knotPoints)
+            tmpSpline,_ = self.spline_seg(controlPoints, knotPoints)
             self.plot_spline(tmpSpline,ax)
 
             ax.plot(path[:,0], path[:,1], 'r--')
@@ -666,9 +670,10 @@ class HighPriorityPathPlannerDeterministic:
         
     
     def plot_spline(self, spline,ax):
-        tf = spline.t[-1]
-        t = np.linspace(0, tf, 200)
-        pos = spline(t)
+        # tf = spline._knot_points[-1]
+        # t = np.linspace(0, tf, 200)
+        # pos = spline(t)
+        pos,t = spline.get_spline_data(10)
         ax.plot(pos[:,0], pos[:,1])
     
     def plot_constraints(self, spline, radarList,numConstraintSamples=100):
