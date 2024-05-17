@@ -66,6 +66,8 @@ class HighPriorityPathPlannerDeterministic:
     def get_turn_rate_and_velocity(self, t, spl):
         out_d1 = spl.derivative(1)(t)
         out_d2 = spl.derivative(2)(t)
+        print("t[11]",t[11])
+        print("out_d1[11]",out_d1[11])
         x1_dot = out_d1[:,0]
         x2_dot = out_d1[:,1]
         x1_ddot = out_d2[:,0]

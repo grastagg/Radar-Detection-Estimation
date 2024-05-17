@@ -170,7 +170,7 @@ agentSpeed = 134
 numControlPoints = 20
 maxTurnRate = 1
 velocityBounds = [100,134]
-numConstraintSamples = 50
+numConstraintSamples = 52
 splineOrder = 3
 
 distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)/2
