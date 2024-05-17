@@ -73,10 +73,14 @@ class HighPriorityPathPlannerDeterministic:
         # out_d2 = spl.get_spline_derivative_data(len(t),2)
         # plt.figure()
         # spl.get_
+        # out,t = spl.get_spline_data(numPointsPerInterval)
+        # plt.figure()
+        # plt.plot(out[:,0],out[:,1])
+        # plt.show()
 
         
         out_d1,t = spl.get_spline_derivative_data(numPointsPerInterval,1)
-        # print("test",out_d1[11])
+        print("test",out_d1[11])
         out_d2,t = spl.get_spline_derivative_data(numPointsPerInterval,2)
         
         x1_dot = out_d1[:,0]

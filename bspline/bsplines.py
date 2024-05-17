@@ -42,7 +42,9 @@ class BsplineEvaluation:
             self._knot_points = self.__create_clamped_knot_points()
         else:
             self._knot_points = self.__create_knot_points()
-        # print("knot points",self._knot_points)
+        print("knot points",self._knot_points)
+        print("scale factor",self._scale_factor)
+        print("scale factor",scale_factor)
         self._end_time = self._knot_points[self._num_control_points]
 
     def get_start_time(self):
