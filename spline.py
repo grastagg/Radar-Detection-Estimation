@@ -162,10 +162,10 @@ if __name__=="__main__":
     c1x = 6*(start[0] - .66666*x2-.166666*x3)
     c1y = 6*(start[1] - .66666*y2-.166666*y3)
 
-    coef = jnp.array([[c1x,2,1,-1,5,3,6],
-                      [c1y,2,3,4,5,10,15]])
-    # coef = jnp.array([[0,1,0,0,0,0,0],
-    #                   [0,0,0,0,0,0,0]])
+    # coef = jnp.array([[c1x,2,1,-1,5,3,6],
+    #                   [c1y,2,3,4,5,10,15]])
+    coef = jnp.array([[0,0,0,0,1,0,0],
+                      [0,0,0,0,0,0,0]])
     
     print("coef", coef)
     num_grid_interval = coef.shape[1] - k

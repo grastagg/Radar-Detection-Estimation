@@ -606,13 +606,29 @@ class HighPriorityPathPlannerDeterministic:
 
         return controlPoints
 
+    def move_last_control_point_so_spline_passes_through_end(self, controlPoints,knotPoints, end,endVelocity):
+        dt = knotPoints[3]-knotPoints[0]
+        A = np.array([[2/3,0,1/6,0],[0,2/3,0,1/6],[0,0,3/(2*dt),0],[0,0,0,3/(2*dt)]])
+        cn_minus_2_x = controlPoints[-3,0]
+        cn_minus_2_y = controlPoints[-3,1]
+
+        b = np.array([[end[0] - (1/6)*cn_minus_2_x],[end[1]- (1/6)*cn_minus_2_y],[endVelocity[0]+3/(2*dt)*cn_minus_2_x],[endVelocity[1]+3/(2*dt)*cn_minus_2_y]])
+
+        x = np.linalg.solve(A,b)
+        # controlPoints[1,0] = x[0]
+        # controlPoints[0,1] = x[1]
+        # controlPoints[1,0] = x[2]
+        # controlPoints[1,1] = x[3]
+        controlPoints[-2:,-2:] = x.reshape((2,2))
+
+        return controlPoints
+
     def find_derivative_control_points(self, controlPoints, knotPoints,splineOrder, derivativeOrder):
         dt = knotPoints[splineOrder] - knotPoints[0]
 
         previousControlPoints = controlPoints
 
         for k in range(derivativeOrder):
-            print("k",k)
             newControlPoints = np.zeros((len(previousControlPoints)-1,2))
 
             for i in range(len(previousControlPoints)-1):
@@ -645,16 +661,16 @@ class HighPriorityPathPlannerDeterministic:
         controlPoints, knotPoints = self.fit_spline_to_path(path,params.numControlPoints)
         print("Time to fit spline to path", time.time()-startTime)
         
+        knotPoints = self.create_unclamped_knot_points(0, 1, params.numControlPoints,params.splineOrder)
+        controlPoints = self.move_first_control_point_so_spline_passes_through_start(controlPoints,knotPoints,params.highPriorityStart,[10,10])
+        controlPoints = self.move_last_control_point_so_spline_passes_through_end(controlPoints,knotPoints,params.highPriorityEnd,[10,10])
 
         startTime = time.time()
         knotPoints,tf = self.assure_velocity_constraint(radarList, controlPoints, knotPoints,params.numControlPoints)
         print("Time to assure velocity constraint", time.time()-startTime)
 
-        knotPoints = self.create_unclamped_knot_points(0, 1, params.numControlPoints,params.splineOrder)
-        controlPoints = self.move_first_control_point_so_spline_passes_through_start(controlPoints,knotPoints,params.highPriorityStart,[10,10])
-        print()
 
-        controlPointsDerivative, knotPointsDerivative,kDerivative = self.find_derivative_control_points(controlPoints, knotPoints,params.splineOrder,2)
+        controlPointsDerivative, knotPointsDerivative,kDerivative = self.find_derivative_control_points(controlPoints, knotPoints,params.splineOrder,1)
 
 
         knotPoints = self.create_unclamped_knot_points(0, tf, params.numControlPoints,params.splineOrder)
@@ -704,7 +720,7 @@ class HighPriorityPathPlannerDeterministic:
         print("control points", controlPoints)
         print("knot points", knotPoints)
         t = np.linspace(0, knotPoints[-params.splineOrder-1], 200)
-        pos = self.evaluate_spline(t, controlPoints, knotPoints)
+        pos = self.evaluate_spline(t, controlPoints, knotPoints,params.splineOrder)
 
         ax.plot(pos[:,0], pos[:,1])
         ax.plot(controlPoints[:,0], controlPoints[:,1], 'k--',marker='o',alpha=.5)
