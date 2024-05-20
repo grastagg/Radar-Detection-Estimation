@@ -24,6 +24,7 @@ from scipy.spatial import Voronoi, voronoi_plot_2d
 
 import igraph as ig
 import time
+from spline import coef2curve
 
 
 class HighPriorityPathPlannerDeterministic:
@@ -97,6 +98,12 @@ class HighPriorityPathPlannerDeterministic:
         return pd, u, v, pos
 
 
+    def evaluate_spline(self,evalPoints, controlPoints, knotPoints,splineOrder):
+        knotPoints = np.vstack((knotPoints,knotPoints))
+        evalPoints = np.vstack((evalPoints,evalPoints))
+        out = coef2curve(evalPoints, knotPoints, controlPoints.T, splineOrder)
+        return out
+        print()
 
     def spline_seg(self,control_points,t):
         '''
@@ -574,6 +581,46 @@ class HighPriorityPathPlannerDeterministic:
                 new_path.append(point)
         new_path.append(path[-1])
         return np.array(new_path)
+    
+    def create_unclamped_knot_points(self, t0, tf, numControlPoints,splineOrder):
+        internalKnots = np.linspace(t0, tf, numControlPoints - 2, endpoint=True)
+        h = internalKnots[1] - internalKnots[0]
+        knots = np.concatenate((np.linspace(t0-splineOrder*h,t0-h,splineOrder), internalKnots, np.linspace(tf+h,tf+splineOrder*h,splineOrder)))
+        
+        return knots
+
+    def move_first_control_point_so_spline_passes_through_start(self, controlPoints,knotPoints, start,startVelocity):
+        dt = knotPoints[3]-knotPoints[0]
+        A = np.array([[1/6,0,2/3,0],[0,1/6,0,2/3],[-3/(2*dt),0,0,0],[0,-3/(2*dt),0,0]])
+        c3x = controlPoints[2,0]
+        c3y = controlPoints[2,1]
+
+        b = np.array([[start[0] - (1/6)*c3x],[start[1]- (1/6)*c3y],[startVelocity[0]-3/(2*dt)*c3x],[startVelocity[1]-3/(2*dt)*c3y]])
+
+        x = np.linalg.solve(A,b)
+        # controlPoints[1,0] = x[0]
+        # controlPoints[0,1] = x[1]
+        # controlPoints[1,0] = x[2]
+        # controlPoints[1,1] = x[3]
+        controlPoints[0:2,0:2] = x.reshape((2,2))
+
+        return controlPoints
+
+    def find_derivative_control_points(self, controlPoints, knotPoints,splineOrder, derivativeOrder):
+        dt = knotPoints[splineOrder] - knotPoints[0]
+
+        previousControlPoints = controlPoints
+
+        for k in range(derivativeOrder):
+            print("k",k)
+            newControlPoints = np.zeros((len(previousControlPoints)-1,2))
+
+            for i in range(len(previousControlPoints)-1):
+                newControlPoints[i] = splineOrder*(previousControlPoints[i+1] - previousControlPoints[i]) / dt
+            previousControlPoints = newControlPoints
+        
+        return newControlPoints,knotPoints[derivativeOrder:-derivativeOrder],splineOrder-1
+        
 
     def get_initial_guess_voronoi(self,radarList,bounds,plot=False):
         startTime = time.time()
@@ -597,15 +644,27 @@ class HighPriorityPathPlannerDeterministic:
         path = self.fill_in_path(path)
         controlPoints, knotPoints = self.fit_spline_to_path(path,params.numControlPoints)
         print("Time to fit spline to path", time.time()-startTime)
+        
 
         startTime = time.time()
         knotPoints,tf = self.assure_velocity_constraint(radarList, controlPoints, knotPoints,params.numControlPoints)
         print("Time to assure velocity constraint", time.time()-startTime)
 
+        knotPoints = self.create_unclamped_knot_points(0, 1, params.numControlPoints,params.splineOrder)
+        controlPoints = self.move_first_control_point_so_spline_passes_through_start(controlPoints,knotPoints,params.highPriorityStart,[10,10])
+        print()
+
+        controlPointsDerivative, knotPointsDerivative,kDerivative = self.find_derivative_control_points(controlPoints, knotPoints,params.splineOrder,2)
+
+
+        knotPoints = self.create_unclamped_knot_points(0, tf, params.numControlPoints,params.splineOrder)
+        print()
+
 
         if plot:
-            tmpSpline = self.spline_seg(controlPoints, knotPoints)
-            self.plot_spline(tmpSpline,ax)
+            # tmpSpline = self.spline_seg(controlPoints, knotPoints)
+            # self.plot_spline(tmpSpline,ax)
+            self.plot_spline_from_control_points(controlPoints, knotPoints,ax)
 
             ax.plot(path[:,0], path[:,1], 'r--')
             for key in nodes.keys():
@@ -640,6 +699,15 @@ class HighPriorityPathPlannerDeterministic:
         t = np.linspace(0, tf, 200)
         pos = spline(t)
         ax.plot(pos[:,0], pos[:,1])
+
+    def plot_spline_from_control_points(self, controlPoints, knotPoints,ax):
+        print("control points", controlPoints)
+        print("knot points", knotPoints)
+        t = np.linspace(0, knotPoints[-params.splineOrder-1], 200)
+        pos = self.evaluate_spline(t, controlPoints, knotPoints)
+
+        ax.plot(pos[:,0], pos[:,1])
+        ax.plot(controlPoints[:,0], controlPoints[:,1], 'k--',marker='o',alpha=.5)
     
     def plot_constraints(self, spline, radarList,numConstraintSamples=100):
         tf = spline.t[-1]
@@ -662,10 +730,10 @@ if __name__ == "__main__":
     radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGain, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
     # hpp.find_initial_guess_rrt_star(radarList,plot=True)
     pdMap = ProbabilityOfDetectionMap(params.X_test,radarList)
-    startTime = time.time()
-    ax = hpp.plan_deterministic_path(radarList,plot=True)
+    # startTime = time.time()
+    # ax = hpp.plan_deterministic_path(radarList,plot=True)
     # print("path planning time", time.time()-startTime)
-    # _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=True)
+    _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=True)
     
     # fig,ax = plt.subplots
     # ax.set_aspect('equal')
@@ -673,7 +741,7 @@ if __name__ == "__main__":
         fig,ax = plt.subplots()
     c = pdMap.plot_mean(ax,plotGroundTruth=True)
     # fig.colorbar(c, ax=ax)
-    hpp.plot_spline(hpp.spline,ax)
-    hpp.plot_constraints(hpp.spline, radarList)
+    # hpp.plot_spline(hpp.spline,ax)
+    # hpp.plot_constraints(hpp.spline, radarList)
     plt.show()
         
