@@ -148,7 +148,6 @@ class HighPriorityPathPlannerDeterministic:
         initialControlPoints, tfIntial,ax = self.get_initial_guess_voronoi(radarList,params.bounds,plot=plot)
         print("Time to find initial guess", time.time()-startTimer)
         initialControlPoints = initialControlPoints[1:-1,:]
-        plt.show()
 
 
         def objective_function(xDict):
@@ -177,7 +176,7 @@ class HighPriorityPathPlannerDeterministic:
         optProb.addObj("obj")
         opt = OPT("ipopt")
         opt.options['print_level'] = 0
-        opt.options['max_iter'] = 1
+        opt.options['max_iter'] = 100
         opt.options['tol'] = 1e-8
         sol = opt(optProb, sens = 'FD')
         print(sol)
@@ -304,7 +303,6 @@ class HighPriorityPathPlannerDeterministic:
                 plt.grid(True)
                 ax = plt.gca()
                 # self.plot_constraints(spline, radarList)
-                # plt.show()
         return combined_control_points, tf,ax
     
     # def dist_of_point_to_line_segment(self, x1, y1, x2, y2, x3, y3): # x3,y3 is the point
@@ -665,9 +663,9 @@ if __name__ == "__main__":
     # hpp.find_initial_guess_rrt_star(radarList,plot=True)
     pdMap = ProbabilityOfDetectionMap(params.X_test,radarList)
     startTime = time.time()
-    # ax = hpp.plan_deterministic_path(radarList,plot=True)
+    ax = hpp.plan_deterministic_path(radarList,plot=True)
     # print("path planning time", time.time()-startTime)
-    _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=True)
+    # _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=True)
     
     # fig,ax = plt.subplots
     # ax.set_aspect('equal')
@@ -675,7 +673,7 @@ if __name__ == "__main__":
         fig,ax = plt.subplots()
     c = pdMap.plot_mean(ax,plotGroundTruth=True)
     # fig.colorbar(c, ax=ax)
-    # hpp.plot_spline(hpp.spline,ax)
-    # hpp.plot_constraints(hpp.spline, radarList)
+    hpp.plot_spline(hpp.spline,ax)
+    hpp.plot_constraints(hpp.spline, radarList)
     plt.show()
         
