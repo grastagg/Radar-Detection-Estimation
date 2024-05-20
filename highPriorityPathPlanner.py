@@ -635,7 +635,11 @@ class HighPriorityPathPlannerDeterministic:
                 newControlPoints[i] = splineOrder*(previousControlPoints[i+1] - previousControlPoints[i]) / dt
             previousControlPoints = newControlPoints
         
-        return newControlPoints,knotPoints[derivativeOrder:-derivativeOrder],splineOrder-1
+        return newControlPoints,knotPoints[derivativeOrder:-derivativeOrder],splineOrder-derivativeOrder
+    
+    def evaluate_spline_derivative(self, t, controlPoints, knotPoints,splineOrder, derivativeOrder):
+        controlPoints, knotPoints, splineOrder = self.find_derivative_control_points(controlPoints, knotPoints,splineOrder, derivativeOrder)
+        return self.evaluate_spline(t, controlPoints, knotPoints, splineOrder)
         
 
     def get_initial_guess_voronoi(self,radarList,bounds,plot=False):
@@ -661,19 +665,25 @@ class HighPriorityPathPlannerDeterministic:
         controlPoints, knotPoints = self.fit_spline_to_path(path,params.numControlPoints)
         print("Time to fit spline to path", time.time()-startTime)
         
-        knotPoints = self.create_unclamped_knot_points(0, 1, params.numControlPoints,params.splineOrder)
-        controlPoints = self.move_first_control_point_so_spline_passes_through_start(controlPoints,knotPoints,params.highPriorityStart,[10,10])
-        controlPoints = self.move_last_control_point_so_spline_passes_through_end(controlPoints,knotPoints,params.highPriorityEnd,[10,10])
-
         startTime = time.time()
         knotPoints,tf = self.assure_velocity_constraint(radarList, controlPoints, knotPoints,params.numControlPoints)
         print("Time to assure velocity constraint", time.time()-startTime)
 
-
-        controlPointsDerivative, knotPointsDerivative,kDerivative = self.find_derivative_control_points(controlPoints, knotPoints,params.splineOrder,1)
-
-
         knotPoints = self.create_unclamped_knot_points(0, tf, params.numControlPoints,params.splineOrder)
+        controlPoints = self.move_first_control_point_so_spline_passes_through_start(controlPoints,knotPoints,params.highPriorityStart,[10,10])
+        controlPoints = self.move_last_control_point_so_spline_passes_through_end(controlPoints,knotPoints,params.highPriorityEnd,[10,10])
+
+
+
+        evalPoints = [0,tf/2,tf]
+
+        spl = self.spline_seg(controlPoints, knotPoints)
+        der = spl.derivative(2)
+        print("scipy spline,",spl(evalPoints))
+        print("jax spline",self.evaluate_spline(evalPoints,controlPoints,knotPoints,3))
+        print("scipy derivative",der(evalPoints))
+        print("jax derivative",self.evaluate_spline_derivative(evalPoints,controlPoints,knotPoints,3,2))
+
         print()
 
 
