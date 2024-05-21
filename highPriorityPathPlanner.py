@@ -95,8 +95,8 @@ class HighPriorityPathPlannerDeterministic:
 
 
     def evaluate_spline(self,evalPoints, controlPoints, knotPoints,splineOrder):
-        knotPoints = jnp.vstack((knotPoints,knotPoints))
-        evalPoints = jnp.vstack((evalPoints,evalPoints))
+        knotPoints = np.vstack((knotPoints,knotPoints))
+        evalPoints = np.vstack((evalPoints,evalPoints))
         out = coef2curve(evalPoints, knotPoints, controlPoints.T, splineOrder)
         return out
 
@@ -618,31 +618,35 @@ class HighPriorityPathPlannerDeterministic:
 
         return controlPoints
 
-    def find_derivative_control_points(self, controlPoints, knotPoints,splineOrder, derivativeOrder):
+    def find_derivative_control_points(self, controlPoints, knotPoints,splineOrder):
         dt = knotPoints[splineOrder] - knotPoints[0]
 
         previousControlPoints = controlPoints
 
-        for k in range(derivativeOrder):
-            newControlPoints = np.zeros((len(previousControlPoints)-1,2))
+        newControlPoints = np.array([splineOrder*(previousControlPoints[i+1] - previousControlPoints[i]) / dt for i in range(len(previousControlPoints)-1)])
 
-            for i in range(len(previousControlPoints)-1):
-                newControlPoints[i] = splineOrder*(previousControlPoints[i+1] - previousControlPoints[i]) / dt
-            previousControlPoints = newControlPoints
+        # for k in range(derivativeOrder):
+        #     newControlPoints = np.zeros((len(previousControlPoints)-1,2))
+
+        #     for i in range(len(previousControlPoints)-1):
+        #         newControlPoints[i] = splineOrder*(previousControlPoints[i+1] - previousControlPoints[i]) / dt
+        #     previousControlPoints = newControlPoints
         
-        return newControlPoints,knotPoints[derivativeOrder:-derivativeOrder],splineOrder-derivativeOrder
+        return newControlPoints,knotPoints[1:-1],splineOrder-1
     
     def evaluate_spline_derivative(self, t, controlPoints, knotPoints,splineOrder, derivativeOrder):
-        f = lambda x: self.evaluate_spline(x,controlPoints, knotPoints, splineOrder)
+        # f = lambda x: self.evaluate_spline(x,controlPoints, knotPoints, splineOrder)
+        # for i in range(derivativeOrder):
+        #     f = jacfwd(f)
+        # A = f(jnp.array(t))
+        # # A = jacfwd(self.evaluate_spline)(jnp.array(t),controlPoints, knotPoints, splineOrder)
+        # return A.transpose(0,2,1).reshape(len(t)**2,2)[::len(t)+1]
+        # # return np.array([A[i,:,i] for i in range(len(A))])
+        # # return A[A!=0].reshape(len(t),2)
         for i in range(derivativeOrder):
-            f = jacfwd(f)
-        A = f(jnp.array(t))
-        # A = jacfwd(self.evaluate_spline)(jnp.array(t),controlPoints, knotPoints, splineOrder)
-        return A.transpose(0,2,1).reshape(len(t)**2,2)[::len(t)+1]
-        # return np.array([A[i,:,i] for i in range(len(A))])
-        # return A[A!=0].reshape(len(t),2)
-        # controlPoints, knotPoints, splineOrder = self.find_derivative_control_points(controlPoints, knotPoints,splineOrder, derivativeOrder)
-        # return self.evaluate_spline(t, controlPoints, knotPoints, splineOrder)
+            controlPoints, knotPoints, splineOrder = self.find_derivative_control_points(controlPoints, knotPoints,splineOrder)
+        
+        return self.evaluate_spline(t, controlPoints, knotPoints, splineOrder)
         
 
     def get_initial_guess_voronoi(self,radarList,bounds,plot=False):
