@@ -1,5 +1,5 @@
 import numpy as np
-import jax.numpy as jnp
+# import jax.numpy as jnp
 from jax import jacfwd
 from scipy.constants import k as boltzman
 import matplotlib
@@ -27,6 +27,9 @@ from scipy.spatial import Voronoi, voronoi_plot_2d
 import igraph as ig
 import time
 from spline import coef2curve
+
+from bspline.matrix_evaluation import matrix_bspline_evaluation,derivative_matrix_bspline_evaluation,matrix_bspline_derivative_evaluation_for_dataset, matrix_bspline_evaluation_for_dataset
+from bspline.bsplines import BsplineEvaluation
 
 
 class HighPriorityPathPlannerDeterministic:
@@ -94,11 +97,6 @@ class HighPriorityPathPlannerDeterministic:
         return pd, u, v, pos
 
 
-    def evaluate_spline(self,evalPoints, controlPoints, knotPoints,splineOrder):
-        knotPoints = np.vstack((knotPoints,knotPoints))
-        evalPoints = np.vstack((evalPoints,evalPoints))
-        out = coef2curve(evalPoints, knotPoints, controlPoints.T, splineOrder)
-        return out
 
     def spline_seg(self,control_points,t):
         '''
@@ -114,7 +112,7 @@ class HighPriorityPathPlannerDeterministic:
 
 
         #create scipy bpline object
-        spline = interpolate.BSpline(t, control_points, 3)
+        spline = interpolate.BSpline(t.squeeze(), control_points, 3)
 
         return spline
 
@@ -141,8 +139,8 @@ class HighPriorityPathPlannerDeterministic:
 
         controlPoints[-1,:] = endPose 
         return controlPoints
-        
-
+    
+    
     
     def plan_deterministic_path(self, radar_list,plot=False):
         startTimer = time.time()
@@ -157,6 +155,8 @@ class HighPriorityPathPlannerDeterministic:
             controlPoints = xDict['control_points'].reshape((params.numControlPoints,2))
             funcs = {}
             pd, u, v, pos = self.spline_constraints(radar_list, controlPoints, knotPoints,params.numConstraintSamples)
+            funcs['start'] = pos[0]
+            funcs['end'] = pos[-1]
             funcs['obj'] = tf 
             funcs['turn_rate'] = u 
             funcs['velocity'] = v 
@@ -168,20 +168,22 @@ class HighPriorityPathPlannerDeterministic:
             
 
         optProb = Optimization("low priority path", objective_function)
-        optProb.addVarGroup(name = "control_points", nVars = 2*(params.numControlPoints), varType = 'c', value = initialControlPoints.reshape((2*(params.numControlPoints))), lower = 0, upper=params.bounds[1])
+        optProb.addVarGroup(name = "control_points", nVars = 2*(params.numControlPoints), varType = 'c', value = initialControlPoints.reshape((2*(params.numControlPoints))), lower = 0-2000, upper=params.bounds[1]+2000)
         # optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = straitLineDist/params.agentSpeed, lower = 0, upper=params.pathLengthMultiplier * straitLineDist/params.agentSpeed)
         optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = tfIntial, lower = 0, upper=params.pathLengthMultiplier * straitLineDist/params.agentSpeed)
         optProb.addConGroup("turn_rate", params.numConstraintSamples, lower=-params.maxTurnRate, upper=params.maxTurnRate, scale=1.0 / params.maxTurnRate)
         optProb.addConGroup("velocity", params.numConstraintSamples, lower=-params.velocityBounds[0], upper=params.velocityBounds[1], scale=1.0 / params.velocityBounds[1])
         optProb.addConGroup("pd", params.numConstraintSamples, lower=0, upper=params.probabilityOfDetectionThreshold, scale=1.0)
+        optProb.addConGroup("start", 2, lower = params.highPriorityStart, upper = params.highPriorityStart)
+        optProb.addConGroup("end", 2, lower = params.highPriorityEnd, upper = params.highPriorityEnd)
         optProb.addObj("obj")
         opt = OPT("ipopt")
-        opt.options['print_level'] = 0
-        opt.options['max_iter'] = 100
+        opt.options['print_level'] = 5
+        opt.options['max_iter'] = 1000
         opt.options['tol'] = 1e-8
         sol = opt(optProb, sens = 'FD')
         print(sol)
-        knotPoints = self.create_unclamped_knot_points(0, sol.xStar['tf'], params.numControlPoints)
+        knotPoints = self.create_unclamped_knot_points(0, sol.xStar['tf'], params.numControlPoints,params.splineOrder)
         # controlPoints = self.create_control_points(sol.xStar['control_points'], params.highPriorityStart, params.highPriorityEnd, params.splineOrder, knotPoints)
         controlPoints = sol.xStar['control_points'].reshape((params.numControlPoints,2))
         self.spline = self.spline_seg(controlPoints, knotPoints)
@@ -633,6 +635,16 @@ class HighPriorityPathPlannerDeterministic:
         #     previousControlPoints = newControlPoints
         
         return newControlPoints,knotPoints[1:-1],splineOrder-1
+
+    def evaluate_spline(self,evalPoints, controlPoints, knotPoints,splineOrder):
+        # knotPoints = np.vstack((knotPoints,knotPoints))
+        # evalPoints = np.vstack((evalPoints,evalPoints))
+        # out = coef2curve(evalPoints, knotPoints, controlPoints.T, splineOrder)
+        # out = matrix_bspline_evaluation(evalPoints, 1, controlPoints.T, knotPoints)
+        # scaleFactor = knotPoints[-splineOrder-1]/(len(knotPoints)-2*splineOrder-1)
+        # return np.array([matrix_bspline_evaluation(point, scaleFactor, controlPoints.T, knotPoints) for point in evalPoints]).squeeze()
+        return matrix_bspline_evaluation_for_dataset(controlPoints.T, knotPoints, params.numSamplesPerInterval)
+        # return self.spline_seg(controlPoints, knotPoints)(evalPoints)
     
     def evaluate_spline_derivative(self, t, controlPoints, knotPoints,splineOrder, derivativeOrder):
         # f = lambda x: self.evaluate_spline(x,controlPoints, knotPoints, splineOrder)
@@ -643,10 +655,17 @@ class HighPriorityPathPlannerDeterministic:
         # return A.transpose(0,2,1).reshape(len(t)**2,2)[::len(t)+1]
         # # return np.array([A[i,:,i] for i in range(len(A))])
         # # return A[A!=0].reshape(len(t),2)
-        for i in range(derivativeOrder):
-            controlPoints, knotPoints, splineOrder = self.find_derivative_control_points(controlPoints, knotPoints,splineOrder)
+        # for i in range(derivativeOrder):
+        #     controlPoints, knotPoints, splineOrder = self.find_derivative_control_points(controlPoints, knotPoints,splineOrder)
         
-        return self.evaluate_spline(t, controlPoints, knotPoints, splineOrder)
+        # return self.evaluate_spline(t, controlPoints, knotPoints, splineOrder)
+
+        scaleFactor = knotPoints[-splineOrder-1]/(len(knotPoints)-2*splineOrder-1)
+        # return np.array([derivative_matrix_bspline_evaluation(time, derivativeOrder, scaleFactor, controlPoints.T, knotPoints, clamped = False) for time in t]).squeeze()
+        # return self.spline_seg(controlPoints, knotPoints).derivative(derivativeOrder)(t)
+        # return matrix_bspline_derivative_evaluation_for_dataset(controlPoints.T, knotPoints, 3, derivativeOrder)
+        return matrix_bspline_derivative_evaluation_for_dataset(derivativeOrder, scaleFactor, controlPoints.T, knotPoints, params.numSamplesPerInterval, clamped = False)
+        
         
 
     def get_initial_guess_voronoi(self,radarList,bounds,plot=False):
@@ -723,7 +742,7 @@ class HighPriorityPathPlannerDeterministic:
         
     
     def plot_spline(self, spline,ax):
-        tf = spline.t[-1]
+        tf = spline.t[-params.splineOrder-1]
         t = np.linspace(0, tf, 200)
         pos = spline(t)
         ax.plot(pos[:,0], pos[:,1])
@@ -737,8 +756,8 @@ class HighPriorityPathPlannerDeterministic:
     
     def plot_constraints(self, spline, radarList,numConstraintSamples=100):
         tf = spline.t[-1]
-        # t = np.linspace(0, tf, params.numConstraintSamples)
-        t = np.linspace(0, tf, numConstraintSamples)
+        t = np.linspace(0, tf, params.numConstraintSamples)
+        # t = np.linspace(0, tf, numConstraintSamples)
         controlPoints = spline.c
         knotPoints = spline.t
         pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,numConstraintSamples)
