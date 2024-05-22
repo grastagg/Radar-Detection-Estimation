@@ -29,7 +29,6 @@ import time
 from spline import coef2curve
 
 from bspline.matrix_evaluation import matrix_bspline_evaluation,derivative_matrix_bspline_evaluation,matrix_bspline_derivative_evaluation_for_dataset, matrix_bspline_evaluation_for_dataset
-from bspline.bsplines import BsplineEvaluation
 
 
 class HighPriorityPathPlannerDeterministic:
@@ -68,6 +67,9 @@ class HighPriorityPathPlannerDeterministic:
         
         return 1-probabilityOfNoDetection   
 
+    def get_spline_velocity(self, controlPoints, knotPoints):
+        out_d1 = self.evaluate_spline_derivative(None,controlPoints,knotPoints,params.splineOrder,1)
+        return np.linalg.norm(out_d1,axis=1)
 
     def get_turn_rate_and_velocity(self, t, controlPoints, knotPoints):
         out_d1 = self.evaluate_spline_derivative(t,controlPoints,knotPoints,params.splineOrder,1)
@@ -245,12 +247,14 @@ class HighPriorityPathPlannerDeterministic:
         return combined_control_points,combined_knot_points
     
     def assure_velocity_constraint(self, radarList, controlPoints, knotPoints,num_control_points):
-        pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,params.numConstraintSamples)
+        # pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,params.numConstraintSamples)
+        v = self.get_spline_velocity(controlPoints, knotPoints)
         tf=np.linalg.norm(controlPoints[0]-controlPoints[-1])/params.agentSpeed
         while np.max(v) > params.velocityBounds[1]:
-            tf += 3
+            tf += 10
             combined_knot_points = self.create_unclamped_knot_points(0, tf, num_control_points,params.splineOrder)
-            pd, u, v, pos = self.spline_constraints(radarList, controlPoints, combined_knot_points,params.numConstraintSamples)
+            v = self.get_spline_velocity(controlPoints, combined_knot_points)
+            # pd, u, v, pos = self.spline_constraints(radarList, controlPoints, combined_knot_points,params.numConstraintSamples)
         return combined_knot_points,tf
         
     
@@ -742,17 +746,19 @@ class HighPriorityPathPlannerDeterministic:
         
     
     def plot_spline(self, spline,ax):
+        controlPoints = spline.c
         tf = spline.t[-params.splineOrder-1]
         t = np.linspace(0, tf, 200)
         pos = spline(t)
         ax.plot(pos[:,0], pos[:,1])
+        ax.plot(controlPoints[:,0], controlPoints[:,1], 'k--',marker='o',alpha=.5)
 
     def plot_spline_from_control_points(self, controlPoints, knotPoints,ax):
         t = np.linspace(0, knotPoints[-params.splineOrder-1], 200)
         pos = self.evaluate_spline(t, controlPoints, knotPoints,params.splineOrder)
 
         ax.plot(pos[:,0], pos[:,1])
-        ax.plot(controlPoints[:,0], controlPoints[:,1], 'k--',marker='o',alpha=.5)
+        # ax.plot(controlPoints[:,0], controlPoints[:,1], 'k--',marker='o',alpha=.5)
     
     def plot_constraints(self, spline, radarList,numConstraintSamples=100):
         tf = spline.t[-1]

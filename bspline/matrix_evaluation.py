@@ -64,7 +64,6 @@ def matrix_bspline_evaluation_for_dataset(control_points, knot_points, num_point
     num_intervals = number_of_control_points - order
     #create steps matrix
     steps_array = np.linspace(0,1,num_ppi+1)
-    steps_array = np.linspace(0, 1, num_ppi + 1)
     steps_array = steps_array[:, np.newaxis]  # Reshape to column vector
     powers = np.arange(order, -1, -1)          # Powers for each row
     L = (steps_array ** powers).T
