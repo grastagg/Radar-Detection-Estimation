@@ -1,8 +1,12 @@
 import jax.numpy as jnp
 from functools import partial
 from jax import jit
+import numpy as np
 
 from bspline.matrix_evaluation import matrix_bspline_derivative_evaluation_for_dataset, matrix_bspline_evaluation_for_dataset
+
+from main_helper import create_radar_list
+
 
 
 
@@ -19,6 +23,9 @@ def evaluate_spline_derivative(controlPoints, knotPoints,splineOrder, derivative
     scaleFactor = knotPoints[-splineOrder-1]/(len(knotPoints)-2*splineOrder-1)
     return matrix_bspline_derivative_evaluation_for_dataset(derivativeOrder, scaleFactor, controlPoints.T, knotPoints, numSamplesPerInterval)
 
+@partial(jit, static_argnums=(1,2))
+def evaluate_spline(controlPoints, knotPoints,numSamplesPerInterval):
+    return matrix_bspline_evaluation_for_dataset(controlPoints.T, knotPoints, numSamplesPerInterval)
 
 @partial(jit, static_argnums=(2,3))
 def get_spline_velocity(controlPoints, tf, splineOrder, numSamplesPerInterval):
@@ -28,3 +35,8 @@ def get_spline_velocity(controlPoints, tf, splineOrder, numSamplesPerInterval):
     knotPoints = create_unclamped_knot_points(0, tf, numControlPoints,splineOrder)
     out_d1 = evaluate_spline_derivative(controlPoints,knotPoints,splineOrder,1,numSamplesPerInterval)
     return jnp.linalg.norm(out_d1,axis=1)
+
+
+
+
+    

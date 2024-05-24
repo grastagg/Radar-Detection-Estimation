@@ -108,11 +108,11 @@ class HighPriorityPathPlannerDeterministic:
         u = jnp.cross(out_d1,out_d2) / (v**2)
         return u
     
-    def get_pd_along_spline(self, controlPoints, tf, radarList):
-        knotPoints = create_unclamped_knot_points(0, tf, params.numControlPoints,params.splineOrder)
-        pos = self.evaluate_spline(None,controlPoints,knotPoints,params.splineOrder)
-        pd = self.ground_truth_probability_of_detection(pos, radarList)
-        return pd
+    # def get_pd_along_spline(self, controlPoints, tf, radarList):
+    #     knotPoints = create_unclamped_knot_points(0, tf, params.numControlPoints,params.splineOrder)
+    #     pos = self.evaluate_spline(None,controlPoints,knotPoints,params.splineOrder)
+    #     pd = self.ground_truth_probability_of_detection(pos, radarList)
+    #     return pd
     
     def get_start_constraint(self, controlPoints):
         cp1 = controlPoints[0:2]
@@ -268,7 +268,7 @@ class HighPriorityPathPlannerDeterministic:
         optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = tfIntial, lower = 0, upper=params.pathLengthMultiplier * straitLineDist/params.agentSpeed)
         # optProb.addConGroup("turn_rate", params.numConstraintSamples, lower=-params.maxTurnRate, upper=params.maxTurnRate, scale=1.0 / params.maxTurnRate)
         optProb.addConGroup("velocity", params.numConstraintSamples, lower=-params.velocityBounds[0], upper=params.velocityBounds[1], scale=1.0 / params.velocityBounds[1])
-        # optProb.addConGroup("pd", params.numConstraintSamples, lower=0, upper=params.probabilityOfDetectionThreshold, scale=1.0)
+        optProb.addConGroup("pd", params.numConstraintSamples, lower=0, upper=params.probabilityOfDetectionThreshold, scale=1.0)
         optProb.addConGroup("start", 2, lower = params.highPriorityStart, upper = params.highPriorityStart)
         optProb.addConGroup("end", 2, lower = params.highPriorityEnd, upper = params.highPriorityEnd)
         optProb.addObj("obj")
