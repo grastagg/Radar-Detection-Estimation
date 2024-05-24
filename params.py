@@ -5,7 +5,7 @@ import jax
 # from scipy.constants import boltzman
 from scipy.constants import k as boltzman
 
-np.random.seed(94123)
+np.random.seed(91234123)
         
 def db_to_amplitude(db):
     return 10**(db/10)

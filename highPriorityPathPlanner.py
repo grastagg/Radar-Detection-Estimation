@@ -39,7 +39,7 @@ from highPriorityHelperFunctions import create_unclamped_knot_points, get_spline
 
 
 class HighPriorityPathPlannerDeterministic:
-    def __init__(self) -> None:
+    def __init__(self,radarList):
         #run jax function once to compile
         start = time.time()
         self.evaluate_spline_derivative(0,np.zeros((params.numControlPoints,2)),np.zeros(params.numControlPoints+params.splineOrder+1),params.splineOrder,1)
@@ -49,16 +49,15 @@ class HighPriorityPathPlannerDeterministic:
         
         self.dVelocityDControlPoints = jacfwd(get_spline_velocity)
         self.dVelocityDtf = jacfwd(get_spline_velocity,argnums=1)
-        # dTurnRateDControlPoints = jacfwd(self.get_spline_turn_rate)(controlPoints, tf)
-        # dTurnRateDtf = np.array(jacfwd(self.get_spline_turn_rate,argnums=1)(controlPoints, tf),dtype=np.float64)
+
         self.dPdDControlPoints = jacfwd(get_pd_along_spline,argnums=0)
         self.dPdDtf = jacfwd(get_pd_along_spline,argnums=1)
 
         self.dTurnRateDControlPoints = jacfwd(get_spline_turn_rate)
         self.dTurnRateTf = jacfwd(get_spline_turn_rate,argnums=1)
-
         print("Time to compile jax functions", time.time()-start)
         pass
+    
     
     def get_turn_rate_and_velocity(self, t, controlPoints, knotPoints):
         out_d1 = self.evaluate_spline_derivative(t,controlPoints,knotPoints,params.splineOrder,1)
@@ -790,18 +789,18 @@ class HighPriorityPathPlannerDeterministic:
     
 if __name__ == "__main__":
 
-    hpp = HighPriorityPathPlannerDeterministic()
 
 
     radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGain, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
+    hpp = HighPriorityPathPlannerDeterministic(tuple(radarList))
     # hpp.find_initial_guess_rrt_star(radarList,plot=True)
     pdMap = ProbabilityOfDetectionMap(params.X_test,radarList)
     startTime = time.time()
     ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
     print("path planning time", time.time()-startTime)
-    startTime = time.time()
-    ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
-    print("path planning time", time.time()-startTime)
+    # startTime = time.time()
+    # ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
+    # print("path planning time", time.time()-startTime)
     # startTime = time.time()
     # _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=False)
     # print("time to get initial guess", time.time()-startTime)
