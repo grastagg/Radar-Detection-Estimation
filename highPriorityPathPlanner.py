@@ -1,6 +1,7 @@
 import numpy as np
-# import jax.numpy as jnp
-from jax import jacfwd
+import jax.numpy as jnp
+from jax import jacfwd,grad
+from jax import jit
 from scipy.constants import k as boltzman
 import matplotlib
 # matplotlib.use('TkAgg')
@@ -26,13 +27,24 @@ from scipy.spatial import Voronoi, voronoi_plot_2d
 
 import igraph as ig
 import time
-from spline import coef2curve
 
 from bspline.matrix_evaluation import matrix_bspline_evaluation,derivative_matrix_bspline_evaluation,matrix_bspline_derivative_evaluation_for_dataset, matrix_bspline_evaluation_for_dataset
+
+# from bspline.matrix_evaluation import matrix_bspline_evaluation_for_dataset_jax, matrix_bspline_evaluation_jax
+
+from highPriorityHelperFunctions import create_unclamped_knot_points, get_spline_velocity
 
 
 class HighPriorityPathPlannerDeterministic:
     def __init__(self) -> None:
+        #run jax function once to compile
+        start = time.time()
+        self.evaluate_spline_derivative(0,np.zeros((params.numControlPoints,2)),np.zeros(params.numControlPoints+params.splineOrder+1),params.splineOrder,1)
+        self.evaluate_spline(0,np.zeros((params.numControlPoints,2)),np.zeros(params.numControlPoints+params.splineOrder+1),params.splineOrder)
+        create_unclamped_knot_points(0, 1, params.numControlPoints,params.splineOrder)
+        get_spline_velocity(jnp.zeros((2*params.numControlPoints,)), 1, params.splineOrder, params.numSamplesPerInterval)
+        
+        print("Time to compile jax functions", time.time()-start)
         pass
     
 
@@ -67,9 +79,6 @@ class HighPriorityPathPlannerDeterministic:
         
         return 1-probabilityOfNoDetection   
 
-    def get_spline_velocity(self, controlPoints, knotPoints):
-        out_d1 = self.evaluate_spline_derivative(None,controlPoints,knotPoints,params.splineOrder,1)
-        return np.linalg.norm(out_d1,axis=1)
 
     def get_turn_rate_and_velocity(self, t, controlPoints, knotPoints):
         out_d1 = self.evaluate_spline_derivative(t,controlPoints,knotPoints,params.splineOrder,1)
@@ -85,6 +94,59 @@ class HighPriorityPathPlannerDeterministic:
         points = np.hstack((xPoints.reshape((len(xPoints),1)), yPoints.reshape((len(xPoints),1))))
         return points
 
+    # def get_spline_velocity(self, controlPoints, tf):
+    #     controlPoints = controlPoints.reshape((params.numControlPoints,2))
+    #     knotPoints = create_unclamped_knot_points(0, tf, params.numControlPoints,params.splineOrder)
+    #     out_d1 = self.evaluate_spline_derivative(None,controlPoints,knotPoints,params.splineOrder,1)
+    #     return jnp.linalg.norm(out_d1,axis=1)
+
+    def get_spline_turn_rate(self, controlPoints, tf):
+        knotPoints = create_unclamped_knot_points(0, tf, params.numControlPoints,params.splineOrder)
+        out_d1 = self.evaluate_spline_derivative(None,controlPoints,knotPoints,params.splineOrder,1)
+        out_d2 = self.evaluate_spline_derivative(None,controlPoints,knotPoints,params.splineOrder,2)
+        v = jnp.linalg.norm(out_d1,axis=1)
+        u = jnp.cross(out_d1,out_d2) / (v**2)
+        return u
+    
+    def get_pd_along_spline(self, controlPoints, tf, radarList):
+        knotPoints = create_unclamped_knot_points(0, tf, params.numControlPoints,params.splineOrder)
+        pos = self.evaluate_spline(None,controlPoints,knotPoints,params.splineOrder)
+        pd = self.ground_truth_probability_of_detection(pos, radarList)
+        return pd
+    
+    def get_start_constraint(self, controlPoints):
+        cp1 = controlPoints[0:2]
+        cp2 = controlPoints[2:4]
+        cp3 = controlPoints[4:6]
+        return np.array((1/6)*cp1 + (2/3)*cp2 + (1/6)*cp3)
+
+    def get_start_constraint_jacobian(self, controlPoints):
+        jac = np.zeros((2,2*params.numControlPoints))
+        jac[0,0] = 1/6
+        jac[0,2] = 2/3
+        jac[0,4] = 1/6
+        jac[1,1] = 1/6
+        jac[1,3] = 2/3
+        jac[1,5] = 1/6
+        return jac
+        
+    def get_end_constraint(self, controlPoints):
+        cpnMinus2 = controlPoints[-6:-4]
+        cpnMinus1 = controlPoints[-4:-2]
+        cpn = controlPoints[-2:]
+        return (1/6)*cpnMinus2 + (2/3)*cpnMinus1 + (1/6)*cpn
+    
+    def get_end_constraint_jacobian(self, controlPoints):
+        jac = np.zeros((2,2*params.numControlPoints))
+        jac[0,-6] = 1/6
+        jac[0,-4] = 2/3
+        jac[0,-2] = 1/6
+        jac[1,-5] = 1/6
+        jac[1,-3] = 2/3
+        jac[1,-1] = 1/6
+        return jac
+        
+        
 
     def spline_constraints(self, radarList, controlPoints, knotPoints,numConstraintSamples):
         # spline = self.spline_seg(controlPoints, knotPoints)
@@ -153,18 +215,49 @@ class HighPriorityPathPlannerDeterministic:
 
         def objective_function(xDict):
             tf = xDict['tf']
-            knotPoints = self.create_unclamped_knot_points(0, tf, params.numControlPoints,params.splineOrder)
-            controlPoints = xDict['control_points'].reshape((params.numControlPoints,2))
+            knotPoints = create_unclamped_knot_points(0, tf, params.numControlPoints,params.splineOrder)
+            controlPoints = xDict['control_points']
             funcs = {}
+            funcs['start'] = self.get_start_constraint(controlPoints)
+            funcs['end'] = self.get_end_constraint(controlPoints)
+            controlPoints = controlPoints.reshape((params.numControlPoints,2))
+            # v = self.get_spline_velocity(controlPoints, tf)
             pd, u, v, pos = self.spline_constraints(radar_list, controlPoints, knotPoints,params.numConstraintSamples)
-            funcs['start'] = pos[0]
-            funcs['end'] = pos[-1]
+            # funcs['start'] = self.get_start_constraint_jax(controlPoints)
+            # funcs['start'] = pos[0]
+            # funcs['end'] = pos[-1]
             funcs['obj'] = tf 
             funcs['turn_rate'] = u 
             funcs['velocity'] = v 
-            funcs['position'] = pos
+            # funcs['position'] = pos
             funcs['pd'] = pd
             return funcs, False
+    
+        def sens(xDict, funcs):
+            funcsSens = {}
+            controlPoints = jnp.array(xDict['control_points'])
+            tf = xDict['tf']
+
+            dStartDControlPoints = self.get_start_constraint_jacobian(controlPoints)
+            dEndDControlPoints = self.get_end_constraint_jacobian(controlPoints)
+            dVelocityDControlPoints = jacfwd(get_spline_velocity)(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval)
+            dVelocityDtf = np.array(jacfwd(get_spline_velocity,argnums=1)(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval),dtype=np.float64)
+            # dTurnRateDControlPoints = jacfwd(self.get_spline_turn_rate)(controlPoints, tf)
+            # dTurnRateDtf = np.array(jacfwd(self.get_spline_turn_rate,argnums=1)(controlPoints, tf),dtype=np.float64)
+            # dPdDControlPoints = jacfwd(self.get_pd_along_spline)(controlPoints, tf, radar_list)
+            # dPdDtf = np.array(jacfwd(self.get_pd_along_spline,argnums=1)(controlPoints, tf, radar_list),dtype=np.float64)
+
+            funcsSens['obj'] = {"control_points": np.zeros((1,2*params.numControlPoints)), "tf": 2}
+            funcsSens['start'] = {"control_points": dStartDControlPoints, "tf": np.zeros((2,1))}
+            funcsSens['end'] = {"control_points": dEndDControlPoints, "tf": np.zeros((2,1))}
+            # funcsSens['turn_rate'] = {"control_points": np.zeros((params.numConstraintSamples,2*params.numControlPoints)), "tf": np.zeros((params.numConstraintSamples,1))}
+            # funcsSens['velocity'] = {"control_points": np.zeros((params.numConstraintSamples,2*params.numControlPoints)), "tf": np.zeros((params.numConstraintSamples,1))}
+            funcsSens['velocity'] = {"control_points": dVelocityDControlPoints, "tf": dVelocityDtf}
+            # funcsSens['turn_rate'] = {"control_points": dTurnRateDControlPoints, "tf": dTurnRateDtf}
+            # funcsSens['pd'] = {"control_points": dPdDControlPoints, "tf": dPdDtf}
+            # funcsSens['pd'] = {"control_points": np.zeros((params.numConstraintSamples,2*params.numControlPoints)), "tf": np.zeros((params.numConstraintSamples,1))}
+            return funcsSens, False
+            
         
         straitLineDist = np.linalg.norm(np.array(params.highPriorityEnd) - np.array(params.highPriorityStart))
             
@@ -173,19 +266,22 @@ class HighPriorityPathPlannerDeterministic:
         optProb.addVarGroup(name = "control_points", nVars = 2*(params.numControlPoints), varType = 'c', value = initialControlPoints.reshape((2*(params.numControlPoints))), lower = 0-2000, upper=params.bounds[1]+2000)
         # optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = straitLineDist/params.agentSpeed, lower = 0, upper=params.pathLengthMultiplier * straitLineDist/params.agentSpeed)
         optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = tfIntial, lower = 0, upper=params.pathLengthMultiplier * straitLineDist/params.agentSpeed)
-        optProb.addConGroup("turn_rate", params.numConstraintSamples, lower=-params.maxTurnRate, upper=params.maxTurnRate, scale=1.0 / params.maxTurnRate)
+        # optProb.addConGroup("turn_rate", params.numConstraintSamples, lower=-params.maxTurnRate, upper=params.maxTurnRate, scale=1.0 / params.maxTurnRate)
         optProb.addConGroup("velocity", params.numConstraintSamples, lower=-params.velocityBounds[0], upper=params.velocityBounds[1], scale=1.0 / params.velocityBounds[1])
-        optProb.addConGroup("pd", params.numConstraintSamples, lower=0, upper=params.probabilityOfDetectionThreshold, scale=1.0)
+        # optProb.addConGroup("pd", params.numConstraintSamples, lower=0, upper=params.probabilityOfDetectionThreshold, scale=1.0)
         optProb.addConGroup("start", 2, lower = params.highPriorityStart, upper = params.highPriorityStart)
         optProb.addConGroup("end", 2, lower = params.highPriorityEnd, upper = params.highPriorityEnd)
         optProb.addObj("obj")
         opt = OPT("ipopt")
+        opt.options['derivative_test'] = 'first-order'
+        opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+        opt.options['linear_solver'] = 'ma97'
         opt.options['print_level'] = 5
-        opt.options['max_iter'] = 1000
+        opt.options['max_iter'] = 100
         opt.options['tol'] = 1e-8
-        sol = opt(optProb, sens = 'FD')
+        sol = opt(optProb, sens = sens)
         print(sol)
-        knotPoints = self.create_unclamped_knot_points(0, sol.xStar['tf'], params.numControlPoints,params.splineOrder)
+        knotPoints = create_unclamped_knot_points(0, sol.xStar['tf'], params.numControlPoints,params.splineOrder)
         # controlPoints = self.create_control_points(sol.xStar['control_points'], params.highPriorityStart, params.highPriorityEnd, params.splineOrder, knotPoints)
         controlPoints = sol.xStar['control_points'].reshape((params.numControlPoints,2))
         self.spline = self.spline_seg(controlPoints, knotPoints)
@@ -248,13 +344,14 @@ class HighPriorityPathPlannerDeterministic:
     
     def assure_velocity_constraint(self, radarList, controlPoints, knotPoints,num_control_points):
         # pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,params.numConstraintSamples)
-        v = self.get_spline_velocity(controlPoints, knotPoints)
         tf=np.linalg.norm(controlPoints[0]-controlPoints[-1])/params.agentSpeed
+        v = get_spline_velocity(controlPoints, tf,params.splineOrder,params.numSamplesPerInterval)
         while np.max(v) > params.velocityBounds[1]:
             tf += 10
-            combined_knot_points = self.create_unclamped_knot_points(0, tf, num_control_points,params.splineOrder)
-            v = self.get_spline_velocity(controlPoints, combined_knot_points)
+            # combined_knot_points = self.create_unclamped_knot_points(0, tf, num_control_points,params.splineOrder)
+            v = get_spline_velocity(controlPoints, tf,params.splineOrder,params.numSamplesPerInterval)
             # pd, u, v, pos = self.spline_constraints(radarList, controlPoints, combined_knot_points,params.numConstraintSamples)
+        combined_knot_points = create_unclamped_knot_points(0, tf, num_control_points,params.splineOrder)
         return combined_knot_points,tf
         
     
@@ -484,9 +581,13 @@ class HighPriorityPathPlannerDeterministic:
 
 
     def get_voronoi_ridge_segements(self,radarList,bounds,plot=False):
+        startTimer = time.time()
         points = np.array([[radar.position[0], radar.position[1]] for radar in radarList])
         vor = Voronoi(points)
+        print("time for scipy voronoi", time.time()-startTimer)
 
+
+        startTimer = time.time()
         segments = []
         ptp_bound = vor.points.ptp(axis=0)
         center = vor.points.mean(axis=0)
@@ -521,6 +622,7 @@ class HighPriorityPathPlannerDeterministic:
                 if far_point is not None:
                     segments.append([vor.vertices[i], far_point])
 
+        print("time to find segments", time.time()-startTimer)
 
         segments = np.array(segments)
         segments = self.add_boundary_segments(segments,bounds)
@@ -583,12 +685,12 @@ class HighPriorityPathPlannerDeterministic:
         new_path.append(path[-1])
         return np.array(new_path)
     
-    def create_unclamped_knot_points(self, t0, tf, numControlPoints,splineOrder):
-        internalKnots = np.linspace(t0, tf, numControlPoints - 2, endpoint=True)
-        h = internalKnots[1] - internalKnots[0]
-        knots = np.concatenate((np.linspace(t0-splineOrder*h,t0-h,splineOrder), internalKnots, np.linspace(tf+h,tf+splineOrder*h,splineOrder)))
+    # def create_unclamped_knot_points(self, t0, tf, numControlPoints,splineOrder):
+    #     internalKnots = jnp.linspace(t0, tf, numControlPoints - 2, endpoint=True)
+    #     h = internalKnots[1] - internalKnots[0]
+    #     knots = jnp.concatenate((jnp.linspace(t0-splineOrder*h,t0-h,splineOrder), internalKnots, jnp.linspace(tf+h,tf+splineOrder*h,splineOrder)))
         
-        return knots
+    #     return knots
 
     def move_first_control_point_so_spline_passes_through_start(self, controlPoints,knotPoints, start,startVelocity):
         dt = knotPoints[3]-knotPoints[0]
@@ -644,11 +746,27 @@ class HighPriorityPathPlannerDeterministic:
         # knotPoints = np.vstack((knotPoints,knotPoints))
         # evalPoints = np.vstack((evalPoints,evalPoints))
         # out = coef2curve(evalPoints, knotPoints, controlPoints.T, splineOrder)
-        # out = matrix_bspline_evaluation(evalPoints, 1, controlPoints.T, knotPoints)
+        # # out = matrix_bspline_evaluation(evalPoints, 1, controlPoints.T, knotPoints)
         # scaleFactor = knotPoints[-splineOrder-1]/(len(knotPoints)-2*splineOrder-1)
         # return np.array([matrix_bspline_evaluation(point, scaleFactor, controlPoints.T, knotPoints) for point in evalPoints]).squeeze()
         return matrix_bspline_evaluation_for_dataset(controlPoints.T, knotPoints, params.numSamplesPerInterval)
         # return self.spline_seg(controlPoints, knotPoints)(evalPoints)
+
+    def evaluate_spline_at_time_t(self,t, controlPoints, knotPoints,splineOrder):
+        # knotPoints = np.vstack((knotPoints,knotPoints))
+        # evalPoints = np.vstack((evalPoints,evalPoints))
+        # out = coef2curve(evalPoints, knotPoints, controlPoints.T, splineOrder)
+        # # out = matrix_bspline_evaluation(evalPoints, 1, controlPoints.T, knotPoints)
+        scaleFactor = knotPoints[-splineOrder-1]/(len(knotPoints)-2*splineOrder-1)
+        return np.array([matrix_bspline_evaluation(point, scaleFactor, controlPoints.T, knotPoints) for point in t]).squeeze()
+        # return matrix_bspline_evaluation_for_dataset(controlPoints.T, knotPoints, params.numSamplesPerInterval)
+        # return self.spline_seg(controlPoints, knotPoints)(evalPoints)
+
+    def evaluate_spline_jax(self, controlPoints, tf,splineOrder):
+        controlPoints = controlPoints.reshape((params.numControlPoints,2))
+        knotPoints = create_unclamped_knot_points(0, tf, len(controlPoints),splineOrder)
+
+        return matrix_bspline_evaluation_for_dataset_jax(controlPoints.T, knotPoints, params.numSamplesPerInterval)
     
     def evaluate_spline_derivative(self, t, controlPoints, knotPoints,splineOrder, derivativeOrder):
         # f = lambda x: self.evaluate_spline(x,controlPoints, knotPoints, splineOrder)
@@ -668,7 +786,7 @@ class HighPriorityPathPlannerDeterministic:
         # return np.array([derivative_matrix_bspline_evaluation(time, derivativeOrder, scaleFactor, controlPoints.T, knotPoints, clamped = False) for time in t]).squeeze()
         # return self.spline_seg(controlPoints, knotPoints).derivative(derivativeOrder)(t)
         # return matrix_bspline_derivative_evaluation_for_dataset(controlPoints.T, knotPoints, 3, derivativeOrder)
-        return matrix_bspline_derivative_evaluation_for_dataset(derivativeOrder, scaleFactor, controlPoints.T, knotPoints, params.numSamplesPerInterval, clamped = False)
+        return matrix_bspline_derivative_evaluation_for_dataset(derivativeOrder, scaleFactor, controlPoints.T, knotPoints, params.numSamplesPerInterval)
         
         
 
@@ -676,6 +794,7 @@ class HighPriorityPathPlannerDeterministic:
         startTime = time.time()
         segments,ax = self.get_voronoi_ridge_segements(radarList,bounds,plot=plot)
         print("Time to get voronoi segments", time.time()-startTime)
+
         startTime = time.time()
         adjMatrix,nodes, goalNode = self.get_weighted_adjacency_matrix(segments)
         print("Time to get adjacency matrix", time.time()-startTime)
@@ -696,8 +815,9 @@ class HighPriorityPathPlannerDeterministic:
         print("Time to fit spline to path", time.time()-startTime)
         
         startTime = time.time()
-        knotPoints = self.create_unclamped_knot_points(0,1, params.numControlPoints,params.splineOrder)
-        knotPoints,tf = self.assure_velocity_constraint(radarList, controlPoints, knotPoints,params.numControlPoints)
+        knotPoints = create_unclamped_knot_points(0,1, params.numControlPoints,params.splineOrder)
+        knotPoints,tf = self.assure_velocity_constraint(radarList, controlPoints.reshape((-1,)), knotPoints,params.numControlPoints)
+        print("tf", tf)
         print("Time to assure velocity constraint", time.time()-startTime)
 
         controlPoints = self.move_first_control_point_so_spline_passes_through_start(controlPoints,knotPoints,params.highPriorityStart,[10,10])
@@ -786,7 +906,9 @@ if __name__ == "__main__":
     startTime = time.time()
     ax = hpp.plan_deterministic_path(radarList,plot=True)
     print("path planning time", time.time()-startTime)
-    # _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=True)
+    # startTime = time.time()
+    # _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=False)
+    # print("time to get initial guess", time.time()-startTime)
     
     # fig,ax = plt.subplots
     # ax.set_aspect('equal')

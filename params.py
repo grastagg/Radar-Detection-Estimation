@@ -172,6 +172,7 @@ maxTurnRate = 1
 velocityBounds = [100,134]
 numSamplesPerInterval = 3
 numConstraintSamples = 64
+# numConstraintSamples = 22
 splineOrder = 3
 
 distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)/2

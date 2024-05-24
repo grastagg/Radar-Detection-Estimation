@@ -1,6 +1,12 @@
 import numpy as np
+import jax.numpy as jnp
+from jax.lax import fori_loop
+from jax.scipy.special import factorial
 from bspline.helper_functions import count_number_of_control_points, find_preceding_knot_index,\
     calculate_number_of_control_points, get_dimension
+from jax import jit
+from functools import partial
+# from jax import partial
     
 def matrix_bspline_evaluation(time, scale_factor, control_points, knot_points, clamped = False):
     """
@@ -29,6 +35,33 @@ def matrix_bspline_evaluation(time, scale_factor, control_points, knot_points, c
     spline_at_time_t = np.dot(P, np.dot(M,T))
     return spline_at_time_t
 
+# def matrix_bspline_evaluation_jax(time, scale_factor, control_points, knot_points, clamped = False):
+#     """
+#     This function evaluates the B spline at the given time using
+#     the matrix method
+#     """
+#     number_of_control_points = count_number_of_control_points(control_points)
+#     order = len(knot_points) - number_of_control_points - 1
+#     preceding_knot_index = find_preceding_knot_index(time, order, knot_points)
+#     preceding_knot_point = knot_points[preceding_knot_index]
+#     initial_control_point_index = preceding_knot_index - order
+#     dimension = get_dimension(control_points)
+#     spline_at_time_t = np.zeros((dimension,1))
+#     i_p = initial_control_point_index
+#     M = get_M_matrix(i_p, order, knot_points, clamped)
+#     if dimension > 1:
+#         P = np.zeros((dimension,order+1))
+#     else:
+#         P = np.zeros(order+1)
+#     for i in range(order+1):
+#         if dimension > 1:
+#             P[:,i] = control_points[:,i_p+i]
+#         else:
+#             P[i] = control_points[i_p+i]
+#     T = get_T_vector(order,time,preceding_knot_point,scale_factor)
+#     spline_at_time_t = np.dot(P, np.dot(M,T))
+#     return spline_at_time_t
+
 def derivative_matrix_bspline_evaluation(time, rth_derivative, scale_factor, control_points, knot_points, clamped = False):
     order = len(knot_points) - count_number_of_control_points(control_points) - 1
     preceding_knot_index = find_preceding_knot_index(time, order, knot_points)
@@ -52,57 +85,107 @@ def derivative_matrix_bspline_evaluation(time, rth_derivative, scale_factor, con
 
 
 
-def matrix_bspline_evaluation_for_dataset(control_points, knot_points, num_points_per_interval, clamped = False):
+# def matrix_bspline_evaluation_for_dataset(control_points, knot_points, num_points_per_interval, clamped = False):
+#     """
+#     This function evaluates the B spline for a given time data-set
+#     """
+#     #initialize variables
+#     num_ppi = num_points_per_interval
+#     dimension = get_dimension(control_points)
+#     number_of_control_points = count_number_of_control_points(control_points)
+#     order = len(knot_points) - number_of_control_points - 1
+#     num_intervals = number_of_control_points - order
+#     #create steps matrix
+#     steps_array = np.linspace(0,1,num_ppi+1)
+#     steps_array = steps_array[:, np.newaxis]  # Reshape to column vector
+#     powers = np.arange(order, -1, -1)          # Powers for each row
+#     L = (steps_array ** powers).T
+#     # L = np.ones((order+1,num_ppi+1))
+#     # for i in range(order+1):
+#     #     L[i,:] = steps_array**(order-i)
+#     # print("L: ", L)
+#     # Find M matrix
+#     M = get_M_matrix(0, order, [], False)
+#     #Evaluate spline data
+#     if dimension > 1:
+#         spline_data = np.zeros((dimension,num_intervals*num_ppi+1))
+#     else:
+#         spline_data = np.zeros(num_intervals*num_ppi+1)
+#     for i in range(num_intervals):
+#         if dimension > 1:
+#             P = control_points[:,i:i+order+1]
+#         else:
+#             P = control_points[i:i+order+1]
+#         #Find M matrix if clamped
+#         if clamped:
+#             M = get_M_matrix(i, order, knot_points, True)
+#         spline_data_over_interval = np.dot(np.dot(P,M),L)
+#         if dimension > 1:
+#             if i == num_intervals-1:
+#                 spline_data[:,i*num_ppi:(i+1)*num_ppi+1] = spline_data_over_interval[:,0:num_ppi+1]
+#             else:
+#                 spline_data[:,i*num_ppi:(i+1)*num_ppi] = spline_data_over_interval[:,0:num_ppi]
+#         else:
+#             if i == num_intervals-1:
+#                 spline_data[i*num_ppi:(i+1)*num_ppi+1] = spline_data_over_interval[0:num_ppi+1]
+#             else:
+#                 spline_data[i*num_ppi:(i+1)*num_ppi] = spline_data_over_interval[0:num_ppi]
+#     spline_data = np.hstack((spline_data[0,:].reshape((-1,1)),spline_data[1,:].reshape((-1,1))))
+#     return spline_data
+
+
+
+@partial(jit, static_argnums=(2,))
+def matrix_bspline_evaluation_for_dataset(control_points, knot_points, num_points_per_interval):
     """
-    This function evaluates the B spline for a given time data-set
+    This function evaluates the B-spline for a given time dataset using JAX.
     """
-    #initialize variables
     num_ppi = num_points_per_interval
     dimension = get_dimension(control_points)
     number_of_control_points = count_number_of_control_points(control_points)
     order = len(knot_points) - number_of_control_points - 1
     num_intervals = number_of_control_points - order
-    #create steps matrix
-    steps_array = np.linspace(0,1,num_ppi+1)
-    steps_array = steps_array[:, np.newaxis]  # Reshape to column vector
-    powers = np.arange(order, -1, -1)          # Powers for each row
+
+    # Create steps matrix
+    steps_array = jnp.linspace(0, 1, num_points_per_interval + 1)
+    steps_array = steps_array[:, jnp.newaxis]  # Reshape to column vector
+    powers = jnp.arange(order, -1, -1)  # Powers for each row
     L = (steps_array ** powers).T
-    # L = np.ones((order+1,num_ppi+1))
-    # for i in range(order+1):
-    #     L[i,:] = steps_array**(order-i)
-    # print("L: ", L)
+
     # Find M matrix
     M = get_M_matrix(0, order, [], False)
-    #Evaluate spline data
+
+    # Evaluate spline data
     if dimension > 1:
-        spline_data = np.zeros((dimension,num_intervals*num_ppi+1))
+        spline_data = jnp.zeros((dimension, num_intervals * num_ppi + 1))
     else:
-        spline_data = np.zeros(num_intervals*num_ppi+1)
+        spline_data = jnp.zeros(num_intervals * num_ppi + 1)
+
     for i in range(num_intervals):
         if dimension > 1:
-            P = control_points[:,i:i+order+1]
+            P = control_points[:, i:i + order + 1]
         else:
-            P = control_points[i:i+order+1]
-        #Find M matrix if clamped
-        if clamped:
-            M = get_M_matrix(i, order, knot_points, True)
-        spline_data_over_interval = np.dot(np.dot(P,M),L)
+            P = control_points[i:i + order + 1]
+
+        spline_data_over_interval = jnp.dot(jnp.dot(P, M), L)
+
         if dimension > 1:
-            if i == num_intervals-1:
-                spline_data[:,i*num_ppi:(i+1)*num_ppi+1] = spline_data_over_interval[:,0:num_ppi+1]
+            if i == num_intervals - 1:
+                spline_data = spline_data.at[:, i * num_ppi:(i + 1) * num_ppi + 1].set(spline_data_over_interval[:, :num_ppi + 1])
             else:
-                spline_data[:,i*num_ppi:(i+1)*num_ppi] = spline_data_over_interval[:,0:num_ppi]
+                spline_data = spline_data.at[:, i * num_ppi:(i + 1) * num_ppi].set(spline_data_over_interval[:, :num_ppi])
         else:
-            if i == num_intervals-1:
-                spline_data[i*num_ppi:(i+1)*num_ppi+1] = spline_data_over_interval[0:num_ppi+1]
+            if i == num_intervals - 1:
+                spline_data = spline_data.at[i * num_ppi:(i + 1) * num_ppi + 1].set(spline_data_over_interval[:num_ppi + 1])
             else:
-                spline_data[i*num_ppi:(i+1)*num_ppi] = spline_data_over_interval[0:num_ppi]
-    spline_data = np.hstack((spline_data[0,:].reshape((-1,1)),spline_data[1,:].reshape((-1,1))))
+                spline_data = spline_data.at[i * num_ppi:(i + 1) * num_ppi].set(spline_data_over_interval[:num_ppi])
+
+    spline_data = jnp.hstack((spline_data[0,:].reshape((-1,1)),spline_data[1,:].reshape((-1,1))))
+
     return spline_data
 
-
-
-def matrix_bspline_derivative_evaluation_for_dataset(derivative_order, scale_factor, control_points, knot_points, num_points_per_interval, clamped = False):
+@partial(jit, static_argnums=(0,4))
+def matrix_bspline_derivative_evaluation_for_dataset(derivative_order, scale_factor, control_points, knot_points, num_points_per_interval):
     """
     This function evaluates the B spline for a given time data-set
     """
@@ -112,47 +195,110 @@ def matrix_bspline_derivative_evaluation_for_dataset(derivative_order, scale_fac
     number_of_control_points = count_number_of_control_points(control_points)
     order = len(knot_points) - number_of_control_points - 1
     num_intervals = number_of_control_points - order
-    #create steps matrix
-    steps_array = np.linspace(0,1,num_ppi+1)
-    L_r = np.zeros((order+1,num_ppi+1))
+    # Create steps matrix
+    steps_array = jnp.linspace(0, 1, num_ppi + 1)
+    L_r = jnp.zeros((order + 1, num_ppi + 1))
     # Find M matrix
     M = get_M_matrix(0, order, [], False)
-    K = __create_k_matrix(order,derivative_order,scale_factor)
-    for i in range(order-derivative_order+1):
-        L_r[i,:] = steps_array**(order-derivative_order-i)
+    K = __create_k_matrix(order, derivative_order, scale_factor)
+    for i in range(order - derivative_order + 1):
+        L_r = L_r.at[i, :].set(steps_array ** (order - derivative_order - i))
     # Evaluate Spline data
     if dimension > 1:
-        spline_derivative_data = np.zeros((dimension,num_intervals*num_ppi+1))
+        spline_derivative_data = jnp.zeros((dimension, num_intervals * num_ppi + 1))
     else:
-        spline_derivative_data = np.zeros(num_intervals*num_ppi+1)
+        spline_derivative_data = jnp.zeros(num_intervals * num_ppi + 1)
     for i in range(num_intervals):
         if dimension > 1:
-            P = control_points[:,i:i+order+1]
+            P = control_points[:, i:i + order + 1]
         else:
-            P = control_points[i:i+order+1]
+            P = control_points[i:i + order + 1]
         # Find M matrix if clamped
-        if clamped:
-            M = get_M_matrix(i, order, knot_points, True)
-        spline_derivative_data_over_interval = np.dot(np.dot(P,M),np.dot(K,L_r))
+        spline_derivative_data_over_interval = jnp.dot(jnp.dot(P, M), jnp.dot(K, L_r))
         if dimension > 1:
-            if i == num_intervals-1:
-                spline_derivative_data[:,i*num_ppi:(i+1)*num_ppi+1] = spline_derivative_data_over_interval[:,0:num_ppi+1]
+            if i == num_intervals - 1:
+                spline_derivative_data = spline_derivative_data.at[:, i * num_ppi:(i + 1) * num_ppi + 1].set(
+                    spline_derivative_data_over_interval[:, 0:num_ppi + 1])
             else:
-                spline_derivative_data[:,i*num_ppi:(i+1)*num_ppi] = spline_derivative_data_over_interval[:,0:num_ppi]
+                spline_derivative_data = spline_derivative_data.at[:, i * num_ppi:(i + 1) * num_ppi].set(
+                    spline_derivative_data_over_interval[:, 0:num_ppi])
         else:
-            if i == num_intervals-1:
-                spline_derivative_data[i*num_ppi:(i+1)*num_ppi+1] = spline_derivative_data_over_interval[0:num_ppi+1]
+            if i == num_intervals - 1:
+                spline_derivative_data = spline_derivative_data.at[i * num_ppi:(i + 1) * num_ppi + 1].set(
+                    spline_derivative_data_over_interval[0:num_ppi + 1])
             else:
-                spline_derivative_data[i*num_ppi:(i+1)*num_ppi] = spline_derivative_data_over_interval[0:num_ppi]
-    spline_derivative_data = np.hstack((spline_derivative_data[0,:].reshape((-1,1)),spline_derivative_data[1,:].reshape((-1,1))))
+                spline_derivative_data = spline_derivative_data.at[i * num_ppi:(i + 1) * num_ppi].set(
+                    spline_derivative_data_over_interval[0:num_ppi])
+    spline_derivative_data = jnp.hstack((spline_derivative_data[0, :].reshape((-1, 1)), spline_derivative_data[1, :].reshape((-1, 1))))
     return spline_derivative_data
 
-def __create_k_matrix(order,derivative_order,scale_factor):
-    K = np.zeros((order+1,order+1))
-    for i in range(order-derivative_order+1):
-        K[i,i] = np.math.factorial(order-i)/np.math.factorial(order-derivative_order-i)
-    K = K/scale_factor**(derivative_order)
+# def matrix_bspline_derivative_evaluation_for_dataset(derivative_order, scale_factor, control_points, knot_points, num_points_per_interval):
+#     """
+#     This function evaluates the B spline for a given time data-set
+#     """
+#     # Initialize variables
+#     num_ppi = num_points_per_interval
+#     dimension = get_dimension(control_points)
+#     number_of_control_points = count_number_of_control_points(control_points)
+#     order = len(knot_points) - number_of_control_points - 1
+#     num_intervals = number_of_control_points - order
+#     #create steps matrix
+#     steps_array = np.linspace(0,1,num_ppi+1)
+#     L_r = np.zeros((order+1,num_ppi+1))
+#     # Find M matrix
+#     M = get_M_matrix(0, order, [], False)
+#     K = __create_k_matrix(order,derivative_order,scale_factor)
+#     for i in range(order-derivative_order+1):
+#         L_r[i,:] = steps_array**(order-derivative_order-i)
+#     # Evaluate Spline data
+#     if dimension > 1:
+#         spline_derivative_data = np.zeros((dimension,num_intervals*num_ppi+1))
+#     else:
+#         spline_derivative_data = np.zeros(num_intervals*num_ppi+1)
+#     for i in range(num_intervals):
+#         if dimension > 1:
+#             P = control_points[:,i:i+order+1]
+#         else:
+#             P = control_points[i:i+order+1]
+#         # Find M matrix if clamped
+#         spline_derivative_data_over_interval = np.dot(np.dot(P,M),np.dot(K,L_r))
+#         if dimension > 1:
+#             if i == num_intervals-1:
+#                 spline_derivative_data[:,i*num_ppi:(i+1)*num_ppi+1] = spline_derivative_data_over_interval[:,0:num_ppi+1]
+#             else:
+#                 spline_derivative_data[:,i*num_ppi:(i+1)*num_ppi] = spline_derivative_data_over_interval[:,0:num_ppi]
+#         else:
+#             if i == num_intervals-1:
+#                 spline_derivative_data[i*num_ppi:(i+1)*num_ppi+1] = spline_derivative_data_over_interval[0:num_ppi+1]
+#             else:
+#                 spline_derivative_data[i*num_ppi:(i+1)*num_ppi] = spline_derivative_data_over_interval[0:num_ppi]
+#     spline_derivative_data = np.hstack((spline_derivative_data[0,:].reshape((-1,1)),spline_derivative_data[1,:].reshape((-1,1))))
+#     return spline_derivative_data
+
+partial(jit, static_argnums=(0,1))
+def __create_k_matrix(order, derivative_order, scale_factor):
+    def body_fun(i, K):
+        value = factorial(order - i) / factorial(order - derivative_order - i)
+        return K.at[i, i].set(value)
+    
+    K = jnp.zeros((order + 1, order + 1))
+    K = fori_loop(0, order - derivative_order + 1, body_fun, K)
+    K = K / scale_factor ** derivative_order
     return K
+# partial(jit, static_argnums=(0,1))
+# def __create_k_matrix(order, derivative_order, scale_factor):
+#     K = jnp.zeros((order + 1, order + 1))
+#     for i in range(order - derivative_order + 1):
+#         K = K.at[i, i].set(jnp.math.factorial(order - i) / jnp.math.factorial(order - derivative_order - i))
+#     K = K / scale_factor ** derivative_order
+
+#     return K
+# def __create_k_matrix(order,derivative_order,scale_factor):
+#     K = np.zeros((order+1,order+1))
+#     for i in range(order-derivative_order+1):
+#         K[i,i] = np.math.factorial(order-i)/np.math.factorial(order-derivative_order-i)
+#     K = K/scale_factor**(derivative_order)
+#     return K
 
 def get_M_matrix(initial_control_point_index, order, knot_points, clamped):
     if order == 0:
