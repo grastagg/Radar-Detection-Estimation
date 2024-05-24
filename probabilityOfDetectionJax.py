@@ -10,7 +10,6 @@ import numpy as np
 from scipy.constants import k as boltzman
 from time import time
 
-from highPriorityHelperFunctions import create_unclamped_knot_points, evaluate_spline
 
 
 from probabilityOfDetectionMap import ProbabilityOfDetectionMap
@@ -50,18 +49,12 @@ def ground_truth_probability_of_detection(X_test, trueRadarParametersList,radarO
 
     pdi = jnp.ones(len(X_test))
     for j, radar in enumerate(trueRadarParametersList):
-        pdi = compute_probability_of_detection_vectorized(x_test, jnp.array([radar.position[0], radar.position[1], radarOutputPower*radarTransmitGain]), radarRecieveGainPriorMean, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, radarSystemTemperaturePriorMean, radarProbabilityOfFalseAlarmPriorMean)
+        pdi = compute_probability_of_detection_vectorized(X_test, jnp.array([radar.position[0], radar.position[1], radarOutputPower*radarTransmitGain]), radarRecieveGainPriorMean, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, radarSystemTemperaturePriorMean, radarProbabilityOfFalseAlarmPriorMean)
         probabilityOfNoDetection *= (1-pdi.squeeze())
     
     
     return 1-probabilityOfNoDetection   
 
-# @partial(jit, static_argnums=(2,3,4)) 
-def get_pd_along_spline(controlPoints, tf, radarList, numControlPoints, splineOrder, numSamplesPerInterval):
-    knotPoints = create_unclamped_knot_points(0, tf, numControlPoints,splineOrder)
-    pos = evaluate_spline(controlPoints,knotPoints,numSamplesPerInterval)
-    pd = ground_truth_probability_of_detection(pos, radarList)
-    return pd
 
 
 if __name__=="__main__":

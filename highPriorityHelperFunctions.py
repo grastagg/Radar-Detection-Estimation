@@ -6,6 +6,7 @@ import numpy as np
 from bspline.matrix_evaluation import matrix_bspline_derivative_evaluation_for_dataset, matrix_bspline_evaluation_for_dataset
 
 from main_helper import create_radar_list
+from probabilityOfDetectionJax import ground_truth_probability_of_detection
 
 
 
@@ -36,7 +37,21 @@ def get_spline_velocity(controlPoints, tf, splineOrder, numSamplesPerInterval):
     out_d1 = evaluate_spline_derivative(controlPoints,knotPoints,splineOrder,1,numSamplesPerInterval)
     return jnp.linalg.norm(out_d1,axis=1)
 
-
-
-
+@partial(jit, static_argnums=(2,3,4,5)) 
+def get_pd_along_spline(controlPoints, tf, radarList, numControlPoints, splineOrder, numSamplesPerInterval, radarOutputPower, radarTransmitGain, radarRecieveGainPriorMean, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, radarSystemTemperaturePriorMean, radarProbabilityOfFalseAlarmPriorMean):
+    controlPoints = controlPoints.reshape((numControlPoints,2))
+    knotPoints = create_unclamped_knot_points(0, tf, numControlPoints,splineOrder)
+    pos = evaluate_spline(controlPoints,knotPoints,numSamplesPerInterval)
+    pd = ground_truth_probability_of_detection(pos, radarList, radarOutputPower, radarTransmitGain, radarRecieveGainPriorMean, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, radarSystemTemperaturePriorMean, radarProbabilityOfFalseAlarmPriorMean)
+    return pd
     
+@partial(jit, static_argnums=(2,3))
+def get_spline_turn_rate(controlPoints, tf, splineOrder,numSamplesPerInterval):
+    numControlPoints = int(len(controlPoints)/2)
+    controlPoints = controlPoints.reshape((numControlPoints,2))
+    knotPoints = create_unclamped_knot_points(0, tf, numControlPoints,splineOrder)
+    out_d1 = evaluate_spline_derivative(controlPoints,knotPoints, splineOrder,1,numSamplesPerInterval)
+    out_d2 = evaluate_spline_derivative(controlPoints,knotPoints, splineOrder,2,numSamplesPerInterval)
+    v = jnp.linalg.norm(out_d1,axis=1)
+    u = jnp.cross(out_d1,out_d2) / (v**2)
+    return u

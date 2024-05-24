@@ -32,7 +32,7 @@ highPriorityEnd = (bounds[0],bounds[1])
 highPriorityStraitLineA = highPriorityStart[1] - highPriorityEnd[1]
 highPriorityStraitLineB = highPriorityEnd[0] - highPriorityStart[0]
 highPriorityStraitLineC = highPriorityStart[0]*highPriorityEnd[1] - highPriorityEnd[0] * highPriorityStart[1]
-probabilityOfDetectionThreshold = 0.1
+probabilityOfDetectionThreshold = 0.01
 thresholdConfidence = 0.95
 highPriorityAgentRadarCrossSection = .1
 
