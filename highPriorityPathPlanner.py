@@ -74,26 +74,6 @@ class HighPriorityPathPlannerDeterministic:
         points = np.hstack((xPoints.reshape((len(xPoints),1)), yPoints.reshape((len(xPoints),1))))
         return points
 
-    # def get_spline_velocity(self, controlPoints, tf):
-    #     controlPoints = controlPoints.reshape((params.numControlPoints,2))
-    #     knotPoints = create_unclamped_knot_points(0, tf, params.numControlPoints,params.splineOrder)
-    #     out_d1 = self.evaluate_spline_derivative(None,controlPoints,knotPoints,params.splineOrder,1)
-    #     return jnp.linalg.norm(out_d1,axis=1)
-
-    # def get_spline_turn_rate(self, controlPoints, tf):
-    #     knotPoints = create_unclamped_knot_points(0, tf, params.numControlPoints,params.splineOrder)
-    #     out_d1 = self.evaluate_spline_derivative(None,controlPoints,knotPoints,params.splineOrder,1)
-    #     out_d2 = self.evaluate_spline_derivative(None,controlPoints,knotPoints,params.splineOrder,2)
-    #     v = jnp.linalg.norm(out_d1,axis=1)
-    #     u = jnp.cross(out_d1,out_d2) / (v**2)
-    #     return u
-    
-    # def get_pd_along_spline(self, controlPoints, tf, radarList):
-    #     knotPoints = create_unclamped_knot_points(0, tf, params.numControlPoints,params.splineOrder)
-    #     pos = self.evaluate_spline(None,controlPoints,knotPoints,params.splineOrder)
-    #     pd = self.ground_truth_probability_of_detection(pos, radarList)
-    #     return pd
-    
     def get_start_constraint(self, controlPoints):
         cp1 = controlPoints[0:2]
         cp2 = controlPoints[2:4]
@@ -161,32 +141,6 @@ class HighPriorityPathPlannerDeterministic:
         spline = interpolate.BSpline(t.squeeze(), control_points, 3)
 
         return spline
-
-    def create_knot_points(self, t0, tf, numControlPoints):
-        #the number of control points
-        l = numControlPoints
-
-        #create evenly spaced knot points
-        t = np.linspace(t0, tf, l - 2, endpoint=True)
-
-        #add repeated knot points at begining and end
-        t = np.append([t0, t0, t0], t)
-        t = np.append(t, [tf, tf, tf])
-        return t
-    
-    def create_control_points(self, optimizedControlPoints, currPose,endPose, splineOrder, knotPoints):
-        controlPoints = np.zeros((params.numControlPoints,2))
-        controlPoints[0,:] = currPose[0:2]
-        controlPoints[1:-1,:] = optimizedControlPoints.reshape((params.numControlPoints-2,2))
-
-        # controlPoints[1,0] = np.cos(currPose[2]) * self.currentVelocity * knotPoints[splineOrder + 1] / splineOrder + currPose[0]
-        # controlPoints[1,1] = np.sin(currPose[2]) * self.currentVelocity * knotPoints[splineOrder + 1] / splineOrder + currPose[1]
-
-
-        controlPoints[-1,:] = endPose 
-        return controlPoints
-    
-    
     
     def plan_deterministic_path(self, radar_list,plot=False):
         startTimer = time.time()
@@ -358,17 +312,6 @@ class HighPriorityPathPlannerDeterministic:
         num_control_points = params.numControlPoints
         combined_control_points, combined_knot_points = self.fit_spline_to_path(path,num_control_points)
 
-        #make sure initial pd is less than threshold
-        # combined_control_points,combined_knot_points = self.assure_pd_less_than_threshold(radarList, combined_control_points, combined_knot_points)
-
-        # spline.derivative(1)(0)
-        # tf = 1
-        # pd, u, v, pos = self.spline_constraints(radarList, combined_control_points, combined_knot_points,params.numConstraintSamples)
-        # while np.max(v) > params.velocityBounds[1]:
-        #     # print(np.max(v))
-        #     tf += 1
-        #     combined_knot_points = self.create_knot_points(0, tf, num_control_points)
-        #     pd, u, v, pos = self.spline_constraints(radarList, combined_control_points, combined_knot_points,params.numConstraintSamples)
         combined_knot_points,tf = self.assure_velocity_constraint(radarList, combined_control_points, combined_knot_points,num_control_points)
         
         
@@ -670,13 +613,6 @@ class HighPriorityPathPlannerDeterministic:
         new_path.append(path[-1])
         return np.array(new_path)
     
-    # def create_unclamped_knot_points(self, t0, tf, numControlPoints,splineOrder):
-    #     internalKnots = jnp.linspace(t0, tf, numControlPoints - 2, endpoint=True)
-    #     h = internalKnots[1] - internalKnots[0]
-    #     knots = jnp.concatenate((jnp.linspace(t0-splineOrder*h,t0-h,splineOrder), internalKnots, jnp.linspace(tf+h,tf+splineOrder*h,splineOrder)))
-        
-    #     return knots
-
     def move_first_control_point_so_spline_passes_through_start(self, controlPoints,knotPoints, start,startVelocity):
         dt = knotPoints[3]-knotPoints[0]
         A = np.array([[1/6,0,2/3,0],[0,1/6,0,2/3],[-3/(2*dt),0,0,0],[0,-3/(2*dt),0,0]])
@@ -686,10 +622,6 @@ class HighPriorityPathPlannerDeterministic:
         b = np.array([[start[0] - (1/6)*c3x],[start[1]- (1/6)*c3y],[startVelocity[0]-3/(2*dt)*c3x],[startVelocity[1]-3/(2*dt)*c3y]])
 
         x = np.linalg.solve(A,b)
-        # controlPoints[1,0] = x[0]
-        # controlPoints[0,1] = x[1]
-        # controlPoints[1,0] = x[2]
-        # controlPoints[1,1] = x[3]
         controlPoints[0:2,0:2] = x.reshape((2,2))
 
         return controlPoints
@@ -703,10 +635,6 @@ class HighPriorityPathPlannerDeterministic:
         b = np.array([[end[0] - (1/6)*cn_minus_2_x],[end[1]- (1/6)*cn_minus_2_y],[endVelocity[0]+3/(2*dt)*cn_minus_2_x],[endVelocity[1]+3/(2*dt)*cn_minus_2_y]])
 
         x = np.linalg.solve(A,b)
-        # controlPoints[1,0] = x[0]
-        # controlPoints[0,1] = x[1]
-        # controlPoints[1,0] = x[2]
-        # controlPoints[1,1] = x[3]
         controlPoints[-2:,-2:] = x.reshape((2,2))
 
         return controlPoints
@@ -718,13 +646,6 @@ class HighPriorityPathPlannerDeterministic:
 
         newControlPoints = np.array([splineOrder*(previousControlPoints[i+1] - previousControlPoints[i]) / dt for i in range(len(previousControlPoints)-1)])
 
-        # for k in range(derivativeOrder):
-        #     newControlPoints = np.zeros((len(previousControlPoints)-1,2))
-
-        #     for i in range(len(previousControlPoints)-1):
-        #         newControlPoints[i] = splineOrder*(previousControlPoints[i+1] - previousControlPoints[i]) / dt
-        #     previousControlPoints = newControlPoints
-        
         return newControlPoints,knotPoints[1:-1],splineOrder-1
 
     def evaluate_spline(self,evalPoints, controlPoints, knotPoints,splineOrder):
@@ -747,11 +668,6 @@ class HighPriorityPathPlannerDeterministic:
         # return matrix_bspline_evaluation_for_dataset(controlPoints.T, knotPoints, params.numSamplesPerInterval)
         # return self.spline_seg(controlPoints, knotPoints)(evalPoints)
 
-    def evaluate_spline_jax(self, controlPoints, tf,splineOrder):
-        controlPoints = controlPoints.reshape((params.numControlPoints,2))
-        knotPoints = create_unclamped_knot_points(0, tf, len(controlPoints),splineOrder)
-
-        return matrix_bspline_evaluation_for_dataset_jax(controlPoints.T, knotPoints, params.numSamplesPerInterval)
     
     def evaluate_spline_derivative(self, t, controlPoints, knotPoints,splineOrder, derivativeOrder):
         # f = lambda x: self.evaluate_spline(x,controlPoints, knotPoints, splineOrder)
@@ -807,14 +723,6 @@ class HighPriorityPathPlannerDeterministic:
 
         controlPoints = self.move_first_control_point_so_spline_passes_through_start(controlPoints,knotPoints,params.highPriorityStart,[10,10])
         controlPoints = self.move_last_control_point_so_spline_passes_through_end(controlPoints,knotPoints,params.highPriorityEnd,[10,10])
-
-
-
-        evalPoints = [0,tf/2,tf]
-
-        spl = self.spline_seg(controlPoints, knotPoints)
-        der = spl.derivative(2)
-
 
 
         if plot:
@@ -888,6 +796,9 @@ if __name__ == "__main__":
     radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGain, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
     # hpp.find_initial_guess_rrt_star(radarList,plot=True)
     pdMap = ProbabilityOfDetectionMap(params.X_test,radarList)
+    startTime = time.time()
+    ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
+    print("path planning time", time.time()-startTime)
     startTime = time.time()
     ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
     print("path planning time", time.time()-startTime)
