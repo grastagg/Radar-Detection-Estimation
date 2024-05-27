@@ -146,6 +146,7 @@ class HighPriorityPathPlannerDeterministic:
         # initialControlPoints, tfIntial,ax = self.find_initial_guess_rrt_star(radarList,plot=plot)
         initialControlPoints, tfIntial,ax = self.get_initial_guess_voronoi(radarList,params.bounds,plot=plot)
         print("Time to find initial guess", time.time()-startTimer)
+        spline = self.spline_seg(initialControlPoints,create_unclamped_knot_points(0, tfIntial, params.numControlPoints,params.splineOrder))
 
 
         def objective_function(xDict):
@@ -723,6 +724,10 @@ class HighPriorityPathPlannerDeterministic:
         controlPoints = self.move_first_control_point_so_spline_passes_through_start(controlPoints,knotPoints,params.highPriorityStart,[10,10])
         controlPoints = self.move_last_control_point_so_spline_passes_through_end(controlPoints,knotPoints,params.highPriorityEnd,[10,10])
 
+        spline = self.spline_seg(controlPoints, knotPoints)
+        
+
+
 
         if plot:
             # tmpSpline = self.spline_seg(controlPoints, knotPoints)
@@ -741,6 +746,7 @@ class HighPriorityPathPlannerDeterministic:
 
             fig,ax2 = plt.subplots()
             ig.plot(g,layout= layout,target=ax2)
+            self.plot_constraints(spline, tuple(radarList))
         
         return controlPoints,tf,ax
         
@@ -795,15 +801,15 @@ if __name__ == "__main__":
     hpp = HighPriorityPathPlannerDeterministic(tuple(radarList))
     # hpp.find_initial_guess_rrt_star(radarList,plot=True)
     pdMap = ProbabilityOfDetectionMap(params.X_test,radarList)
-    startTime = time.time()
-    ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
-    print("path planning time", time.time()-startTime)
     # startTime = time.time()
     # ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
     # print("path planning time", time.time()-startTime)
     # startTime = time.time()
-    # _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=False)
-    # print("time to get initial guess", time.time()-startTime)
+    # ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
+    # print("path planning time", time.time()-startTime)
+    startTime = time.time()
+    _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=True)
+    print("time to get initial guess", time.time()-startTime)
     
     # fig,ax = plt.subplots
     # ax.set_aspect('equal')
@@ -811,7 +817,7 @@ if __name__ == "__main__":
         fig,ax = plt.subplots()
     c = pdMap.plot_mean(ax,plotGroundTruth=True)
     # fig.colorbar(c, ax=ax)
-    hpp.plot_spline(hpp.spline,ax)
-    hpp.plot_constraints(hpp.spline, tuple(radarList))
+    # hpp.plot_spline(hpp.spline,ax)
+    # hpp.plot_constraints(hpp.spline, tuple(radarList))
     plt.show()
         

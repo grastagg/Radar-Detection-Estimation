@@ -5,7 +5,7 @@ import jax
 # from scipy.constants import boltzman
 from scipy.constants import k as boltzman
 
-np.random.seed(91234123)
+np.random.seed(912412)
         
 def db_to_amplitude(db):
     return 10**(db/10)
@@ -32,7 +32,7 @@ highPriorityEnd = (bounds[0],bounds[1])
 highPriorityStraitLineA = highPriorityStart[1] - highPriorityEnd[1]
 highPriorityStraitLineB = highPriorityEnd[0] - highPriorityStart[0]
 highPriorityStraitLineC = highPriorityStart[0]*highPriorityEnd[1] - highPriorityEnd[0] * highPriorityStart[1]
-probabilityOfDetectionThreshold = 0.05
+probabilityOfDetectionThreshold = 0.1
 thresholdConfidence = 0.95
 highPriorityAgentRadarCrossSection = .1
 
