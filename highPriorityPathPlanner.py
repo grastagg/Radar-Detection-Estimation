@@ -34,7 +34,7 @@ from bspline.matrix_evaluation import matrix_bspline_evaluation,derivative_matri
 
 # from bspline.matrix_evaluation import matrix_bspline_evaluation_for_dataset_jax, matrix_bspline_evaluation_jax
 
-from highPriorityHelperFunctions import create_unclamped_knot_points, get_spline_velocity, get_pd_along_spline, get_spline_turn_rate
+from highPriorityHelperFunctions import create_unclamped_knot_points, get_spline_velocity, get_pd_along_spline, get_spline_turn_rate, dist_of_points_to_line_segment
 
 
 
@@ -55,8 +55,14 @@ class HighPriorityPathPlannerDeterministic:
 
         self.dTurnRateDControlPoints = jacfwd(get_spline_turn_rate)
         self.dTurnRateTf = jacfwd(get_spline_turn_rate,argnums=1)
+
+        self.deterministicRadarPositions = np.array([radar.position for radar in radarList])
+        print(self.deterministicRadarPositions)
+
+        dist_of_points_to_line_segment(np.array([0,0]),np.array([1,1]),self.deterministicRadarPositions)
         print("Time to compile jax functions", time.time()-start)
-        pass
+
+        
     
     
     def get_turn_rate_and_velocity(self, t, controlPoints, knotPoints):
@@ -338,35 +344,6 @@ class HighPriorityPathPlannerDeterministic:
                 # self.plot_constraints(spline, radarList)
         return combined_control_points, tf,ax
     
-    # def dist_of_point_to_line_segment(self, x1, y1, x2, y2, x3, y3): # x3,y3 is the point
-    #     #https://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
-    #     px = x2-x1
-    #     py = y2-y1
-
-    #     norm = px*px + py*py
-
-    #     u =  ((x3 - x1) * px + (y3 - y1) * py) / float(norm)
-
-    #     if u > 1:
-    #         u = 1
-    #     elif u < 0:
-    #         u = 0
-
-    #     x = x1 + u * px
-    #     y = y1 + u * py
-
-    #     dx = x - x3
-    #     dy = y - y3
-
-    #     # Note: If the actual distance does not matter,
-    #     # if you only want to compare what this function
-    #     # returns to other results of this function, you
-    #     # can just return the squared distance instead
-    #     # (i.e. remove the sqrt) to gain a little performance
-
-    #     dist = (dx*dx + dy*dy)
-
-    #     return dist
     
     def find_closest_segements_to_point(self, point, segments):
         distances = []
