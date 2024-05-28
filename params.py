@@ -5,7 +5,7 @@ import jax
 # from scipy.constants import boltzman
 from scipy.constants import k as boltzman
 
-np.random.seed(912412)
+np.random.seed(91412)
         
 def db_to_amplitude(db):
     return 10**(db/10)
@@ -52,6 +52,7 @@ def find_radius_from_radar_pd(radarOuputPower, radarTransmitGain, radarRecieveGa
     R = (((erp*G_r*lamb**2*sigma*tua)/((np.log(Pfa)/np.log(pd))-1))*(1/((4*np.pi)**3*k*Ts)))**.25
     return R
 
+
 # radarPositions = [(3000,10000),(8000, 10000)]
 radarOutputPower = 10000
 # radarOutputPower = 9000
@@ -72,6 +73,10 @@ radarPositions = []
 radarPhases = []
 radarAngularRates = []
 numRadar = 8
+
+
+safeRadius = find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
+
 
 # minRadarDistFromStart = 7000
 minInterRadarDist = 2.0 * find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
@@ -167,7 +172,7 @@ numObjectiveFunctionSamples = 20
 lowPrioritySafetyBestMeasurementTradeoff = .1
 lowPriorityDistanceBestMeasurementTradeoff = .6
 agentSpeed = 134
-numControlPoints = 24
+numControlPoints = 40
 maxTurnRate = 1
 velocityBounds = [100,134]
 numSamplesPerInterval = 3

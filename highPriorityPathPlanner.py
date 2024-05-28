@@ -261,13 +261,13 @@ class HighPriorityPathPlannerDeterministic:
         qs = np.linspace(0, 1, n_interior_knots + 2)[1:-1]
         knots = np.quantile(t, qs)
 
-        tck_x = splrep(t,path[:,0],k=params.splineOrder,t=knots)
+        tck_x = splrep(t,path[:,0],k=params.splineOrder,t=knots,s=1)
         control_points_x = tck_x[1]
         control_points_x = control_points_x[control_points_x != 0]
         control_points_x[0] = params.highPriorityStart[0]
         control_points_x[-1] = params.highPriorityEnd[0]
 
-        tck_y = splrep(t,path[:,1],k=params.splineOrder,t=knots)
+        tck_y = splrep(t,path[:,1],k=params.splineOrder,t=knots,s=1)
         control_points_y = tck_y[1]
         control_points_y = control_points_y[control_points_y != 0]
         control_points_y[0] = params.highPriorityStart[1]
@@ -435,46 +435,78 @@ class HighPriorityPathPlannerDeterministic:
             # temp_segments = []
             for i in range(len(y_coords)+1):
                 if i == 0:
-                    segments_to_add.append([[0,0],[0,y_coords[i]]])
+                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,0]),np.array([0,bounds[1]]),self.deterministicRadarPositions))
+                    if distToClosestRadar > params.safeRadius:
+                        segments_to_add.append([[0,0],[0,y_coords[i]]])
                 elif i == len(y_coords):
-                    segments_to_add.append([[0,y_coords[i-1]],[0,bounds[1]]])
+                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,y_coords[i-1]]),np.array([0,bounds[1]]),self.deterministicRadarPositions))
+                    if distToClosestRadar > params.safeRadius:
+                        segments_to_add.append([[0,y_coords[i-1]],[0,bounds[1]]])
                 else:
-                    segments_to_add.append([[0,y_coords[i-1]],[0,y_coords[i]]])    
+                    distToClosestRadar1 = np.min(dist_of_points_to_line_segment(np.array([0,y_coords[i-1]]),np.array([0,y_coords[i]]),self.deterministicRadarPositions))
+                    if distToClosestRadar1 > params.safeRadius:
+                        segments_to_add.append([[0,y_coords[i-1]],[0,y_coords[i]]])    
         else:
-            segments_to_add.append([[0,0],[0,bounds[1]]])
+            distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,0]),np.array([0,bounds[1]]),self.deterministicRadarPositions))
+            if distToClosestRadar > params.safeRadius:
+                segments_to_add.append([[0,0],[0,bounds[1]]])
         if np.any(np.isclose(segments[:,:,0], bounds[0],atol=tolerance)):
             y_coords = np.sort(segments[np.isclose(segments[:,:,0], bounds[0],atol=tolerance)][:,1])
             for i in range(len(y_coords)+1):
                 if i == 0:
-                    segments_to_add.append([[bounds[0],0],[bounds[0],y_coords[i]]])
+                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([bounds[0],0]),np.array([bounds[0],y_coords[i]]),self.deterministicRadarPositions))
+                    if distToClosestRadar > params.safeRadius:
+                        segments_to_add.append([[bounds[0],0],[bounds[0],y_coords[i]]])
                 elif i == len(y_coords):
-                    segments_to_add.append([[bounds[0],y_coords[i-1]],[bounds[0],bounds[1]]])
+                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([bounds[0],y_coords[i-1]]),np.array([bounds[0],bounds[1]]),self.deterministicRadarPositions))
+                    if distToClosestRadar > params.safeRadius:
+                        segments_to_add.append([[bounds[0],y_coords[i-1]],[bounds[0],bounds[1]]])
                 else:
-                    segments_to_add.append([[bounds[0],y_coords[i-1]],[bounds[0],y_coords[i]]])    
+                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([bounds[0],y_coords[i-1]]),np.array([bounds[0],y_coords[i]]),self.deterministicRadarPositions))
+                    if distToClosestRadar > params.safeRadius:
+                        segments_to_add.append([[bounds[0],y_coords[i-1]],[bounds[0],y_coords[i]]])    
         else:
-            segments_to_add.append([[bounds[0],0],[bounds[0],bounds[1]]])
+            distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([bounds[0],0]),np.array([bounds[0],bounds[1]]),self.deterministicRadarPositions))
+            if distToClosestRadar > params.safeRadius:
+                segments_to_add.append([[bounds[0],0],[bounds[0],bounds[1]]])
         if np.any(np.isclose(segments[:,:,1],0,atol=1e-5)):
             x_coords = np.sort(segments[np.isclose(segments[:,:,1],0,atol=1e-5)][:,0])
             for i in range(len(x_coords)+1):
                 if i == 0:
-                    segments_to_add.append([[0,0],[x_coords[i],0]])
+                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,0]),np.array([x_coords[i],0]),self.deterministicRadarPositions))
+                    if distToClosestRadar > params.safeRadius:
+                        segments_to_add.append([[0,0],[x_coords[i],0]])
                 elif i == len(x_coords):
-                    segments_to_add.append([[x_coords[i-1],0],[bounds[0],0]])
+                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([x_coords[i-1],0]),np.array([bounds[0],0]),self.deterministicRadarPositions))
+                    if distToClosestRadar > params.safeRadius:
+                        segments_to_add.append([[x_coords[i-1],0],[bounds[0],0]])
                 else:
-                    segments_to_add.append([[x_coords[i-1],0],[x_coords[i],0]])
+                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([x_coords[i-1],0]),np.array([x_coords[i],0]),self.deterministicRadarPositions))
+                    if distToClosestRadar > params.safeRadius:
+                        segments_to_add.append([[x_coords[i-1],0],[x_coords[i],0]])
         else:
-            segments_to_add.append([[0,0],[bounds[0],0]])
+            distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,0]),np.array([bounds[0],0]),self.deterministicRadarPositions))
+            if distToClosestRadar > params.safeRadius:
+                segments_to_add.append([[0,0],[bounds[0],0]])
         if np.any(np.isclose(segments[:,:,1], bounds[1],atol=tolerance)):
             x_coords = np.sort(segments[np.isclose(segments[:,:,1], bounds[1],atol=tolerance)][:,0])
             for i in range(len(x_coords)+1):
                 if i == 0:
-                    segments_to_add.append([[0,bounds[1]],[x_coords[i],bounds[1]]])
+                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,bounds[1]]),np.array([x_coords[i],bounds[1]]),self.deterministicRadarPositions))
+                    if distToClosestRadar > params.safeRadius:
+                        segments_to_add.append([[0,bounds[1]],[x_coords[i],bounds[1]]])
                 elif i == len(x_coords):
-                    segments_to_add.append([[x_coords[i-1],bounds[1]],[bounds[0],bounds[1]]])
+                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([x_coords[i-1],bounds[1]]),np.array([bounds[0],bounds[1]]),self.deterministicRadarPositions))
+                    if distToClosestRadar > params.safeRadius:
+                        segments_to_add.append([[x_coords[i-1],bounds[1]],[bounds[0],bounds[1]]])
                 else:
-                    segments_to_add.append([[x_coords[i-1],bounds[1]],[x_coords[i],bounds[1]]])
+                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([x_coords[i-1],bounds[1]]),np.array([x_coords[i],bounds[1]]),self.deterministicRadarPositions))
+                    if distToClosestRadar > params.safeRadius:
+                        segments_to_add.append([[x_coords[i-1],bounds[1]],[x_coords[i],bounds[1]]])
         else:
-            segments_to_add.append([[0,bounds[1]],[bounds[0],bounds[1]]])
+            distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,bounds[1]]),np.array([bounds[0],bounds[1]]),self.deterministicRadarPositions))
+            if distToClosestRadar > params.safeRadius:
+                segments_to_add.append([[0,bounds[1]],[bounds[0],bounds[1]]])
                     
         segments = np.vstack((segments,segments_to_add))
         return segments
@@ -724,6 +756,7 @@ class HighPriorityPathPlannerDeterministic:
             fig,ax2 = plt.subplots()
             ig.plot(g,layout= layout,target=ax2)
             self.plot_constraints(spline, tuple(radarList))
+            # plt.show()
         
         return controlPoints,tf,ax
         
@@ -762,11 +795,21 @@ class HighPriorityPathPlannerDeterministic:
         controlPoints = spline.c
         knotPoints = spline.t
         pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,numConstraintSamples)
+        maxpdIndex = np.argmax(pd)
+        closestRadarIndex = np.argmin(np.linalg.norm(pos[maxpdIndex]-np.array([radar.position for radar in radarList]),axis=1)) 
+        print("max pd", np.max(pd))
+        print("position of max pd", pos[maxpdIndex])
+        print("closest radar position", radarList[closestRadarIndex].position)
+        print("distance to closest radar", np.linalg.norm(pos[maxpdIndex]-radarList[closestRadarIndex].position))
 
-        fig,axes = plt.subplots(3)
-        axes[0].plot(t, pd)
-        axes[1].plot(t, u)
-        axes[2].plot(t, v)
+        # fig,axes = plt.subplots(3)
+        # axes[0].plot(t, pd)
+        # axes[1].plot(t, u)
+        # axes[2].plot(t, v)
+        fig,axes = plt.subplots()
+        c = plt.scatter(pos[:,0], pos[:,1], c=pd)
+        fig.colorbar(c, ax=axes)
+
         
     
     
