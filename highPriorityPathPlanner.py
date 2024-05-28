@@ -57,7 +57,6 @@ class HighPriorityPathPlannerDeterministic:
         self.dTurnRateTf = jacfwd(get_spline_turn_rate,argnums=1)
 
         self.deterministicRadarPositions = np.array([radar.position for radar in radarList])
-        print(self.deterministicRadarPositions)
 
         dist_of_points_to_line_segment(np.array([0,0]),np.array([1,1]),self.deterministicRadarPositions)
         print("Time to compile jax functions", time.time()-start)
@@ -220,7 +219,7 @@ class HighPriorityPathPlannerDeterministic:
         # opt.options['derivative_test'] = 'first-order'
         opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['linear_solver'] = 'ma97'
-        opt.options['print_level'] = 5
+        opt.options['print_level'] = 0
         opt.options['max_iter'] = 1000
         opt.options['tol'] = 1e-8
         sol = opt(optProb, sens = sens)
@@ -404,27 +403,33 @@ class HighPriorityPathPlannerDeterministic:
         return intersection_point
 
     def find_intersection_with_boundary(self, A, B, bounds):
+        intersectionList = []
         C = np.array([0,0])
         D = np.array([0,bounds[1]])
         intersection = self.intersection_of_two_line_segments(A,B,C,D)
         if intersection is not None:
-            return intersection
+            intersectionList.append(intersection)
+            # return intersection
         C = np.array([0,0])
         D = np.array([bounds[0],0])
         intersection = self.intersection_of_two_line_segments(A,B,C,D)
         if intersection is not None:
-            return intersection
+            intersectionList.append(intersection)
+            # return intersection
         C = np.array([0,bounds[1]])
         D = np.array([bounds[0],bounds[1]])
         intersection = self.intersection_of_two_line_segments(A,B,C,D)
         if intersection is not None:
-            return intersection
+            intersectionList.append(intersection)
+            # return intersection
         C = np.array([bounds[0],0])
         D = np.array([bounds[0],bounds[1]])
         intersection = self.intersection_of_two_line_segments(A,B,C,D)
         if intersection is not None:
-            return intersection
-        return None
+            intersectionList.append(intersection)
+            # return intersection
+        return intersectionList
+        # return None
     
     # def find_line_segments_from_point_to_closest
     def add_boundary_segments(self,segments,bounds):
@@ -435,7 +440,7 @@ class HighPriorityPathPlannerDeterministic:
             # temp_segments = []
             for i in range(len(y_coords)+1):
                 if i == 0:
-                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,0]),np.array([0,bounds[1]]),self.deterministicRadarPositions))
+                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,0]),np.array([0,y_coords[i]]),self.deterministicRadarPositions))
                     if distToClosestRadar > params.safeRadius:
                         segments_to_add.append([[0,0],[0,y_coords[i]]])
                 elif i == len(y_coords):
@@ -513,6 +518,11 @@ class HighPriorityPathPlannerDeterministic:
         
         
     # def remove_segments_too_close_to_point(self, point, segments, minDist):
+
+    def remove_unfeasible_segments(self,segments,radarList):
+        minRadarDists = np.array([np.min(dist_of_points_to_line_segment(seg[0],seg[1],self.deterministicRadarPositions)) for seg in segments])
+        
+        return segments[minRadarDists > params.safeRadius]
         
 
 
@@ -531,12 +541,17 @@ class HighPriorityPathPlannerDeterministic:
         for pointidx, simplex in zip(vor.ridge_points, vor.ridge_vertices):
             simplex = np.asarray(simplex)
             if np.all(simplex >= 0):
-                intersection = self.find_intersection_with_boundary(vor.vertices[simplex[0]], vor.vertices[simplex[1]], bounds)
-                if intersection is not None:
-                    if np.any(vor.vertices[simplex[0]] <0) or np.any(vor.vertices[simplex[0]] > bounds[0]):
-                        segments.append([intersection, vor.vertices[simplex[1]]]) 
+                intersections = self.find_intersection_with_boundary(vor.vertices[simplex[0]], vor.vertices[simplex[1]], bounds)
+                if len(intersections) >0:
+                    if len(intersections) == 1:
+                        if np.any(vor.vertices[simplex[0]] <0) or np.any(vor.vertices[simplex[0]] > bounds[0]):
+                            segments.append([intersections[0], vor.vertices[simplex[1]]]) 
+                        elif np.any(vor.vertices[simplex[1]] <0) or np.any(vor.vertices[simplex[1]] > bounds[0]):
+                            segments.append([intersections[0], vor.vertices[simplex[0]]])
+                        else:
+                            segments.append([vor.vertices[simplex[0]], intersections[0]])
                     else:
-                        segments.append([vor.vertices[simplex[0]], intersection])
+                        segments.append(intersections)
                 else:
                     segments.append(vor.vertices[simplex])
                 # segments.append(vor.vertices[simplex])
@@ -554,15 +569,20 @@ class HighPriorityPathPlannerDeterministic:
                 aspect_factor = abs(ptp_bound.max() / ptp_bound.min())
                 far_point = vor.vertices[i] + direction * ptp_bound.max() * aspect_factor
                 
-                far_point = self.find_intersection_with_boundary(vor.vertices[i], far_point, bounds)
+                intersections = self.find_intersection_with_boundary(vor.vertices[i], far_point, bounds)
 
-                if far_point is not None:
-                    segments.append([vor.vertices[i], far_point])
+                if len(intersections)>0:
+                    segments.append([vor.vertices[i], intersections[0]])
 
         print("time to find segments", time.time()-startTimer)
 
         segments = np.array(segments)
+        startTimer = time.time()
+        segments = self.remove_unfeasible_segments(segments,radarList)
+        print("time to remove unfeasible segments", time.time()-startTimer)
+        startTimer = time.time()
         segments = self.add_boundary_segments(segments,bounds)
+        print("time to add boundary segments", time.time()-startTimer)
         
         
         
@@ -776,14 +796,17 @@ class HighPriorityPathPlannerDeterministic:
     def plot_spline(self, spline,ax):
         controlPoints = spline.c
         tf = spline.t[-params.splineOrder-1]
-        t = np.linspace(0, tf, 200)
+        t = np.linspace(0, tf, 1000)
         pos = spline(t)
         ax.plot(pos[:,0], pos[:,1])
-        ax.plot(controlPoints[:,0], controlPoints[:,1], 'k--',marker='o',alpha=.5)
+        # ax.plot(controlPoints[:,0], controlPoints[:,1], 'k--',marker='o',alpha=.5)
 
     def plot_spline_from_control_points(self, controlPoints, knotPoints,ax):
-        t = np.linspace(0, knotPoints[-params.splineOrder-1], 200)
-        pos = self.evaluate_spline(t, controlPoints, knotPoints,params.splineOrder)
+        t = np.linspace(0, knotPoints[-params.splineOrder-1], 1000)
+        spline = self.spline_seg(controlPoints, knotPoints)
+        pos = spline(t)
+        
+        # pos = self.evaluate_spline(t, controlPoints, knotPoints,params.splineOrder)
 
         ax.plot(pos[:,0], pos[:,1])
         # ax.plot(controlPoints[:,0], controlPoints[:,1], 'k--',marker='o',alpha=.5)
@@ -821,23 +844,26 @@ if __name__ == "__main__":
     hpp = HighPriorityPathPlannerDeterministic(tuple(radarList))
     # hpp.find_initial_guess_rrt_star(radarList,plot=True)
     pdMap = ProbabilityOfDetectionMap(params.X_test,radarList)
-    # startTime = time.time()
-    # ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
-    # print("path planning time", time.time()-startTime)
-    # startTime = time.time()
-    # ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
-    # print("path planning time", time.time()-startTime)
     startTime = time.time()
-    _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=True)
-    print("time to get initial guess", time.time()-startTime)
+    ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
+    print("path planning time", time.time()-startTime)
+    startTime = time.time()
+    # ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
+    # print("path planning time", time.time()-startTime)
+    # startTime = time.time()
+    # _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=False)
+    # print("time to get initial guess", time.time()-startTime)
     
     # fig,ax = plt.subplots
     # ax.set_aspect('equal')
     if ax is None:
         fig,ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
     c = pdMap.plot_mean(ax,plotGroundTruth=True)
-    # fig.colorbar(c, ax=ax)
-    # hpp.plot_spline(hpp.spline,ax)
-    # hpp.plot_constraints(hpp.spline, tuple(radarList))
+    # ax.set_colorbar(c)
+    fig.colorbar(c, ax=ax)
+    hpp.plot_spline(hpp.spline,ax)
+    hpp.plot_constraints(hpp.spline, tuple(radarList))
     plt.show()
         

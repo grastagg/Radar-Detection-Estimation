@@ -5,7 +5,7 @@ import jax
 # from scipy.constants import boltzman
 from scipy.constants import k as boltzman
 
-np.random.seed(91412)
+np.random.seed(2311102)
         
 def db_to_amplitude(db):
     return 10**(db/10)
@@ -72,15 +72,15 @@ radarSystemTemperature = 745.4148
 radarPositions = []
 radarPhases = []
 radarAngularRates = []
-numRadar = 8
+numRadar = 11
 
 
 safeRadius = find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
 
 
 # minRadarDistFromStart = 7000
-minInterRadarDist = 2.0 * find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
-minRadarDistFromStart = 1.0*(minInterRadarDist/2) 
+minInterRadarDist = 1.9* find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
+minRadarDistFromStart = 1.5*(minInterRadarDist/2) 
 # minInterRadarDist = 6000
 # minInterRadarDist = 4000
 def find_min_dist_to_other_radar(potentialRadarPosition, currentRadarPositions):
@@ -172,7 +172,7 @@ numObjectiveFunctionSamples = 20
 lowPrioritySafetyBestMeasurementTradeoff = .1
 lowPriorityDistanceBestMeasurementTradeoff = .6
 agentSpeed = 134
-numControlPoints = 40
+numControlPoints = 24
 maxTurnRate = 1
 velocityBounds = [100,134]
 numSamplesPerInterval = 3
