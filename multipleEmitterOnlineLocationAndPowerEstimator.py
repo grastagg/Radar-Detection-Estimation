@@ -46,6 +46,10 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.max_aoa_measurement = None
         self.min_aoa_diff_to_start = .2
         self.minDistBetweenModels = params.minInterRadarDist
+
+        
+        self.saveRadarData = True
+        self.fileCounter = 0
     
     def delete_lowest_probability_model(self):
         remove_indicies = []
@@ -324,6 +328,10 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         print("group lists", self.group_lists)
         print("outliers", self.outlier_indicies)
         print()
+        if self.saveRadarData:
+            self.fileCounter += 1
+            np.save("./saved_data/estimated_params/"+str(self.fileCounter), self.estimated_emmiter_params)
+            np.save("./saved_data/estimated_params_cov/"+str(self.fileCounter), self.estimated_emmiter_params_covariances)
 
         # else:
         #     # self.outlier_indicies = np.append(self.outlier_indicies, 0)
