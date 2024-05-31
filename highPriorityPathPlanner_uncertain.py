@@ -284,7 +284,7 @@ class HighPriorityPathPlannerUncertain:
 
         return combined_control_points,combined_knot_points
     
-    def assure_velocity_constraint(self, radarList, controlPoints, knotPoints,num_control_points):
+    def assure_velocity_constraint(self, controlPoints, knotPoints,num_control_points):
         # pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,params.numConstraintSamples)
         tf=np.linalg.norm(controlPoints[0]-controlPoints[-1])/params.agentSpeed
         v = get_spline_velocity(controlPoints, tf,params.splineOrder,params.numSamplesPerInterval)
@@ -438,78 +438,46 @@ class HighPriorityPathPlannerUncertain:
             # temp_segments = []
             for i in range(len(y_coords)+1):
                 if i == 0:
-                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,0]),np.array([0,y_coords[i]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
-                        segments_to_add.append([[0,0],[0,y_coords[i]]])
+                    segments_to_add.append([[0,0],[0,y_coords[i]]])
                 elif i == len(y_coords):
-                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,y_coords[i-1]]),np.array([0,bounds[1]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
-                        segments_to_add.append([[0,y_coords[i-1]],[0,bounds[1]]])
+                    segments_to_add.append([[0,y_coords[i-1]],[0,bounds[1]]])
                 else:
-                    distToClosestRadar1 = np.min(dist_of_points_to_line_segment(np.array([0,y_coords[i-1]]),np.array([0,y_coords[i]]),self.deterministicRadarPositions))
-                    if distToClosestRadar1 > params.safeRadius:
-                        segments_to_add.append([[0,y_coords[i-1]],[0,y_coords[i]]])    
+                    segments_to_add.append([[0,y_coords[i-1]],[0,y_coords[i]]])    
         else:
-            distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,0]),np.array([0,bounds[1]]),self.deterministicRadarPositions))
-            if distToClosestRadar > params.safeRadius:
-                segments_to_add.append([[0,0],[0,bounds[1]]])
+            segments_to_add.append([[0,0],[0,bounds[1]]])
         if np.any(np.isclose(segments[:,:,0], bounds[0],atol=tolerance)):
             y_coords = np.sort(segments[np.isclose(segments[:,:,0], bounds[0],atol=tolerance)][:,1])
             for i in range(len(y_coords)+1):
                 if i == 0:
-                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([bounds[0],0]),np.array([bounds[0],y_coords[i]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
-                        segments_to_add.append([[bounds[0],0],[bounds[0],y_coords[i]]])
+                    segments_to_add.append([[bounds[0],0],[bounds[0],y_coords[i]]])
                 elif i == len(y_coords):
-                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([bounds[0],y_coords[i-1]]),np.array([bounds[0],bounds[1]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
-                        segments_to_add.append([[bounds[0],y_coords[i-1]],[bounds[0],bounds[1]]])
+                    segments_to_add.append([[bounds[0],y_coords[i-1]],[bounds[0],bounds[1]]])
                 else:
-                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([bounds[0],y_coords[i-1]]),np.array([bounds[0],y_coords[i]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
-                        segments_to_add.append([[bounds[0],y_coords[i-1]],[bounds[0],y_coords[i]]])    
+                    segments_to_add.append([[bounds[0],y_coords[i-1]],[bounds[0],y_coords[i]]])    
         else:
-            distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([bounds[0],0]),np.array([bounds[0],bounds[1]]),self.deterministicRadarPositions))
-            if distToClosestRadar > params.safeRadius:
-                segments_to_add.append([[bounds[0],0],[bounds[0],bounds[1]]])
+            segments_to_add.append([[bounds[0],0],[bounds[0],bounds[1]]])
         if np.any(np.isclose(segments[:,:,1],0,atol=1e-5)):
             x_coords = np.sort(segments[np.isclose(segments[:,:,1],0,atol=1e-5)][:,0])
             for i in range(len(x_coords)+1):
                 if i == 0:
-                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,0]),np.array([x_coords[i],0]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
-                        segments_to_add.append([[0,0],[x_coords[i],0]])
+                    segments_to_add.append([[0,0],[x_coords[i],0]])
                 elif i == len(x_coords):
-                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([x_coords[i-1],0]),np.array([bounds[0],0]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
-                        segments_to_add.append([[x_coords[i-1],0],[bounds[0],0]])
+                    segments_to_add.append([[x_coords[i-1],0],[bounds[0],0]])
                 else:
-                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([x_coords[i-1],0]),np.array([x_coords[i],0]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
-                        segments_to_add.append([[x_coords[i-1],0],[x_coords[i],0]])
+                    segments_to_add.append([[x_coords[i-1],0],[x_coords[i],0]])
         else:
-            distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,0]),np.array([bounds[0],0]),self.deterministicRadarPositions))
-            if distToClosestRadar > params.safeRadius:
-                segments_to_add.append([[0,0],[bounds[0],0]])
+            segments_to_add.append([[0,0],[bounds[0],0]])
         if np.any(np.isclose(segments[:,:,1], bounds[1],atol=tolerance)):
             x_coords = np.sort(segments[np.isclose(segments[:,:,1], bounds[1],atol=tolerance)][:,0])
             for i in range(len(x_coords)+1):
                 if i == 0:
-                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,bounds[1]]),np.array([x_coords[i],bounds[1]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
-                        segments_to_add.append([[0,bounds[1]],[x_coords[i],bounds[1]]])
+                    segments_to_add.append([[0,bounds[1]],[x_coords[i],bounds[1]]])
                 elif i == len(x_coords):
-                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([x_coords[i-1],bounds[1]]),np.array([bounds[0],bounds[1]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
-                        segments_to_add.append([[x_coords[i-1],bounds[1]],[bounds[0],bounds[1]]])
+                    segments_to_add.append([[x_coords[i-1],bounds[1]],[bounds[0],bounds[1]]])
                 else:
-                    distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([x_coords[i-1],bounds[1]]),np.array([x_coords[i],bounds[1]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
-                        segments_to_add.append([[x_coords[i-1],bounds[1]],[x_coords[i],bounds[1]]])
+                    segments_to_add.append([[x_coords[i-1],bounds[1]],[x_coords[i],bounds[1]]])
         else:
-            distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,bounds[1]]),np.array([bounds[0],bounds[1]]),self.deterministicRadarPositions))
-            if distToClosestRadar > params.safeRadius:
-                segments_to_add.append([[0,bounds[1]],[bounds[0],bounds[1]]])
+            segments_to_add.append([[0,bounds[1]],[bounds[0],bounds[1]]])
                     
         segments = np.vstack((segments,segments_to_add))
         return segments
@@ -525,9 +493,9 @@ class HighPriorityPathPlannerUncertain:
 
 
 
-    def get_voronoi_ridge_segements(self,radarList,bounds,plot=False):
+    def get_voronoi_ridge_segements(self,estimatedRadarParams,bounds,plot=False):
         startTimer = time.time()
-        points = np.array([[radar.position[0], radar.position[1]] for radar in radarList])
+        points = estimatedRadarParams[:,0:2]
         vor = Voronoi(points)
         print("time for scipy voronoi", time.time()-startTimer)
 
@@ -576,11 +544,11 @@ class HighPriorityPathPlannerUncertain:
 
         segments = np.array(segments)
         startTimer = time.time()
-        # segments = self.remove_unfeasible_segments(segments,radarList)
-        # print("time to remove unfeasible segments", time.time()-startTimer)
-        startTimer = time.time()
         segments = self.add_boundary_segments(segments,bounds)
         print("time to add boundary segments", time.time()-startTimer)
+        # startTimer = time.time()
+        # segments = self.remove_unfeasible_segments(segments,radarList)
+        # print("time to remove unfeasible segments", time.time()-startTimer)
         
         
         
@@ -720,7 +688,7 @@ class HighPriorityPathPlannerUncertain:
 
     def get_initial_guess_voronoi(self,estimatedRadarParams, estimatedRadarParamsCovList,bounds,plot=False):
         startTime = time.time()
-        segments,ax = self.get_voronoi_ridge_segements(radarList,bounds,plot=plot)
+        segments,ax = self.get_voronoi_ridge_segements(estimatedRadarParams,bounds,plot=plot)
         print("Time to get voronoi segments", time.time()-startTime)
 
         startTime = time.time()
@@ -744,7 +712,7 @@ class HighPriorityPathPlannerUncertain:
         
         startTime = time.time()
         knotPoints = create_unclamped_knot_points(0,1, params.numControlPoints,params.splineOrder)
-        knotPoints,tf = self.assure_velocity_constraint(radarList, controlPoints.reshape((-1,)), knotPoints,params.numControlPoints)
+        knotPoints,tf = self.assure_velocity_constraint(controlPoints.reshape((-1,)), knotPoints,params.numControlPoints)
         print("tf", tf)
         print("Time to assure velocity constraint", time.time()-startTime)
 
@@ -773,7 +741,7 @@ class HighPriorityPathPlannerUncertain:
 
             fig,ax2 = plt.subplots()
             ig.plot(g,layout= layout,target=ax2)
-            self.plot_constraints(spline, tuple(radarList))
+            self.plot_constraints(spline, tuple(radar_list))
             # plt.show()
         
         return controlPoints,tf,ax
@@ -838,11 +806,11 @@ if __name__ == "__main__":
 
 
     hpp = HighPriorityPathPlannerUncertain()
-    radarList = tuple(create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGain, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm))
-    pdmap = ProbabilityOfDetectionMap(params.X_test, radarList)
-    paramNum = 837
-    radarParams = np.load("saved_data/estimated_params/"+str(837) + ".npy")
-    radarParamsCov = np.load("saved_data/estimated_params_cov/"+str(837) + ".npy")
+    radar_list = tuple(create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGain, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm))
+    pdmap = ProbabilityOfDetectionMap(params.X_test, radar_list)
+    paramNum = 830
+    radarParams = np.load("saved_data/estimated_params/"+str(paramNum) + ".npy")
+    radarParamsCov = np.load("saved_data/estimated_params_cov/"+str(paramNum) + ".npy")
 
     controlPoints,tf,ax = hpp.get_initial_guess_voronoi(radarParams, radarParamsCov, params.bounds,plot=True)
 
@@ -853,10 +821,10 @@ if __name__ == "__main__":
         fig,ax = plt.subplots()
     else:
         fig = ax.get_figure()
-    c = pdMap.plot_mean(ax,plotGroundTruth=True)
+    c = pdmap.plot_mean(ax,plotGroundTruth=True)
     # ax.set_colorbar(c)
     fig.colorbar(c, ax=ax)
-    hpp.plot_spline(hpp.spline,ax)
-    hpp.plot_constraints(hpp.spline, tuple(radarList))
+    # hpp.plot_spline(hpp.spline,ax)
+    # hpp.plot_constraints(hpp.spline, tuple(radarList))
     plt.show()
         
