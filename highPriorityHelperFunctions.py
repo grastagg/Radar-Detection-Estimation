@@ -7,7 +7,7 @@ from time import time
 from bspline.matrix_evaluation import matrix_bspline_derivative_evaluation_for_dataset, matrix_bspline_evaluation_for_dataset
 
 from main_helper import create_radar_list
-from probabilityOfDetectionJax import ground_truth_probability_of_detection
+from probabilityOfDetectionJax import ground_truth_probability_of_detection,compute_probability_of_detection_at_points_multiple_radar
 
 
 
@@ -39,11 +39,11 @@ def get_spline_velocity(controlPoints, tf, splineOrder, numSamplesPerInterval):
     return jnp.linalg.norm(out_d1,axis=1)
 
 @partial(jit, static_argnums=(2,3,4,5)) 
-def get_pd_along_spline(controlPoints, tf, radarList, numControlPoints, splineOrder, numSamplesPerInterval, radarOutputPower, radarTransmitGain, radarRecieveGainPriorMean, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, radarSystemTemperaturePriorMean, radarProbabilityOfFalseAlarmPriorMean):
-    controlPoints = controlPoints.reshape((numControlPoints,2))
-    knotPoints = create_unclamped_knot_points(0, tf, numControlPoints,splineOrder)
-    pos = evaluate_spline(controlPoints,knotPoints,numSamplesPerInterval)
-    pd = ground_truth_probability_of_detection(pos, radarList, radarOutputPower, radarTransmitGain, radarRecieveGainPriorMean, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, radarSystemTemperaturePriorMean, radarProbabilityOfFalseAlarmPriorMean)
+def get_pd_along_spline(controlpoints, tf, radarlist, numcontrolpoints, splineorder, numsamplesperinterval, radaroutputpower, radartransmitgain, radarrecievegainpriormean, radarwavelengthpriormean, agentradarcrosssection, radarpulsewidth, radarsystemtemperaturepriormean, radarprobabilityoffalsealarmpriormean):
+    controlpoints = controlpoints.reshape((numcontrolpoints,2))
+    knotpoints = create_unclamped_knot_points(0, tf, numcontrolpoints,splineorder)
+    pos = evaluate_spline(controlpoints,knotpoints,numsamplesperinterval)
+    pd = ground_truth_probability_of_detection(pos, radarlist, radaroutputpower, radartransmitgain, radarrecievegainpriormean, radarwavelengthpriormean, agentradarcrosssection, radarpulsewidth, radarsystemtemperaturepriormean, radarprobabilityoffalsealarmpriormean)
     return pd
     
 @partial(jit, static_argnums=(2,3))
@@ -95,6 +95,17 @@ def dist_of_points_to_line_segment(p1,p2,points): # p3 is the point
     dist = jnp.linalg.norm(dp,axis=1)
 
     return dist
+
+    
+    
+
+@partial(jit, static_argnums=(2,3,4)) 
+def get_pd_cov_and_mean_along_spline(controlpoints, tf, numcontrolpoints, splineorder, numsamplesperinterval, estimatedRadarParamsList, estimatedRadarParamsCovList, radarrecievegainpriormean,radarrecievegainpriorvar, radarwavelengthpriormean,radarwavelengthpriormeanvar, agentradarcrosssection, radarpulsewidth,radarpulsewidthVar, radarsystemtemperaturepriormean,radarsystemtemperaturepriorvar, radarprobabilityoffalsealarmpriormean,radarprobabilityoffalsealarmpriorvar):
+    controlpoints = controlpoints.reshape((numcontrolpoints,2))
+    knotpoints = create_unclamped_knot_points(0, tf, numcontrolpoints,splineorder)
+    pos = evaluate_spline(controlpoints,knotpoints,numsamplesperinterval)
+    pdMean, pdCov = compute_probability_of_detection_at_points_multiple_radar(pos, estimatedRadarParamsList, estimatedRadarParamsCovList, radarrecievegainpriormean,radarrecievegainpriorvar, radarwavelengthpriormean,radarwavelengthpriormeanvar, agentradarcrosssection, radarpulsewidth,radarpulsewidthVar, radarsystemtemperaturepriormean,radarsystemtemperaturepriorvar, radarprobabilityoffalsealarmpriormean,radarprobabilityoffalsealarmpriorvar)
+    return pd
 
 
 if __name__ == '__main__':

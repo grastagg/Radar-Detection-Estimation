@@ -344,4 +344,5 @@ if __name__ == '__main__':
     val, cov = Pdmap.compute_probability_of_detection_at_points(np.array([[500,0]]), np.array([0,0,params.radarOutputPower]), np.array([[10,0,0],[0,10,0],[0,0,1]]), )
     print(val)
     print(cov)
+    # Pdmap.compute_probability_of_detection_at_points_multiple_radar(X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances)
     

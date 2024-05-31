@@ -140,22 +140,22 @@ measurementCov = np.array([[agentAngleMeasurementStdDev**2,0],[0,agentPowerMeasu
 
 #unknown parameters
 radarRecieveGainPriorMean = radarRecieveGain
-radarRecieveGainPriorVariance = 0
+radarRecieveGainPriorVariance = 1
 
 radarProbabilityOfFalseAlarmPriorMean = radarProbabilityOfFalseAlarm
-radarProbabilityOfFalseAlarmPriorVariance = 0
+radarProbabilityOfFalseAlarmPriorVariance = 2
 
 radarPulseWidthPriorMean = radarPulseWidth
 # radarPulseWidthPriorVariance = 1e-6
-radarPulseWidthPriorVariance = 0
+radarPulseWidthPriorVariance = 3
 
 radarWavelengthPriorMean = radarWavelength
 # radarWavelengthPriorVariance = 1e-2
-radarWavelengthPriorVariance = 0
+radarWavelengthPriorVariance = 4
 
 radarSystemTemperaturePriorMean = radarSystemTemperature
 # radarSystemTemperaturePriorVariance = 10
-radarSystemTemperaturePriorVariance = 0
+radarSystemTemperaturePriorVariance = 5
 
 #plotting
 plotObjectiveFunction = False 

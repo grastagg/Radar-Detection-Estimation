@@ -39,7 +39,7 @@ from highPriorityHelperFunctions import create_unclamped_knot_points, get_spline
 
 
 class HighPriorityPathPlannerUncertain:
-    def __init__(self,radarList):
+    def __init__(self):
         #run jax function once to compile
         start = time.time()
         self.evaluate_spline_derivative(0,np.zeros((params.numControlPoints,2)),np.zeros(params.numControlPoints+params.splineOrder+1),params.splineOrder,1)
@@ -56,9 +56,7 @@ class HighPriorityPathPlannerUncertain:
         self.dTurnRateDControlPoints = jacfwd(get_spline_turn_rate)
         self.dTurnRateTf = jacfwd(get_spline_turn_rate,argnums=1)
 
-        self.deterministicRadarPositions = np.array([radar.position for radar in radarList])
 
-        dist_of_points_to_line_segment(np.array([0,0]),np.array([1,1]),self.deterministicRadarPositions)
         print("Time to compile jax functions", time.time()-start)
 
         
@@ -146,10 +144,10 @@ class HighPriorityPathPlannerUncertain:
 
         return spline
     
-    def plan_deterministic_path(self, radar_list,plot=False):
+    def plan_path(self, estimatedRadarParamsList,estimateRadarParamsCovList,plot=False):
         startTimer = time.time()
         # initialControlPoints, tfIntial,ax = self.find_initial_guess_rrt_star(radarList,plot=plot)
-        initialControlPoints, tfIntial,ax = self.get_initial_guess_voronoi(radarList,params.bounds,plot=plot)
+        initialControlPoints, tfIntial,ax = self.get_initial_guess_voronoi(estimatedRadarParamsList, estimateRadarParamsCovList,params.bounds,plot=plot)
         print("Time to find initial guess", time.time()-startTimer)
         spline = self.spline_seg(initialControlPoints,create_unclamped_knot_points(0, tfIntial, params.numControlPoints,params.splineOrder))
 
@@ -578,8 +576,8 @@ class HighPriorityPathPlannerUncertain:
 
         segments = np.array(segments)
         startTimer = time.time()
-        segments = self.remove_unfeasible_segments(segments,radarList)
-        print("time to remove unfeasible segments", time.time()-startTimer)
+        # segments = self.remove_unfeasible_segments(segments,radarList)
+        # print("time to remove unfeasible segments", time.time()-startTimer)
         startTimer = time.time()
         segments = self.add_boundary_segments(segments,bounds)
         print("time to add boundary segments", time.time()-startTimer)
@@ -720,7 +718,7 @@ class HighPriorityPathPlannerUncertain:
         
         
 
-    def get_initial_guess_voronoi(self,radarList,bounds,plot=False):
+    def get_initial_guess_voronoi(self,estimatedRadarParams, estimatedRadarParamsCovList,bounds,plot=False):
         startTime = time.time()
         segments,ax = self.get_voronoi_ridge_segements(radarList,bounds,plot=plot)
         print("Time to get voronoi segments", time.time()-startTime)
@@ -839,20 +837,15 @@ class HighPriorityPathPlannerUncertain:
 if __name__ == "__main__":
 
 
+    hpp = HighPriorityPathPlannerUncertain()
+    radarList = tuple(create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGain, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm))
+    pdmap = ProbabilityOfDetectionMap(params.X_test, radarList)
+    paramNum = 837
+    radarParams = np.load("saved_data/estimated_params/"+str(837) + ".npy")
+    radarParamsCov = np.load("saved_data/estimated_params_cov/"+str(837) + ".npy")
 
-    radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGain, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
-    hpp = HighPriorityPathPlannerDeterministic(tuple(radarList))
-    # hpp.find_initial_guess_rrt_star(radarList,plot=True)
-    pdMap = ProbabilityOfDetectionMap(params.X_test,radarList)
-    startTime = time.time()
-    ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
-    print("path planning time", time.time()-startTime)
-    startTime = time.time()
-    # ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
-    # print("path planning time", time.time()-startTime)
-    # startTime = time.time()
-    # _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=False)
-    # print("time to get initial guess", time.time()-startTime)
+    controlPoints,tf,ax = hpp.get_initial_guess_voronoi(radarParams, radarParamsCov, params.bounds,plot=True)
+
     
     # fig,ax = plt.subplots
     # ax.set_aspect('equal')
