@@ -20,7 +20,7 @@ def frequency_to_wavelength(freq):
 #simulation parameters
 # bounds = (18000.0, 18000.0) #meters
 bounds = (22000.0, 22000.0) #meters
-numTestPoints = 30
+numTestPoints = 50
 # numTestPoints =100 
 simulationEndTime = 10000
 simulationTimestep = 0.1
@@ -52,27 +52,38 @@ def find_radius_from_radar_pd(radarOuputPower, radarTransmitGain, radarRecieveGa
     R = (((erp*G_r*lamb**2*sigma*tua)/((np.log(Pfa)/np.log(pd))-1))*(1/((4*np.pi)**3*k*Ts)))**.25
     return R
 
+def get_random_parameters(mean, range, numSamples):
+    return np.random.uniform(mean-range, mean+range, numSamples)
 
-# radarPositions = [(3000,10000),(8000, 10000)]
+
+numRadar = 11
 radarOutputPower = 10000
-# radarOutputPower = 9000
-# radarOutputPower = 2500 
+radarOutputPowerRange = 0000
+radarOutputPowerList = get_random_parameters(radarOutputPower, radarOutputPowerRange, numRadar)
+
 radarTransmitGaindb = 10
+radarTransmitGainRange = 0
+radarTransmitGainList = get_random_parameters(radarTransmitGaindb, radarTransmitGainRange, numRadar)
 # radarTransmitGaindb = 16
 radarRecieveGaindb = 10
+radarRecieveGainRange = 0
+radarRecieveGainList = get_random_parameters(radarRecieveGaindb, radarRecieveGainRange, numRadar)
+
 # radarRecieveGaindb = 16
 radarTransmitGain = db_to_amplitude(radarTransmitGaindb)
 radarRecieveGain = db_to_amplitude(radarRecieveGaindb)
+
 radarFrequency = 3e9
 radarWavelength = frequency_to_wavelength(radarFrequency)
+
 radarProbabilityOfFalseAlarm = 1e-6
 radarPulseWidth = 1.1e-5
+
 radarSystemTemperature = 745.4148
 
 radarPositions = []
 radarPhases = []
 radarAngularRates = []
-numRadar = 11
 
 
 safeRadius = find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
@@ -209,7 +220,7 @@ def create_test_points(numTestPoints, bounds):
     for i in range(numTestPoints):
         for j in range(numTestPoints):
             X_test.append(np.array([x_test[i],y_test[j]]))
-    return X_test
+    return np.array(X_test)
     
     
 X_test = create_test_points(numTestPoints, bounds)

@@ -6,6 +6,8 @@ from jax import jacfwd
 from numpy.random import multivariate_normal
 from params import measurement_jacobian
 
+from probabilityOfDetectionJax import ground_truth_probability_of_detection,compute_probability_of_detection_at_points_multiple_radar
+
 class ProbabilityOfDetectionMap():
     def __init__(self, X_test,radarList):
         self.X_test = np.array(X_test)
@@ -50,42 +52,15 @@ class ProbabilityOfDetectionMap():
         return pdMap, pdCovMap
 
     def compute_probability_of_detection_at_points_multiple_radar(self, X_test, estimatedRadarParamsList, estimatedRadarParamsCovList, updateMap = True):
-        pdCovMap = np.zeros(len(X_test))
-        probabilityOfNoDetection = np.ones(len(X_test))
-        
-        self.estimatedRadarParamsList = estimatedRadarParamsList
-        self.estimatedRadarParamsCovList = estimatedRadarParamsCovList
 
-        for i,position in enumerate(X_test):
-            pd_list = []
-            pd_cov_list = []
-            for j, estimatedRadarParams in enumerate(estimatedRadarParamsList):
-                # radarXY = estimatedRadarParams[0:2]
-                # distance = np.linalg.norm(radarXY-position)
-                # snr = self.signal_to_noise_ration(10**(estimatedRadarParams[2]/10), params.radarRecieveGain, params.radarWavelength, params.agentRadarCrossSection, params.radarPulseWidth, distance, params.radarSystemTemperature)
-                # pdi = self.probability_of_detection(params.radarProbabilityOfFalseAlarm, snr)
-                pdi = self.compute_probability_of_detection_at_xy(position, estimatedRadarParams)
-                probabilityOfNoDetection[i] *= (1-pdi)
-                # dpdi_dparams = self.probability_of_detection_uncertainty_single_radar_at_xy_bootstrap(position, estimatedRadarParams, estimatedRadarParamsCovList[j])
-                dpdi_dparams = self.probability_of_detection_uncertainty_single_radar_at_xy(position, estimatedRadarParams, estimatedRadarParamsCovList[j])
-                pd_cov_list.append(dpdi_dparams)
-                pd_list.append(pdi)
-                
-            for ind1 in range(len(pd_list)):
-                dpdt_dpdind1 = 1
-                for ind2 in range(len(pd_list)):
-                    if ind1 != ind2:
-                        dpdt_dpdind1 *= (1-pd_list[ind2])
-                pdCovMap[i] += dpdt_dpdind1**2*pd_cov_list[ind1]
-
-
+        pdMap,pdCovMap = compute_probability_of_detection_at_points_multiple_radar(np.array(X_test), np.array(estimatedRadarParamsList), estimatedRadarParamsCovList, params.radarRecieveGainPriorMean, params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidthPriorMean, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
         if updateMap:
             self.pdCovMap = pdCovMap
-            self.pdMap = 1 - probabilityOfNoDetection
+            self.pdMap = pdMap
         
         
         
-        return 1-probabilityOfNoDetection, pdCovMap 
+        return pdMap, pdCovMap 
 
     def get_gradient_finite_diff(self, f,x,h, position):
         #calculate gradient using finite differencing
@@ -325,18 +300,7 @@ class ProbabilityOfDetectionMap():
         return c
 
     def ground_truth_probability_of_detection(self, X_test, trueRadarParametersList):
-        probabilityOfNoDetection = np.ones(len(X_test))
-        
-
-        for i,position in enumerate(X_test):
-            pd_list = []
-            pd_cov_list = []
-            for j, radar in enumerate(trueRadarParametersList):
-                pdi = self.compute_probability_of_detection_at_xy(position, (radar.position[0], radar.position[1], params.radarOutputPower*params.radarTransmitGain))
-                probabilityOfNoDetection[i] *= (1-pdi)
-        
-        
-        return 1-probabilityOfNoDetection   
+        return ground_truth_probability_of_detection(np.array(X_test), trueRadarParametersList, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidthPriorMean, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
             
 
 if __name__ == '__main__':

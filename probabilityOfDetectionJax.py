@@ -13,7 +13,7 @@ from time import time
 
 
 
-from probabilityOfDetectionMap import ProbabilityOfDetectionMap
+# from probabilityOfDetectionMap import ProbabilityOfDetectionMap
 from main_helper import create_radar_list
 import params
 
@@ -44,13 +44,13 @@ def probability_of_detection(probabilityOfFalseAlarm, snr):
     return jnp.exp((jnp.log(probabilityOfFalseAlarm))/(snr + 1))
 
 @partial(jit, static_argnums=(1,))
-def ground_truth_probability_of_detection(X_test, trueRadarParametersList,radarOutputPower,radarTransmitGain, radarRecieveGainPriorMean, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, radarSystemTemperaturePriorMean, radarProbabilityOfFalseAlarmPriorMean):
+def ground_truth_probability_of_detection(X_test, trueRadarParametersList, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, radarSystemTemperaturePriorMean, radarProbabilityOfFalseAlarmPriorMean):
     probabilityOfNoDetection = jnp.ones(len(X_test))
     
 
     pdi = jnp.ones(len(X_test))
     for j, radar in enumerate(trueRadarParametersList):
-        pdi = compute_probability_of_detection_vectorized(X_test, jnp.array([radar.position[0], radar.position[1], radarOutputPower*radarTransmitGain]), radarRecieveGainPriorMean, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, radarSystemTemperaturePriorMean, radarProbabilityOfFalseAlarmPriorMean)
+        pdi = compute_probability_of_detection_vectorized(X_test, jnp.array([radar.position[0], radar.position[1], radar.outputPower*radar.transmitGain]), radar.recieveGain, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, radarSystemTemperaturePriorMean, radarProbabilityOfFalseAlarmPriorMean)
         probabilityOfNoDetection *= (1-pdi.squeeze())
     
     
@@ -121,7 +121,7 @@ def probability_of_detection_uncertainty_single_radar_at_xy(position, estimatedR
     # return np.squeeze(estimatedRadarParamsJacobian @ estimatedRadarParamsCov@estimatedRadarParamsJacobian.T + radarParametersJacobian @ radarParametersCovariance @ radarParametersJacobian.T)
     return jnp.array([estimatedRadarParamsJacobian[i] @ estimatedRadarParamsCov@estimatedRadarParamsJacobian[i].T + unkownRadarParametersJacobian[i] @ radarParametersCovariance@unkownRadarParametersJacobian[i].T for i in range(len(position))])
 
-@jit
+# @jit
 def compute_probability_of_detection_at_points_multiple_radar(X_test, estimatedRadarParamsList, estimatedRadarParamsCovList, radarRecieveGain,radarRecieveGainVar, radarWavelength,radarWavelengthVar, agentRadarCrossSection, radarPulseWidth,radarPulseWidthVar, radarSystemTemperature,radarSystemTemperatureVar, radarProbabilityOfFalseAlarm,radarProbabilityOfFalseAlarmVar):
     probabilityOfNoDetection = jnp.ones(len(X_test))
     
@@ -152,55 +152,71 @@ def compute_probability_of_detection_at_points_multiple_radar(X_test, estimatedR
     return 1-probabilityOfNoDetection, pdCov
 
 
+def plot_pd(x_test, pd):
+    import matplotlib.pyplot as plt
+    from matplotlib import cm
+    from mpl_toolkits.mplot3d import Axes3D
+    fig = plt.figure()
+    ax = fig.add_subplot()
+    ax.set_aspect('equal')
+    c = ax.pcolormesh(x_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), x_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), pd.reshape((params.numTestPoints,params.numTestPoints)))
+    fig.colorbar(c, ax=ax)
+    plt.show()
+
+
 
 if __name__=="__main__":
 
     testDeterministicCase = False
+    radarList = tuple(create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm))
+    pd = ground_truth_probability_of_detection(np.array(params.X_test), radarList, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
+    plot_pd(np.array(params.X_test), pd)
+    
 
     #test deterministic case
-    if testDeterministicCase:
-        radarList = tuple(create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGain, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm))
-        # x_test = np.array([[100,100],[200,200],[150,150]],dtype=np.float32)
-        x_test = np.random.normal(0,params.bounds[1],(100,2))
+    # if testDeterministicCase:
+    #     radarList = tuple(create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGain, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm))
+    #     # x_test = np.array([[100,100],[200,200],[150,150]],dtype=np.float32)
+    #     x_test = np.random.normal(0,params.bounds[1],(100,2))
 
-        pd = ground_truth_probability_of_detection(x_test, radarList, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
+    #     pd = ground_truth_probability_of_detection(x_test, radarList, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
 
-        start = time()
-        pd = ground_truth_probability_of_detection(x_test, radarList, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
-        pd_time = time()-start
-        print("time for pd computation", pd_time)
+    #     start = time()
+    #     pd = ground_truth_probability_of_detection(x_test, radarList, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
+    #     pd_time = time()-start
+    #     print("time for pd computation", pd_time)
         
-        start = time()
-        pdmap = ProbabilityOfDetectionMap(x_test, radarList)
-        original_pdmap_time = time()-start
-        print("time for pdmap computation", original_pdmap_time)
-        print("Speedup", original_pdmap_time/pd_time)
-        print(pd == pdmap.ground_truth_probability_of_detection(x_test, radarList))
-    else:
-        # x_test = np.array([[100,100],[200,200],[150,150]],dtype=np.float32)
-        x_test = np.random.normal(0,params.bounds[1],(100,2))
-        radarList = tuple(create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGain, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm))
-        pdmap = ProbabilityOfDetectionMap(x_test, radarList)
-        paramNum = 837
-        radarParams = np.load("saved_data/estimated_params/"+str(837) + ".npy")
-        radarParamsCov = np.load("saved_data/estimated_params_cov/"+str(837) + ".npy")
-        pdAtXTestMean,pdAtXTestCov = pdmap.compute_probability_of_detection_at_points_multiple_radar(x_test, radarParams, radarParamsCov)
-        # print("pdAtXTestMean", pdAtXTestMean)
-        # print("pdAtXTestCov", pdAtXTestCov)
+    #     start = time()
+    #     pdmap = ProbabilityOfDetectionMap(x_test, radarList)
+    #     original_pdmap_time = time()-start
+    #     print("time for pdmap computation", original_pdmap_time)
+    #     print("Speedup", original_pdmap_time/pd_time)
+    #     print(pd == pdmap.ground_truth_probability_of_detection(x_test, radarList))
+    # else:
+    #     # x_test = np.array([[100,100],[200,200],[150,150]],dtype=np.float32)
+    #     x_test = np.random.normal(0,params.bounds[1],(100,2))
+    #     radarList = tuple(create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGain, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm))
+    #     pdmap = ProbabilityOfDetectionMap(x_test, radarList)
+    #     paramNum = 837
+    #     radarParams = np.load("saved_data/estimated_params/"+str(837) + ".npy")
+    #     radarParamsCov = np.load("saved_data/estimated_params_cov/"+str(837) + ".npy")
+    #     pdAtXTestMean,pdAtXTestCov = pdmap.compute_probability_of_detection_at_points_multiple_radar(x_test, radarParams, radarParamsCov)
+    #     # print("pdAtXTestMean", pdAtXTestMean)
+    #     # print("pdAtXTestCov", pdAtXTestCov)
 
-        start = time()
-        pdMeanJax, pdCovJax = compute_probability_of_detection_at_points_multiple_radar(x_test, radarParams, radarParamsCov, params.radarRecieveGainPriorMean, params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidthPriorMean, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
-        print("time to compile jax computation", time()-start)
-        # print("pdMeanJax", pdMeanJax)
-        # print("pdCovJax", pdCovJax)
+    #     start = time()
+    #     pdMeanJax, pdCovJax = compute_probability_of_detection_at_points_multiple_radar(x_test, radarParams, radarParamsCov, params.radarRecieveGainPriorMean, params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidthPriorMean, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
+    #     print("time to compile jax computation", time()-start)
+    #     # print("pdMeanJax", pdMeanJax)
+    #     # print("pdCovJax", pdCovJax)
 
-        start = time()
-        pdAtXTestMean,pdAtXTestCov = pdmap.compute_probability_of_detection_at_points_multiple_radar(x_test, radarParams, radarParamsCov)
-        print("time for original pd computation", time()-start)
+    #     start = time()
+    #     pdAtXTestMean,pdAtXTestCov = pdmap.compute_probability_of_detection_at_points_multiple_radar(x_test, radarParams, radarParamsCov)
+    #     print("time for original pd computation", time()-start)
 
-        start = time()
-        pdMeanJax, pdCovJax = compute_probability_of_detection_at_points_multiple_radar(x_test, radarParams, radarParamsCov, params.radarRecieveGainPriorMean, params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidthPriorMean, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
-        print("time for jax pd computation", time()-start)
+    #     start = time()
+    #     pdMeanJax, pdCovJax = compute_probability_of_detection_at_points_multiple_radar(x_test, radarParams, radarParamsCov, params.radarRecieveGainPriorMean, params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidthPriorMean, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
+    #     print("time for jax pd computation", time()-start)
         
 
         

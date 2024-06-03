@@ -138,7 +138,7 @@ def main():
     X_test = params.create_test_points(numTestPoints, bounds)
     
 
-    radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGain, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
+    radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
     agentList = create_agent_list(params.agentInitialStates, len(radarList), params.agentSensingRange, params.agentPowerMeasurementStdDev, params.agentAngleMeasurementStdDev, params.agentELINTAnteneaGain, params.agentELINTSystemLoss, params.radarWavelength, params.agentRadarCrossSection)
 
     # radarList = params.radarList
@@ -149,7 +149,7 @@ def main():
 
 
     multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=params.agentSensingRange, angle_measurement_std_dev=params.agentAngleMeasurementStdDev, measurement_cov=params.measurementCov, X_test=X_test, radar_measurement_coeff=params.radarMeasurementCoeff)
-    probabilityOfDetectionMap = ProbabilityOfDetectionMap(X_test, radarList)
+    probabilityOfDetectionMap = ProbabilityOfDetectionMap(X_test, tuple(radarList))
     lowPriorityPathPlanner = SplinePathPlanningLowPriority()
 
 
@@ -186,13 +186,9 @@ def main():
         # update_agent_time = 0
         # control_time = 0
         for i,agent in enumerate(agentList):
-            # agent.update(134,.0,dt,radarList)
-            # start_c = time.time()
-            turnRate, velocity = lowPriorityPathPlanner.get_control(dt,agent.position,i)
-            # control_time += time.time()-start_c
-            # start_a = time.time()
-            # update_agent_time += time.time()-start_a 
-            agent.update(velocity,turnRate,dt,radarList,currentNumberOfMeasurements)
+            agent.update(134,.0,dt,radarList,currentNumberOfMeasurements)
+            # turnRate, velocity = lowPriorityPathPlanner.get_control(dt,agent.position,i)
+            # agent.update(velocity,turnRate,dt,radarList,currentNumberOfMeasurements)
             if len(agent.measurementAngleOfArrivalValues) != currentNumberOfMeasurementsArray[i]:
                 print("adding measurement:", currentNumberOfMeasurementsArray[i], "from agent",i)
                 print("measurement:", currentNumberOfMeasurements)
@@ -207,16 +203,8 @@ def main():
                     probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances)
                     # print("pd map time", time.time()-start_pd)
         
-        # print("control time", control_time)
-        # print("update agent time", update_agent_time)
-        # print("estimator time", estimator_total_time)
-        # start_p = time.time()
-        # lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList, len(agent.measurementAngleOfArrivalValues),multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations )
         allAgentCurrentPositions = np.array([agent.position[0:2] for agent in agentList])
-        lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList, currentNumberOfMeasurements,multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations ,dt,allAgentCurrentPositions)
-        # print("path planning time", time.time()-start_p)
-
-        # print("time for step:", time.time()-start)
+        # lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList, currentNumberOfMeasurements,multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations ,dt,allAgentCurrentPositions)
 
 
 
