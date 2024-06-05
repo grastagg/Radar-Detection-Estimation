@@ -58,15 +58,15 @@ def get_random_parameters(mean, range, numSamples):
 
 numRadar = 9
 radarOutputPower = 10000
-radarOutputPowerRange = 10000
+radarOutputPowerRange = 0000
 radarOutputPowerList = get_random_parameters(radarOutputPower, radarOutputPowerRange, numRadar)
 
 radarTransmitGaindb = 10
-radarTransmitGainRange = 10
+radarTransmitGainRange = 0
 radarTransmitGainList = get_random_parameters(radarTransmitGaindb, radarTransmitGainRange, numRadar)
 # radarTransmitGaindb = 16
 radarRecieveGaindb = 10
-radarRecieveGainRange = 10
+radarRecieveGainRange = 0
 radarRecieveGainList = get_random_parameters(radarRecieveGaindb, radarRecieveGainRange, numRadar)
 
 # radarRecieveGaindb = 16

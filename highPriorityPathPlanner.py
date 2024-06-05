@@ -807,9 +807,9 @@ class HighPriorityPathPlannerDeterministic:
 
     def get_initial_guess_voronoi(self,radarList,bounds,plot=False):
         startTime = time.time()
-        # segments,ax = self.get_voronoi_ridge_segements(radarList,bounds,plot=plot)
-        weights = np.array([radar.outputPower*radar.transmitGain*radar.recieveGain for radar in radarList])
-        segments,ax = self.get_weighted_voronoi_ridge_segements(radarList,weights,bounds,plot=plot)
+        segments,ax = self.get_voronoi_ridge_segements(radarList,bounds,plot=plot)
+        # weights = np.array([radar.outputPower*radar.transmitGain*radar.recieveGain for radar in radarList])
+        # segments,ax = self.get_weighted_voronoi_ridge_segements(radarList,weights,bounds,plot=plot)
         print("Time to get voronoi segments", time.time()-startTime)
 
         startTime = time.time()
@@ -931,15 +931,15 @@ if __name__ == "__main__":
     hpp = HighPriorityPathPlannerDeterministic(tuple(radarList))
     # hpp.find_initial_guess_rrt_star(radarList,plot=True)
     pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList))
-    # startTime = time.time()
-    # ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
-    # print("path planning time", time.time()-startTime)
-    # startTime = time.time()
-    # ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
-    # print("path planning time", time.time()-startTime)
     startTime = time.time()
-    _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=True)
-    print("time to get initial guess", time.time()-startTime)
+    ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
+    print("path planning time", time.time()-startTime)
+    startTime = time.time()
+    # ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
+    # print("path planning time", time.time()-startTime)
+    # startTime = time.time()
+    # _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=True)
+    # print("time to get initial guess", time.time()-startTime)
     
     # fig,ax = plt.subplots
     # ax.set_aspect('equal')
@@ -950,7 +950,7 @@ if __name__ == "__main__":
     c = pdMap.plot_mean(ax,plotGroundTruth=True)
     # ax.set_colorbar(c)
     fig.colorbar(c, ax=ax)
-    # hpp.plot_spline(hpp.spline,ax)
-    # hpp.plot_constraints(hpp.spline, tuple(radarList))
+    hpp.plot_spline(hpp.spline,ax)
+    hpp.plot_constraints(hpp.spline, tuple(radarList))
     plt.show()
         

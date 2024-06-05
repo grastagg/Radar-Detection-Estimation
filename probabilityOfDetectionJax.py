@@ -28,11 +28,12 @@ def compute_probability_of_detection_vectorized(position, radarParams, radarRece
     return probability_of_detection(radarProbabilityOfFalseAlarm, snr)
 
 @partial(jit, static_argnums=(1,))
-def ground_truth_probability_of_detection(X_test, trueRadarParametersList, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm):
+def ground_truth_probability_of_detection(X_test, trueRadarParametersList, radarRecieveGain,radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm):
+    trueRadarParametersList = jnp.array([[radar.position[0], radar.position[1],radar.outputPower*radar.transmitGain] for radar in trueRadarParametersList])
     def compute_pdi(radar):
-        return compute_probability_of_detection_vectorized(X_test, jnp.array([radar.position[0], radar.position[1], radar.outputPower * radar.transmitGain]), radar.recieveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm)
+        return compute_probability_of_detection_vectorized(X_test, radar, radarRecieveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm)
 
-    pdis = vmap(compute_pdi)(trueRadarParametersList)
+    pdis = vmap(compute_pdi,in_axes=0,out_axes=0)(trueRadarParametersList)
     probabilityOfNoDetection = jnp.prod(1 - pdis, axis=0)
     return 1 - probabilityOfNoDetection
 
