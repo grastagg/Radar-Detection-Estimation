@@ -20,7 +20,7 @@ def frequency_to_wavelength(freq):
 #simulation parameters
 # bounds = (18000.0, 18000.0) #meters
 bounds = (22000.0, 22000.0) #meters
-numTestPoints = 100
+numTestPoints = 200
 # numTestPoints =30
 simulationEndTime = 10000
 simulationTimestep = 0.1

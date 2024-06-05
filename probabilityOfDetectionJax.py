@@ -1,188 +1,105 @@
 import jax.numpy as jnp
 import jax
 import jax.scipy as jsp
-from jax.lax import fori_loop
-
-#get ride of this after testing (jax defaults to 32 bits, numpy to 64 bits)
-jax.config.update("jax_enable_x64", True)
+from jax import jit, vmap
 from functools import partial
-from jax import jit
-
-import numpy as np
 from scipy.constants import k as boltzman
+import params
+import numpy as np
 from time import time
 
+# Ensure JAX uses 64-bit floating point numbers
+jax.config.update("jax_enable_x64", True)
 
-
-# from probabilityOfDetectionMap import ProbabilityOfDetectionMap
-from main_helper import create_radar_list
-import params
 
 @jit
-def signal_to_noise_ration(effectiveRadarPower, radarRecieverGain, wavelength, radarCrossSection, radarPulseWidth, distance, radarSystemTemperature):
-    #antennea gain not i decibels
-    return (effectiveRadarPower*radarRecieverGain*wavelength**2*radarCrossSection*radarPulseWidth)/((4*jnp.pi)**3*distance**4*boltzman*radarSystemTemperature)
-# def compute_probability_of_detection_at_xy(position, radarParams, radarRecieveGainPriorMean, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, radarSystemTemperaturePriorMean, radarProbabilityOfFalseAlarmPriorMean):
-#     radarXY = radarParams[0:2]
-#     distance = np.linalg.norm(radarXY-position)
-#     snr = signal_to_noise_ration(radarParams[2], radarRecieveGainPriorMean, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, distance, radarSystemTemperaturePriorMean)
-#     if snr<0:
-#         print("STOP")
-#     return np.array([probability_of_detection(radarProbabilityOfFalseAlarmPriorMean, snr)])
-
-@jit
-def compute_probability_of_detection_vectorized(position, radarParams, radarRecieveGainPriorMean, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, radarSystemTemperaturePriorMean, radarProbabilityOfFalseAlarmPriorMean):
-    # radarXY = radarParams[:,0:2]
-    # diff = radarXY[:,None,:]-position[None,:,:]
-    # distance = jnp.linalg.norm(diff,axis=2)
-    radarXY = radarParams[0:2]
-    distance = jnp.linalg.norm(radarXY-position,axis=1)
-    # snr = signal_to_noise_ration(radarParams[:,2,None], radarRecieveGainPriorMean, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, distance, radarSystemTemperaturePriorMean)
-    snr = signal_to_noise_ration(radarParams[2], radarRecieveGainPriorMean, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, distance, radarSystemTemperaturePriorMean)
-    # if snr<0:
-    #     print("STOP")
-    return jnp.array([probability_of_detection(radarProbabilityOfFalseAlarmPriorMean, snr)])
+def signal_to_noise_ratio(effectiveRadarPower, radarReceiverGain, wavelength, radarCrossSection, radarPulseWidth, distance, radarSystemTemperature):
+    return (effectiveRadarPower * radarReceiverGain * wavelength**2 * radarCrossSection * radarPulseWidth) / ((4 * jnp.pi)**3 * distance**4 * boltzman * radarSystemTemperature)
 
 @jit
 def probability_of_detection(probabilityOfFalseAlarm, snr):
-    return jnp.exp((jnp.log(probabilityOfFalseAlarm))/(snr + 1))
+    return jnp.exp((jnp.log(probabilityOfFalseAlarm)) / (snr + 1))
+
+@jit
+def compute_probability_of_detection_vectorized(position, radarParams, radarReceiveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm):
+    radarXY = radarParams[:2]
+    distance = jnp.linalg.norm(radarXY - position, axis=1)
+    snr = signal_to_noise_ratio(radarParams[2], radarReceiveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, distance, radarSystemTemperature)
+    return probability_of_detection(radarProbabilityOfFalseAlarm, snr)
 
 @partial(jit, static_argnums=(1,))
-def ground_truth_probability_of_detection(X_test, trueRadarParametersList, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, radarSystemTemperaturePriorMean, radarProbabilityOfFalseAlarmPriorMean):
-    probabilityOfNoDetection = jnp.ones(len(X_test))
-    
+def ground_truth_probability_of_detection(X_test, trueRadarParametersList, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm):
+    def compute_pdi(radar):
+        return compute_probability_of_detection_vectorized(X_test, jnp.array([radar.position[0], radar.position[1], radar.outputPower * radar.transmitGain]), radar.recieveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm)
 
-    pdi = jnp.ones(len(X_test))
-    for j, radar in enumerate(trueRadarParametersList):
-        pdi = compute_probability_of_detection_vectorized(X_test, jnp.array([radar.position[0], radar.position[1], radar.outputPower*radar.transmitGain]), radar.recieveGain, radarWavelengthPriorMean, agentRadarCrossSection, radarPulseWidth, radarSystemTemperaturePriorMean, radarProbabilityOfFalseAlarmPriorMean)
-        probabilityOfNoDetection *= (1-pdi.squeeze())
-    
-    
-    return 1-probabilityOfNoDetection
+    pdis = vmap(compute_pdi)(trueRadarParametersList)
+    probabilityOfNoDetection = jnp.prod(1 - pdis, axis=0)
+    return 1 - probabilityOfNoDetection
 
 @jit
 def pd_jacobian_emittor_params(position, estimatedRadarParams, radarRecieveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm):
-    # x = position[0]
-    if len(position.shape) == 1:
-        x = position[0]
-        y = position[1]
-        
-    else:
-        x = position[:,0]
-        y = position[:,1]
-    x_em = estimatedRadarParams[0]
-    y_em = estimatedRadarParams[1]
-    ERP = estimatedRadarParams[2]
-    Gr = radarRecieveGain
-    Pfa = radarProbabilityOfFalseAlarm
-    rcs = agentRadarCrossSection
-    tau_p = radarPulseWidth
-    wavelength = radarWavelength
-    T_s = radarSystemTemperature
-    k = boltzman
-    d_pd_d_erp = -(Gr*jnp.log(Pfa)*rcs*tau_p*wavelength**2*jnp.exp(jnp.log(Pfa)/((Gr*rcs*tau_p*wavelength**2*ERP)/(64*jnp.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)))/(64*jnp.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2*((Gr*rcs*tau_p*wavelength**2*ERP)/(64*jnp.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)**2)
-    d_pd_d_xem = -(ERP*Gr*jnp.log(Pfa)*rcs*tau_p*wavelength**2*(x-x_em)*jnp.exp(jnp.log(Pfa)/((ERP*Gr*rcs*tau_p*wavelength**2)/(64*jnp.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)))/(16*jnp.pi**3*T_s*k*((ERP*Gr*rcs*tau_p*wavelength**2)/(64*jnp.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)**2*((x-x_em)**2+(y-y_em)**2)**3)
-    d_pd_d_yem = -(ERP*Gr*jnp.log(Pfa)*rcs*tau_p*wavelength**2*(y-y_em)*jnp.exp(jnp.log(Pfa)/((ERP*Gr*rcs*tau_p*wavelength**2)/(64*jnp.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)))/(16*jnp.pi**3*T_s*k*((ERP*Gr*rcs*tau_p*wavelength**2)/(64*jnp.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)**2*((y-y_em)**2+(x-x_em)**2)**3)
-    return jnp.array([d_pd_d_xem,d_pd_d_yem,d_pd_d_erp])
+    x, y = position[:, 0], position[:, 1]
+    x_em, y_em, ERP = estimatedRadarParams[:3]
+    Gr, Pfa, rcs, tau_p, wavelength, T_s, k = radarRecieveGain, radarProbabilityOfFalseAlarm, agentRadarCrossSection, radarPulseWidth, radarWavelength, radarSystemTemperature, boltzman
+
+    SNR = signal_to_noise_ratio(ERP, Gr, wavelength, rcs, tau_p, jnp.sqrt((x - x_em)**2 + (y - y_em)**2), T_s)
+    exp_term = jnp.exp(jnp.log(Pfa) / (SNR + 1))
+
+    d_pd_d_erp = -(Gr * jnp.log(Pfa) * rcs * tau_p * wavelength**2 * exp_term) / (64 * jnp.pi**3 * T_s * k * ((y - y_em)**2 + (x - x_em)**2)**2 * (SNR + 1)**2)
+    d_pd_d_xem = -(ERP * Gr * jnp.log(Pfa) * rcs * tau_p * wavelength**2 * (x - x_em) * exp_term) / (16 * jnp.pi**3 * T_s * k * ((x - x_em)**2 + (y - y_em)**2)**3 * (SNR + 1)**2)
+    d_pd_d_yem = -(ERP * Gr * jnp.log(Pfa) * rcs * tau_p * wavelength**2 * (y - y_em) * exp_term) / (16 * jnp.pi**3 * T_s * k * ((y - y_em)**2 + (x - x_em)**2)**3 * (SNR + 1)**2)
+    
+    return jnp.array([d_pd_d_xem, d_pd_d_yem, d_pd_d_erp])
 
 @jit
-def pd_jacobian_unkown_radar_parameters(position, estimatedRadarParams, radarRecieveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm):
-    x = position[:,0]
-    y = position[:,1]
-    x_em = estimatedRadarParams[0]
-    y_em = estimatedRadarParams[1]
-    ERP = estimatedRadarParams[2]
-    Gr = radarRecieveGain
-    Pfa = radarProbabilityOfFalseAlarm
-    rcs = agentRadarCrossSection
-    tau_p = radarPulseWidth
-    wavelength = radarWavelength
-    T_s = radarSystemTemperature
-    k = boltzman
-    SNR = signal_to_noise_ration(ERP, Gr, wavelength, rcs, tau_p, jnp.sqrt((x-x_em)**2+(y-y_em)**2),T_s)
+def pd_jacobian_unknown_radar_parameters(position, estimatedRadarParams, radarRecieveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm):
+    x, y = position[:, 0], position[:, 1]
+    x_em, y_em, ERP = estimatedRadarParams[:3]
+    Gr, Pfa, rcs, tau_p, wavelength, T_s, k = radarRecieveGain, radarProbabilityOfFalseAlarm, agentRadarCrossSection, radarPulseWidth, radarWavelength, radarSystemTemperature, boltzman
 
-    d_pd_d_Gr = -jnp.exp((jnp.log(Pfa)/(SNR+1))) * (jnp.log(Pfa))/(SNR+1)**2 * (ERP*wavelength**2*rcs*tau_p)/((4*jnp.pi)**3*jnp.sqrt((x-x_em)**2+(y-y_em)**2)**4*k*T_s)
-    d_pd_d_wavelength = -jnp.exp((jnp.log(Pfa)/(SNR+1))) * (jnp.log(Pfa))/(SNR+1)**2 * (Gr*ERP*2*wavelength*rcs*tau_p)/((4*jnp.pi)**3*jnp.sqrt((x-x_em)**2+(y-y_em)**2)**4*k*T_s)
-    d_pd_d_rcs = -jnp.exp((jnp.log(Pfa)/(SNR+1))) * (jnp.log(Pfa))/(SNR+1)**2 * (Gr*ERP*wavelength**2*tau_p)/((4*jnp.pi)**3*jnp.sqrt((x-x_em)**2+(y-y_em)**2)**4*k*T_s)
-    d_pd_d_tau_p = -jnp.exp((jnp.log(Pfa)/(SNR+1))) * (jnp.log(Pfa))/(SNR+1)**2 * (Gr*ERP*wavelength**2*rcs)/((4*jnp.pi)**3*jnp.sqrt((x-x_em)**2+(y-y_em)**2)**4*k*T_s)
-    d_pd_d_T_s = jnp.exp((jnp.log(Pfa)/(SNR+1))) * (jnp.log(Pfa))/(SNR+1)**2 * (Gr*ERP*wavelength**2*rcs*tau_p)/((4*jnp.pi)**3*jnp.sqrt((x-x_em)**2+(y-y_em)**2)**4*k*T_s**2)
-    d_pd_d_Pfa = 1/(SNR+1) * jnp.exp(jnp.log(Pfa)/(SNR+1)) * 1/Pfa
+    SNR = signal_to_noise_ratio(ERP, Gr, wavelength, rcs, tau_p, jnp.sqrt((x - x_em)**2 + (y - y_em)**2), T_s)
+    exp_term = jnp.exp(jnp.log(Pfa) / (SNR + 1))
+    log_pfa_term = jnp.log(Pfa) / (SNR + 1)**2
+
+    d_pd_d_Gr = -exp_term * log_pfa_term * (ERP * wavelength**2 * rcs * tau_p) / ((4 * jnp.pi)**3 * (x - x_em)**4 * k * T_s)
+    d_pd_d_wavelength = -exp_term * log_pfa_term * (Gr * ERP * 2 * wavelength * rcs * tau_p) / ((4 * jnp.pi)**3 * (x - x_em)**4 * k * T_s)
+    d_pd_d_rcs = -exp_term * log_pfa_term * (Gr * ERP * wavelength**2 * tau_p) / ((4 * jnp.pi)**3 * (x - x_em)**4 * k * T_s)
+    d_pd_d_tau_p = -exp_term * log_pfa_term * (Gr * ERP * wavelength**2 * rcs) / ((4 * jnp.pi)**3 * (x - x_em)**4 * k * T_s)
+    d_pd_d_T_s = exp_term * log_pfa_term * (Gr * ERP * wavelength**2 * rcs * tau_p) / ((4 * jnp.pi)**3 * (x - x_em)**4 * k * T_s**2)
+    d_pd_d_Pfa = exp_term * 1 / Pfa
 
     return jnp.array([d_pd_d_Gr, d_pd_d_wavelength, d_pd_d_rcs, d_pd_d_tau_p, d_pd_d_T_s, d_pd_d_Pfa])
 
 @jit
-def probability_of_detection_uncertainty_single_radar_at_xy(position, estimatedRadarParams, estimatedRadarParamsCov,radarRecieveGain,radarRecieveGainVar, radarWavelength,radarWavelengthVar, agentRadarCrossSection, radarPulseWidth,radarPulseWidthVar, radarSystemTemperature,radarSystemTemperatureVar, radarProbabilityOfFalseAlarm,radarProbabilityOfFalseAlarmVar):
+def probability_of_detection_uncertainty_single_radar_at_xy(position, estimatedRadarParams, estimatedRadarParamsCov, radarRecieveGain, radarRecieveGainVar, radarWavelength, radarWavelengthVar, agentRadarCrossSection, radarPulseWidth, radarPulseWidthVar, radarSystemTemperature, radarSystemTemperatureVar, radarProbabilityOfFalseAlarm, radarProbabilityOfFalseAlarmVar):
     estimatedRadarParamsJacobian = pd_jacobian_emittor_params(position, estimatedRadarParams, radarRecieveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm).T
-
-    unkownRadarParametersJacobian = pd_jacobian_unkown_radar_parameters(position, estimatedRadarParams, radarRecieveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm).T
-    radarParametersCovariance = jnp.diag(jnp.array([radarRecieveGainVar,radarWavelengthVar, 0, radarPulseWidthVar, radarSystemTemperatureVar, radarProbabilityOfFalseAlarmVar]))
-
-
-    # estimatedRadarParamsCov = jsp.linalg.block_diag(*[estimatedRadarParamsCov for i in range(len(position))])
-    # estimatedRadarParamsCov = j.linalg.block_diag(*[estimatedRadarParamsCov for i in range(len(position))])
-
+    unknownRadarParametersJacobian = pd_jacobian_unknown_radar_parameters(position, estimatedRadarParams, radarRecieveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm).T
     
-    # return np.squeeze(estimatedRadarParamsJacobian @ estimatedRadarParamsCov@estimatedRadarParamsJacobian.T + radarParametersJacobian @ radarParametersCovariance @ radarParametersJacobian.T)
-    return jnp.array([estimatedRadarParamsJacobian[i] @ estimatedRadarParamsCov@estimatedRadarParamsJacobian[i].T + unkownRadarParametersJacobian[i] @ radarParametersCovariance@unkownRadarParametersJacobian[i].T for i in range(len(position))])
+    radarParametersCovariance = jnp.diag(jnp.array([radarRecieveGainVar, radarWavelengthVar, 0, radarPulseWidthVar, radarSystemTemperatureVar, radarProbabilityOfFalseAlarmVar]))
 
-# @jit
-def compute_probability_of_detection_at_points_multiple_radar(X_test, estimatedRadarParamsList, estimatedRadarParamsCovList, radarRecieveGain,radarRecieveGainVar, radarWavelength,radarWavelengthVar, agentRadarCrossSection, radarPulseWidth,radarPulseWidthVar, radarSystemTemperature,radarSystemTemperatureVar, radarProbabilityOfFalseAlarm,radarProbabilityOfFalseAlarmVar):
-    probabilityOfNoDetection = jnp.ones(len(X_test))
+    uncertainty = vmap(lambda i: estimatedRadarParamsJacobian[i] @ estimatedRadarParamsCov @ estimatedRadarParamsJacobian[i].T + unknownRadarParametersJacobian[i] @ radarParametersCovariance @ unknownRadarParametersJacobian[i].T)(jnp.arange(len(position)))
     
-    
-    
+    return uncertainty
 
-    pd_list = []
-    pd_cov_list = []
-        
-    for j, estimatedRadarParams in enumerate(estimatedRadarParamsList):
-        pdi = compute_probability_of_detection_vectorized(X_test, jnp.array([estimatedRadarParams[0], estimatedRadarParams[1], (estimatedRadarParams[2])]), radarRecieveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm)
-        pd_list.append(pdi)
-        probabilityOfNoDetection *= (1-pdi.squeeze())
-        pdCov = probability_of_detection_uncertainty_single_radar_at_xy(X_test, estimatedRadarParams, estimatedRadarParamsCovList[j], radarRecieveGain, radarRecieveGainVar, radarWavelength, radarWavelengthVar, agentRadarCrossSection, radarPulseWidth, radarPulseWidthVar, radarSystemTemperature, radarSystemTemperatureVar, radarProbabilityOfFalseAlarm, radarProbabilityOfFalseAlarmVar)
-        pd_cov_list.append(pdCov)
-    
-    # pd_list = compute_probability_of_detection_vectorized(X_test, jnp.array(estimatedRadarParamsList), radarRecieveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm).squeeze()
-    
-    # pd = 1-jnp.prod(1-pd_list, axis=0)
+def compute_probability_of_detection_at_points_multiple_radar(X_test, estimatedRadarParamsList, estimatedRadarParamsCovList, radarRecieveGain, radarRecieveGainVar, radarWavelength, radarWavelengthVar, agentRadarCrossSection, radarPulseWidth, radarPulseWidthVar, radarSystemTemperature, radarSystemTemperatureVar, radarProbabilityOfFalseAlarm, radarProbabilityOfFalseAlarmVar):
+    def compute_pdi(estimatedRadarParams):
+        return compute_probability_of_detection_vectorized(X_test, jnp.array([estimatedRadarParams[0], estimatedRadarParams[1], estimatedRadarParams[2]]), radarRecieveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm)
 
-            
-    pdCov = np.zeros(len(X_test))
-    for ind1 in range(len(pd_list)):
-        dpdt_dpdind1 = 1
-        for ind2 in range(len(pd_list)):
-            if ind1 != ind2:
-                dpdt_dpdind1 *= (1-pd_list[ind2])
-        pdCov += dpdt_dpdind1**2*pd_cov_list[ind1]
+    def compute_pdi_cov(estimatedRadarParams, estimatedRadarParamsCov):
+        return probability_of_detection_uncertainty_single_radar_at_xy(X_test, estimatedRadarParams, estimatedRadarParamsCov, radarRecieveGain, radarRecieveGainVar, radarWavelength, radarWavelengthVar, agentRadarCrossSection, radarPulseWidth, radarPulseWidthVar, radarSystemTemperature, radarSystemTemperatureVar, radarProbabilityOfFalseAlarm, radarProbabilityOfFalseAlarmVar)
 
+    pdis = vmap(compute_pdi)(estimatedRadarParamsList)
+    pdi_covs = vmap(compute_pdi_cov)(estimatedRadarParamsList, estimatedRadarParamsCovList)
 
-    
-    
-    
-    return 1-probabilityOfNoDetection, pdCov
-    # return pd, pdCov
+    probabilityOfNoDetection = jnp.prod(1 - pdis, axis=0)
+    pd = 1 - probabilityOfNoDetection
 
+    pdCov = jnp.zeros(len(X_test))
+    for ind1 in range(len(pdis)):
+        dpdt_dpdind1 = jnp.prod(1 - pdis.at[ind1].set(2), axis=0)
+        pdCov += dpdt_dpdind1**2 * pdi_covs[ind1]
 
-def plot_pd(x_test, pd):
-    import matplotlib.pyplot as plt
-    from matplotlib import cm
-    from mpl_toolkits.mplot3d import Axes3D
-    fig = plt.figure()
-    ax = fig.add_subplot()
-    ax.set_aspect('equal')
-    c = ax.pcolormesh(x_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), x_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), pd.reshape((params.numTestPoints,params.numTestPoints)))
-    fig.colorbar(c, ax=ax)
-    plt.show()
-
-#compile jax functions
-# startTime = time()
-# pdi = compute_probability_of_detection_vectorized(params.X_test, jnp.array([0,0,0]), params.radarRecieveGain, params.radarWavelength, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
-# print("time to compile compute_probability_of_detection_vectorized", time()-startTime)
-# startTime = time()
-# pdCov = probability_of_detection_uncertainty_single_radar_at_xy(params.X_test, jnp.array([0,0,0]), np.eye(3), params.radarRecieveGain, params.radarRecieveGainPriorVariance, params.radarWavelength, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
-# print("time to compile probability_of_detection_uncertainty_single_radar_at_xy", time()-startTime)
-
-
+    return pd, pdCov
 if __name__=="__main__":
 
     testDeterministicCase = False

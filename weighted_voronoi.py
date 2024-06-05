@@ -7,6 +7,7 @@ from jax import jit
 from main_helper import create_radar_list
 import params
 from probabilityOfDetectionJax import ground_truth_probability_of_detection,compute_probability_of_detection_at_points_multiple_radar
+# from test import compute_probability_of_detection_at_points_multiple_radar
 import pickle
 
 def get_weighted_distance(p,x,weight):
@@ -112,15 +113,11 @@ def chance_constraint(self,threshold, thresholdConfidence, mean, var):
 
 def safe_corridors_uncertain_radar(X_test,pdThreshold, likleyhoodThreshold, estimatedRadarParams, estimatedRadarParamsCov,radarRecieveGain,radarRecieveGainVar, radarWavelength,radarWavelengthVar, agentRadarCrossSection, radarPulseWidth,radarPulseWidthVar, radarSystemTemperature,radarSystemTemperatureVar, radarProbabilityOfFalseAlarm,radarProbabilityOfFalseAlarmVar):
     
-    startTime = time()
     pdMean,pdCov = compute_probability_of_detection_at_points_multiple_radar(X_test, estimatedRadarParams, estimatedRadarParamsCov, radarRecieveGain,radarRecieveGainVar, radarWavelength,radarWavelengthVar, agentRadarCrossSection, radarPulseWidth,radarPulseWidthVar, radarSystemTemperature,radarSystemTemperatureVar, radarProbabilityOfFalseAlarm,radarProbabilityOfFalseAlarmVar)
-    print("time to find mean and cov",time()-startTime)
 
     pdSigma = np.sqrt(pdCov)
     
-    startTime = time()
     probabilityPdLessThanThreshold = normcdf(pdThreshold,pdMean,pdSigma)
-    print("time to find probability",time()-startTime)
     return probabilityPdLessThanThreshold > likleyhoodThreshold
     # return pdMean > pdThreshold
     # return pdCov
@@ -147,7 +144,7 @@ if __name__ == '__main__':
     # ax2.set_aspect('equal')
     # ground_truth_radar_voronoi_weighted(params.X_test,radarList,ax2)
     # plt.show()
-    paramNum = 430
+    paramNum = 130
     radarParams = np.load("saved_data/estimated_params/"+str(paramNum) + ".npy")
     radarParamsCov = np.load("saved_data/estimated_params_cov/"+str(paramNum) + ".npy")
 
