@@ -5,7 +5,7 @@ import jax
 # from scipy.constants import boltzman
 from scipy.constants import k as boltzman
 
-np.random.seed(2311102)
+np.random.seed(22341102)
         
 def db_to_amplitude(db):
     return 10**(db/10)
@@ -20,8 +20,8 @@ def frequency_to_wavelength(freq):
 #simulation parameters
 # bounds = (18000.0, 18000.0) #meters
 bounds = (22000.0, 22000.0) #meters
-numTestPoints = 50
-# numTestPoints =100 
+numTestPoints = 100
+# numTestPoints =30
 simulationEndTime = 10000
 simulationTimestep = 0.1
 plotTimeStep = 0.5
@@ -33,7 +33,7 @@ highPriorityStraitLineA = highPriorityStart[1] - highPriorityEnd[1]
 highPriorityStraitLineB = highPriorityEnd[0] - highPriorityStart[0]
 highPriorityStraitLineC = highPriorityStart[0]*highPriorityEnd[1] - highPriorityEnd[0] * highPriorityStart[1]
 probabilityOfDetectionThreshold = 0.1
-thresholdConfidence = 0.95
+thresholdConfidence = 0.90
 highPriorityAgentRadarCrossSection = .1
 
 #radar parameters
@@ -56,17 +56,17 @@ def get_random_parameters(mean, range, numSamples):
     return np.random.uniform(mean-range, mean+range, numSamples)
 
 
-numRadar = 11
+numRadar = 9
 radarOutputPower = 10000
-radarOutputPowerRange = 0000
+radarOutputPowerRange = 10000
 radarOutputPowerList = get_random_parameters(radarOutputPower, radarOutputPowerRange, numRadar)
 
 radarTransmitGaindb = 10
-radarTransmitGainRange = 0
+radarTransmitGainRange = 10
 radarTransmitGainList = get_random_parameters(radarTransmitGaindb, radarTransmitGainRange, numRadar)
 # radarTransmitGaindb = 16
 radarRecieveGaindb = 10
-radarRecieveGainRange = 0
+radarRecieveGainRange = 10
 radarRecieveGainList = get_random_parameters(radarRecieveGaindb, radarRecieveGainRange, numRadar)
 
 # radarRecieveGaindb = 16
@@ -90,7 +90,7 @@ safeRadius = find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, rada
 
 
 # minRadarDistFromStart = 7000
-minInterRadarDist = 1.9* find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
+minInterRadarDist = 2.2* find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
 minRadarDistFromStart = 1.5*(minInterRadarDist/2) 
 # minInterRadarDist = 6000
 # minInterRadarDist = 4000
@@ -151,22 +151,22 @@ measurementCov = np.array([[agentAngleMeasurementStdDev**2,0],[0,agentPowerMeasu
 
 #unknown parameters
 radarRecieveGainPriorMean = radarRecieveGain
-radarRecieveGainPriorVariance = 1
+radarRecieveGainPriorVariance = 0
 
 radarProbabilityOfFalseAlarmPriorMean = radarProbabilityOfFalseAlarm
-radarProbabilityOfFalseAlarmPriorVariance = 2
+radarProbabilityOfFalseAlarmPriorVariance = 0
 
 radarPulseWidthPriorMean = radarPulseWidth
 # radarPulseWidthPriorVariance = 1e-6
-radarPulseWidthPriorVariance = 3
+radarPulseWidthPriorVariance = 0
 
 radarWavelengthPriorMean = radarWavelength
 # radarWavelengthPriorVariance = 1e-2
-radarWavelengthPriorVariance = 4
+radarWavelengthPriorVariance = 0
 
 radarSystemTemperaturePriorMean = radarSystemTemperature
 # radarSystemTemperaturePriorVariance = 10
-radarSystemTemperaturePriorVariance = 5
+radarSystemTemperaturePriorVariance = 0
 
 #plotting
 plotObjectiveFunction = False 

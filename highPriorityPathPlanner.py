@@ -524,8 +524,93 @@ class HighPriorityPathPlannerDeterministic:
         
         return segments[minRadarDists > params.safeRadius]
         
+    
+    def transform_to_unweighted_segment(self,segment,weights):
+        p1 = segment[0]
+        p2 = segment[1]
+
+        unweighted_p1 = np.sum(p1 * weights[:, np.newaxis], axis=0) / np.sum(weights)
+        unweighted_p2 = np.sum(p2 * weights[:, np.newaxis], axis=0) / np.sum(weights)
+        print(unweighted_p1)
+        return [unweighted_p1,unweighted_p2]
 
 
+    def get_weighted_voronoi_ridge_segements(self,radarList,weights, bounds,plot=False):
+        startTimer = time.time()
+        weights = np.array(weights)
+        weights = weights/np.max(weights)
+        points = np.array([[radar.position[0], radar.position[1]]/weights[i] for i,radar in enumerate(radarList)])
+        vor = Voronoi(points)
+        print("time for scipy voronoi", time.time()-startTimer)
+
+
+        startTimer = time.time()
+        segments = []
+        ptp_bound = vor.points.ptp(axis=0)
+        center = vor.points.mean(axis=0)
+        for pointidx, simplex in zip(vor.ridge_points, vor.ridge_vertices):
+            simplex = np.asarray(simplex)
+            if np.all(simplex >= 0):
+                segment = self.transform_to_unweighted_segment(vor.vertices[simplex],weights)
+                intersections = self.find_intersection_with_boundary(segment[0], segment[1], bounds)
+                if len(intersections) >0:
+                    if len(intersections) == 1:
+                        if np.any(segment[0] <0) or np.any(segment[1] > bounds[0]):
+                            segments.append([intersections[0], segment[1]]) 
+                        elif np.any(segment[1] <0) or np.any(segment[1] > bounds[0]):
+                            segments.append([intersections[0], segment[0]])
+                        else:
+                            segments.append([segment[0], intersections[0]])
+                    else:
+                        segments.append(intersections)
+                else:
+                    segments.append(segment)
+                # segments.append(vor.vertices[simplex])
+            else:
+                i = simplex[simplex >= 0][0]  # finite end Voronoi vertex
+
+                t = vor.points[pointidx[1]] - vor.points[pointidx[0]]  # tangent
+                t /= np.linalg.norm(t)
+                n = np.array([-t[1], t[0]])  # normal
+
+                midpoint = vor.points[pointidx].mean(axis=0)
+                direction = np.sign(np.dot(midpoint - center, n)) * n
+                if (vor.furthest_site):
+                    direction = -direction
+                aspect_factor = abs(ptp_bound.max() / ptp_bound.min())
+                far_point = vor.vertices[i] + direction * ptp_bound.max() * aspect_factor
+                
+                intersections = self.find_intersection_with_boundary(vor.vertices[i], far_point, bounds)
+
+                if len(intersections)>0:
+                    segments.append([vor.vertices[i], intersections[0]])
+
+        print("time to find segments", time.time()-startTimer)
+
+        segments = np.array(segments)
+        startTimer = time.time()
+        segments = self.remove_unfeasible_segments(segments,radarList)
+        print("time to remove unfeasible segments", time.time()-startTimer)
+        startTimer = time.time()
+        segments = self.add_boundary_segments(segments,bounds)
+        print("time to add boundary segments", time.time()-startTimer)
+        
+        
+        
+        ax = None
+        if plot:
+            fig = plt.figure()
+            ax = plt.gca()
+            ax.set_aspect('equal')
+            ax.scatter(params.highPriorityStart[0], params.highPriorityStart[1], c='r',zorder=10000)
+            ax.scatter(params.highPriorityEnd[0], params.highPriorityEnd[1], c='r',zorder=10000)
+            # ax.set_xlim([-1000,params.bounds[0]+1000])
+            # ax.set_ylim([-1000,params.bounds[1]+1000])
+            for seg in segments:
+                plt.plot([seg[0][0], seg[1][0]], [seg[0][1], seg[1][1]], 'g--')
+            plt.show()
+
+        return segments,ax
 
     def get_voronoi_ridge_segements(self,radarList,bounds,plot=False):
         startTimer = time.time()
@@ -722,7 +807,9 @@ class HighPriorityPathPlannerDeterministic:
 
     def get_initial_guess_voronoi(self,radarList,bounds,plot=False):
         startTime = time.time()
-        segments,ax = self.get_voronoi_ridge_segements(radarList,bounds,plot=plot)
+        # segments,ax = self.get_voronoi_ridge_segements(radarList,bounds,plot=plot)
+        weights = np.array([radar.outputPower*radar.transmitGain*radar.recieveGain for radar in radarList])
+        segments,ax = self.get_weighted_voronoi_ridge_segements(radarList,weights,bounds,plot=plot)
         print("Time to get voronoi segments", time.time()-startTime)
 
         startTime = time.time()
@@ -840,19 +927,19 @@ if __name__ == "__main__":
 
 
 
-    radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGain, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
+    radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
     hpp = HighPriorityPathPlannerDeterministic(tuple(radarList))
     # hpp.find_initial_guess_rrt_star(radarList,plot=True)
-    pdMap = ProbabilityOfDetectionMap(params.X_test,radarList)
-    startTime = time.time()
-    ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
-    print("path planning time", time.time()-startTime)
-    startTime = time.time()
+    pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList))
+    # startTime = time.time()
     # ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
     # print("path planning time", time.time()-startTime)
     # startTime = time.time()
-    # _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=False)
-    # print("time to get initial guess", time.time()-startTime)
+    # ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
+    # print("path planning time", time.time()-startTime)
+    startTime = time.time()
+    _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=True)
+    print("time to get initial guess", time.time()-startTime)
     
     # fig,ax = plt.subplots
     # ax.set_aspect('equal')
@@ -863,7 +950,7 @@ if __name__ == "__main__":
     c = pdMap.plot_mean(ax,plotGroundTruth=True)
     # ax.set_colorbar(c)
     fig.colorbar(c, ax=ax)
-    hpp.plot_spline(hpp.spline,ax)
-    hpp.plot_constraints(hpp.spline, tuple(radarList))
+    # hpp.plot_spline(hpp.spline,ax)
+    # hpp.plot_constraints(hpp.spline, tuple(radarList))
     plt.show()
         

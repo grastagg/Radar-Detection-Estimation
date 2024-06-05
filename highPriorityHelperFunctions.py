@@ -43,7 +43,7 @@ def get_pd_along_spline(controlpoints, tf, radarlist, numcontrolpoints, splineor
     controlpoints = controlpoints.reshape((numcontrolpoints,2))
     knotpoints = create_unclamped_knot_points(0, tf, numcontrolpoints,splineorder)
     pos = evaluate_spline(controlpoints,knotpoints,numsamplesperinterval)
-    pd = ground_truth_probability_of_detection(pos, radarlist, radaroutputpower, radartransmitgain, radarrecievegainpriormean, radarwavelengthpriormean, agentradarcrosssection, radarpulsewidth, radarsystemtemperaturepriormean, radarprobabilityoffalsealarmpriormean)
+    pd = ground_truth_probability_of_detection(pos, radarlist, radarwavelengthpriormean, agentradarcrosssection, radarpulsewidth, radarsystemtemperaturepriormean, radarprobabilityoffalsealarmpriormean)
     return pd
     
 @partial(jit, static_argnums=(2,3))
