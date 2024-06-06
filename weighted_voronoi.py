@@ -122,6 +122,12 @@ def safe_corridors_uncertain_radar(X_test,pdThreshold, likleyhoodThreshold, esti
     # return pdMean > pdThreshold
     # return pdCov
 
+def ground_truth_safe_corridors(X_test, pdThreshold, radarList, ax):
+    pd = ground_truth_probability_of_detection(X_test, radarList, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
+    safe_corridor = pd < pdThreshold
+    ax.pcolormesh(X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),safe_corridor.reshape(params.numTestPoints,params.numTestPoints))
+    return safe_corridor
+
     
 
 # def compute_probability_of_detection_at_points_multiple_radar(X_test, estimatedRadarParamsList, estimatedRadarParamsCovList, radarRecieveGain,radarRecieveGainVar, radarWavelength,radarWavelengthVar, agentRadarCrossSection, radarPulseWidth,radarPulseWidthVar, radarSystemTemperature,radarSystemTemperatureVar, radarProbabilityOfFalseAlarm,radarProbabilityOfFalseAlarmVar):
@@ -136,7 +142,7 @@ if __name__ == '__main__':
     # weights = np.array([1,2])
     # fig, ax = plt.subplots()
     # ax.set_aspect('equal')
-    # radarList = tuple(create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm))
+    radarList = tuple(create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm))
 
     # ground_truth_radar_voronoi(params.X_test,radarList,ax)
 
@@ -147,6 +153,7 @@ if __name__ == '__main__':
     paramNum = 130
     radarParams = np.load("saved_data/estimated_params/"+str(paramNum) + ".npy")
     radarParamsCov = np.load("saved_data/estimated_params_cov/"+str(paramNum) + ".npy")
+    print("radarParams",radarParams)
 
 
     startTime = time()
@@ -159,9 +166,9 @@ if __name__ == '__main__':
     plt.colorbar(c,ax=ax)
 
 
-    paramNum = 830
-    radarParams = np.load("saved_data/estimated_params/"+str(paramNum) + ".npy")
-    radarParamsCov = np.load("saved_data/estimated_params_cov/"+str(paramNum) + ".npy")
+    paramNum = 2000
+    radarParams = np.load("saved_data/estimated_params/"+str(paramNum) + ".npy")[np.mod(np.arange(11), 6) != 0]
+    radarParamsCov = np.load("saved_data/estimated_params_cov/"+str(paramNum) + ".npy")[np.mod(np.arange(11), 6) != 0]
 
     startTime = time()
     safe_corridor = safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGainPriorMean,params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean,params.radarProbabilityOfFalseAlarmPriorVariance)
@@ -171,6 +178,10 @@ if __name__ == '__main__':
     ax.set_aspect('equal')
     c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),safe_corridor.reshape(params.numTestPoints,params.numTestPoints))
     plt.colorbar(c,ax=ax)
+
+    fig3, ax3 = plt.subplots()
+    ax3.set_aspect('equal')
+    ground_truth_safe_corridors(params.X_test, params.probabilityOfDetectionThreshold, radarList, ax3)
     plt.show()
     
     

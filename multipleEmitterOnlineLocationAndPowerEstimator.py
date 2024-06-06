@@ -31,7 +31,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.inlier_mask = None
         self.group_lists = []
 
-        self.mahalonobis_distance_inlier_threshold = 4.5
+        self.mahalonobis_distance_inlier_threshold = 3.5
         # self.mahalonobis_distance_inlier_threshold = 2.5
         self.mal_dist_opt_point = None
         

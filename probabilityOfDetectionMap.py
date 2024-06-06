@@ -300,7 +300,7 @@ class ProbabilityOfDetectionMap():
         return c
 
     def ground_truth_probability_of_detection(self, X_test, trueRadarParametersList):
-        return ground_truth_probability_of_detection(np.array(X_test), trueRadarParametersList,params.radarRecieveGain, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidthPriorMean, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
+        return ground_truth_probability_of_detection(np.array(X_test), trueRadarParametersList, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidthPriorMean, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
             
 
 if __name__ == '__main__':
