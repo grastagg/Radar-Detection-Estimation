@@ -150,34 +150,28 @@ if __name__ == '__main__':
     # ax2.set_aspect('equal')
     # ground_truth_radar_voronoi_weighted(params.X_test,radarList,ax2)
     # plt.show()
-    paramNum = 130
-    radarParams = np.load("saved_data/estimated_params/"+str(paramNum) + ".npy")
-    radarParamsCov = np.load("saved_data/estimated_params_cov/"+str(paramNum) + ".npy")
-    print("radarParams",radarParams)
+
+    
+    ### safe corridors
+    # for i in range(1,1358,1):
+    #     paramNum = i
+    #     radarParams = np.load("saved_data/seed_91212_good/estimated_params/"+str(paramNum) + ".npy")
+    #     radarParamsCov = np.load("saved_data/seed_91212_good/estimated_params_cov/"+str(paramNum) + ".npy")
 
 
-    startTime = time()
-    safe_corridor = safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGainPriorMean,params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean,params.radarProbabilityOfFalseAlarmPriorVariance)
-    print("time to run",time()-startTime)
+    #     startTime = time()
+    #     if len(radarParams) > 0:
+    #         safe_corridor = safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGainPriorMean,params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean,params.radarProbabilityOfFalseAlarmPriorVariance)
+    #         print("time to run",time()-startTime)
 
-    fig, ax = plt.subplots()
-    ax.set_aspect('equal')
-    c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),safe_corridor.reshape(params.numTestPoints,params.numTestPoints))
-    plt.colorbar(c,ax=ax)
+    #         fig, ax = plt.subplots()
+    #         ax.set_aspect('equal')
+    #         c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),safe_corridor.reshape(params.numTestPoints,params.numTestPoints))
+    #         ax.set_title("Estimated Safe Corridor for params: " + str(paramNum))
+    #         plt.colorbar(c,ax=ax)
+    #         plt.savefig("saved_data/seed_91212_good/safe_corridor_vid/"+str(paramNum)+".png")
+    #         plt.close()
 
-
-    paramNum = 2000
-    radarParams = np.load("saved_data/estimated_params/"+str(paramNum) + ".npy")[np.mod(np.arange(11), 6) != 0]
-    radarParamsCov = np.load("saved_data/estimated_params_cov/"+str(paramNum) + ".npy")[np.mod(np.arange(11), 6) != 0]
-
-    startTime = time()
-    safe_corridor = safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGainPriorMean,params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean,params.radarProbabilityOfFalseAlarmPriorVariance)
-    print("time to run",time()-startTime)
-
-    fig, ax = plt.subplots()
-    ax.set_aspect('equal')
-    c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),safe_corridor.reshape(params.numTestPoints,params.numTestPoints))
-    plt.colorbar(c,ax=ax)
 
     fig3, ax3 = plt.subplots()
     ax3.set_aspect('equal')
