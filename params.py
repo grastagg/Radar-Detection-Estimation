@@ -61,7 +61,7 @@ def get_random_parameters(mean, range, numSamples):
     return np.random.uniform(mean-range, mean+range, numSamples)
 
 
-numRadar = 10
+numRadar = 4
 radarOutputPower = 10000
 radarOutputPowerRange = 10000
 radarOutputPowerList = get_random_parameters(radarOutputPower, radarOutputPowerRange, numRadar)

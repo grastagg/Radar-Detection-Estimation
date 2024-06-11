@@ -65,7 +65,6 @@ def ground_truth_radar_voronoi(X_test,radarList,ax):
 def ground_truth_radar_voronoi_weighted(X_test,radarList,ax):
     weights = np.sqrt(np.sqrt(np.array([radar.outputPower*radar.transmitGain*radar.recieveGain for radar in radarList])))
     # weights = weights/np.max(weights)
-    print(weights)
 
     distances = []
     for i,radar in enumerate(radarList):
@@ -148,7 +147,7 @@ if __name__ == '__main__':
 
     # fig2, ax2 = plt.subplots()
     # ax2.set_aspect('equal')
-    # ground_truth_radar_voronoi_weighted(params.X_test,radarList,ax2)
+    ground_truth_radar_voronoi_weighted(params.X_test,radarList,ax2)
     # plt.show()
 
     
