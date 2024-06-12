@@ -217,7 +217,7 @@ class HighPriorityPathPlannerDeterministic:
         optProb.addObj("obj")
         opt = OPT("ipopt")
         # opt.options['derivative_test'] = 'first-order'
-        opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+        opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['linear_solver'] = 'ma97'
         opt.options['print_level'] = 0
         opt.options['max_iter'] = 1000
