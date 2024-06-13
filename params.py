@@ -63,7 +63,7 @@ def get_random_parameters(mean, range, numSamples):
 
 numRadar = 10
 radarOutputPower = 10000
-radarOutputPowerRange = 0000
+radarOutputPowerRange = 10000
 radarOutputPowerList = get_random_parameters(radarOutputPower, radarOutputPowerRange, numRadar)
 
 radarTransmitGaindb = 10
@@ -188,11 +188,12 @@ numObjectiveFunctionSamples = 20
 lowPrioritySafetyBestMeasurementTradeoff = .1
 lowPriorityDistanceBestMeasurementTradeoff = .6
 agentSpeed = 134
-numControlPoints = 24
+# numControlPoints = 24
+numControlPoints = 20
 maxTurnRate = 1
 velocityBounds = [100,134]
 numSamplesPerInterval = 3
-numConstraintSamples = 64
+numConstraintSamples = numSamplesPerInterval*(numControlPoints-2)-2
 # numConstraintSamples = 22
 splineOrder = 3
 

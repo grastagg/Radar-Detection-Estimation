@@ -37,6 +37,10 @@ from bspline.matrix_evaluation import matrix_bspline_evaluation,derivative_matri
 from highPriorityHelperFunctions import create_unclamped_knot_points, get_spline_velocity, get_pd_along_spline, get_spline_turn_rate, dist_of_points_to_line_segment
 
 
+from incremental_algorithm_weighted_voronoi import compute_path_weighted_voronoi
+
+
+
 
 class HighPriorityPathPlannerDeterministic:
     def __init__(self,radarList):
@@ -60,6 +64,8 @@ class HighPriorityPathPlannerDeterministic:
 
         dist_of_points_to_line_segment(np.array([0,0]),np.array([1,1]),self.deterministicRadarPositions)
         print("Time to compile jax functions", time.time()-start)
+
+        self.useWeightedVoronoi = True
 
         
     
@@ -146,10 +152,10 @@ class HighPriorityPathPlannerDeterministic:
 
         return spline
     
-    def plan_deterministic_path(self, radar_list,plot=False):
+    def plan_deterministic_path(self, radar_list,plot=False,ax=None):
         startTimer = time.time()
         # initialControlPoints, tfIntial,ax = self.find_initial_guess_rrt_star(radarList,plot=plot)
-        initialControlPoints, tfIntial,ax = self.get_initial_guess_voronoi(radarList,params.bounds,plot=plot)
+        initialControlPoints, tfIntial = self.get_initial_guess_voronoi(radarList,params.bounds,plot=plot,ax=ax)
         print("Time to find initial guess", time.time()-startTimer)
         spline = self.spline_seg(initialControlPoints,create_unclamped_knot_points(0, tfIntial, params.numControlPoints,params.splineOrder))
 
@@ -805,29 +811,43 @@ class HighPriorityPathPlannerDeterministic:
         
         
 
-    def get_initial_guess_voronoi(self,radarList,bounds,plot=False):
-        startTime = time.time()
-        segments,ax = self.get_voronoi_ridge_segements(radarList,bounds,plot=plot)
-        # weights = np.array([radar.outputPower*radar.transmitGain*radar.recieveGain for radar in radarList])
-        # segments,ax = self.get_weighted_voronoi_ridge_segements(radarList,weights,bounds,plot=plot)
-        print("Time to get voronoi segments", time.time()-startTime)
-
-        startTime = time.time()
-        adjMatrix,nodes, goalNode = self.get_weighted_adjacency_matrix(segments)
-        print("Time to get adjacency matrix", time.time()-startTime)
+    def get_initial_guess_voronoi(self,radarList,bounds,plot=False,ax=None):
 
 
+#################### this code is for unwieghted voronoi
+        if not self.useWeightedVoronoi:
+            startTime = time.time()
+            segments,ax = self.get_voronoi_ridge_segements(radarList,bounds,plot=plot)
+            # weights = np.array([radar.outputPower*radar.transmitGain*radar.recieveGain for radar in radarList])
+            # segments,ax = self.get_weighted_voronoi_ridge_segements(radarList,weights,bounds,plot=plot)
+            print("Time to get voronoi segments", time.time()-startTime)
+
+            startTime = time.time()
+            adjMatrix,nodes, goalNode = self.get_weighted_adjacency_matrix(segments)
+            print("Time to get adjacency matrix", time.time()-startTime)
+
+
+            
+            startTime = time.time()
+            g = ig.Graph.Weighted_Adjacency(adjMatrix, mode="undirected")
+            print("Time to create graph", time.time()-startTime)
+            startTime = time.time()
+            path = g.get_shortest_paths(0,to=goalNode,weights=g.es["weight"])
+            print("Time to find shortest path", time.time()-startTime)
+
+            startTime= time.time()
+            path = np.array([nodes[node] for node in path[0]])
+            path = self.fill_in_path(path)
+######################
+
+        else:
+            path = compute_path_weighted_voronoi(plot,ax)
         
-        startTime = time.time()
-        g = ig.Graph.Weighted_Adjacency(adjMatrix, mode="undirected")
-        print("Time to create graph", time.time()-startTime)
-        startTime = time.time()
-        path = g.get_shortest_paths(0,to=goalNode,weights=g.es["weight"])
-        print("Time to find shortest path", time.time()-startTime)
+        
+        
+        
 
-        startTime= time.time()
-        path = np.array([nodes[node] for node in path[0]])
-        path = self.fill_in_path(path)
+        startTime = time.time()
         controlPoints, knotPoints = self.fit_spline_to_path(path,params.numControlPoints)
         print("Time to fit spline to path", time.time()-startTime)
         
@@ -851,21 +871,21 @@ class HighPriorityPathPlannerDeterministic:
             self.plot_spline_from_control_points(controlPoints, knotPoints,ax)
 
             ax.plot(path[:,0], path[:,1], 'r--')
-            for key in nodes.keys():
-                ax.scatter(nodes[key][0], nodes[key][1], c='b',zorder=1000000)
-                ax.text(nodes[key][0], nodes[key][1], str(key),c='c',zorder=1000000)
+            # for key in nodes.keys():
+            #     ax.scatter(nodes[key][0], nodes[key][1], c='b',zorder=1000000)
+            #     ax.text(nodes[key][0], nodes[key][1], str(key),c='c',zorder=1000000)
 
 
-            g.vs["label"] = [str(key) for key in nodes.keys()]
-            coords = np.array([nodes[key] for key in nodes.keys()])
-            layout = ig.Layout(coords=coords)
+            # g.vs["label"] = [str(key) for key in nodes.keys()]
+            # coords = np.array([nodes[key] for key in nodes.keys()])
+            # layout = ig.Layout(coords=coords)
 
-            fig,ax2 = plt.subplots()
-            ig.plot(g,layout= layout,target=ax2)
+            # fig,ax2 = plt.subplots()
+            # ig.plot(g,layout= layout,target=ax2)
             self.plot_constraints(spline, tuple(radarList))
             # plt.show()
         
-        return controlPoints,tf,ax
+        return controlPoints,tf
         
         
         
@@ -932,7 +952,8 @@ if __name__ == "__main__":
     # hpp.find_initial_guess_rrt_star(radarList,plot=True)
     pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList))
     startTime = time.time()
-    ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
+    fig,ax = plt.subplots()
+    hpp.plan_deterministic_path(tuple(radarList),plot=True,ax=ax)
     print("path planning time", time.time()-startTime)
     startTime = time.time()
     # ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)

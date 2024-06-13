@@ -85,13 +85,15 @@ def is_point_on_segment(point, line_start, line_end):
     x2, y2 = line_end
 
     # Check if point is within the bounding box of the segment
-    if min(x1, x2) <= x <= max(x1, x2) and min(y1, y2) <= y <= max(y1, y2):
+    epsilon = 1e-6
+    if (min(x1, x2) - epsilon <= x <= max(x1, x2) + epsilon) and (min(y1, y2) - epsilon <= y <= max(y1, y2) + epsilon):
         return True
     return False
 
 def arc_line_segment_intersection(center, radius, p1, p2, line_start, line_end):
     # intersections = circle_line_intersection(center, radius, line_start, line_end)
     intersections = circle_line_segment_intersection(center, radius, line_start, line_end, full_line=False, tangent_tol=1e-9)
+
         
     arc_intersections = [pt for pt in intersections if is_point_on_arc(pt, center, p1, p2) and is_point_on_segment(pt, line_start, line_end)]
     return arc_intersections
