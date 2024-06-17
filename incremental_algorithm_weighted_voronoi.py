@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import igraph as ig
+import time
 
 
 from main_helper import create_radar_list
@@ -9,6 +10,7 @@ from weighted_voronoi import ground_truth_radar_voronoi_weighted
 
 from weightedVoronoiHelperFunctions import arc_line_segment_intersection
 from probabilityOfDetectionMap import ProbabilityOfDetectionMap
+from wevo_py import weighted_voronoi_diagram
 
 
 
@@ -351,11 +353,9 @@ def evaluate_arc(center,radius,theta1, theta2, spacing):
     return np.hstack((x.reshape(-1,1),y.reshape(-1,1)))
 
 def fill_in_path(path,edges,nodes,spacing = 500):
-    print("Path before filling in: ",path[0])
+    # print("Path before filling in: ",path[0])
     newPath = []
     for i in range(len(path[0])-1):
-        print((path[0][i],path[0][i+1]))
-        print(edges[(path[0][i],path[0][i+1])]["arc"])
         if edges[(path[0][i],path[0][i+1])]["arc"]:
             p1 = nodes[path[0][i]]
             p2 = nodes[path[0][i+1]]
@@ -365,25 +365,51 @@ def fill_in_path(path,edges,nodes,spacing = 500):
             # if theta2 < theta1:
             #     theta2 += 2*np.pi
             arc = evaluate_arc(center,np.linalg.norm(p1-center),theta1,theta2,spacing)
-            print("Arc: ",arc.shape)
             newPath.append(arc)
         else:
-            print("seg",nodes[path[0][i]],nodes[path[0][i+1]])
             numPoints = int(np.linalg.norm(nodes[path[0][i]]-nodes[path[0][i+1]])/spacing)
             points = np.linspace(nodes[path[0][i]],nodes[path[0][i+1]],numPoints)
             newPath.append(points)
             pass
     return np.vstack(newPath)
         
+def save_points_and_weights_to_file(radarList,filename):
+    generatorPoints = np.array([radar.position for radar in radarList])
+    weights = np.sqrt(np.sqrt(np.array([radar.outputPower*radar.transmitGain*radar.recieveGain for radar in radarList])))
+    weights *= 1000
+    data = np.rint(np.hstack((generatorPoints,weights.reshape(-1,1)))).astype(int)
+    np.savetxt(filename,data,delimiter=' ',fmt='%i')
         
-def compute_path_weighted_voronoi(plot =False,ax=None):
+def compute_path_weighted_voronoi(radarList,plot =False,ax=None):
+
+    startTime = time.time()
+    save_points_and_weights_to_file(radarList,"my_input.pnts")
+    print("Time to save points and weights to file: ",time.time()-startTime)
+
+    startTime = time.time()
+    weighted_voronoi_diagram()
+    print("Time to compute weighted voronoi diagram: ",time.time()-startTime)
+    
     filename = "output.txt"
+
+    startTime = time.time()
     arcs = load_weighted_voronoi_segments_from_file(filename)
     arcs = combine_attached_arcs(arcs)
+    print("Time to load and combine arcs: ",time.time()-startTime)
+
+    startTime = time.time()
     arcs,boundarySegments = intersect_arcs_with_boundary(arcs,params.bounds,ax)
+    print("Time to intersect arcs with boundary: ",time.time()-startTime)
+    startTime = time.time()
     adjacencyMatrix,nodes,edges = create_adjacency_matrix_from_arcs_and_bounary(arcs,boundarySegments,ax)
+    print("Time to create adjacency matrix: ",time.time()-startTime)
+    startTime = time.time()
     path = create_graph_and_find_shortest_path(adjacencyMatrix,nodes)
+    print("Time to find shortest path: ",time.time()-startTime)
+
+    startTime = time.time()
     path = fill_in_path(path,edges,nodes,spacing=50)
+    print("Time to fill in path: ",time.time()-startTime)
 
     if plot:
         plot_weighted_voronoi_arcs(arcs,boundarySegments,ax)
@@ -403,7 +429,7 @@ if __name__ == '__main__':
     ax.set_aspect('equal')
     c = pdMap.plot_mean(ax,plotGroundTruth=True)
     fig.colorbar(c,ax=ax)
-    compute_path_weighted_voronoi(plot = True,ax=ax)
+    compute_path_weighted_voronoi(radarList=radarList,plot = True,ax=ax)
 
 
 

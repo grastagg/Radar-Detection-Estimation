@@ -841,7 +841,7 @@ class HighPriorityPathPlannerDeterministic:
 ######################
 
         else:
-            path = compute_path_weighted_voronoi(plot,ax)
+            path = compute_path_weighted_voronoi(radarList,plot,ax)
         
         
         
