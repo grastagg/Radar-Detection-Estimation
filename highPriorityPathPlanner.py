@@ -37,7 +37,7 @@ from bspline.matrix_evaluation import matrix_bspline_evaluation,derivative_matri
 from highPriorityHelperFunctions import create_unclamped_knot_points, get_spline_velocity, get_pd_along_spline, get_spline_turn_rate, dist_of_points_to_line_segment
 
 
-from incremental_algorithm_weighted_voronoi import compute_path_weighted_voronoi
+from weightedVoronoiPathIntialzation import compute_path_weighted_voronoi
 
 
 
