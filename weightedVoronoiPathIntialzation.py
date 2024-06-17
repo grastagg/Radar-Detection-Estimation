@@ -199,6 +199,30 @@ def intersect_arcs_with_boundary(arcs, bounds,ax):
     
     
     return arcs,boundarySegments
+def is_between_angles_radians(start_angle, stop_angle, angle):
+  """
+  Checks if a third angle lies between a start and stop angle counter-clockwise (radians).
+
+  Args:
+      start_angle: The starting angle in radians (0 to 2*pi).
+      stop_angle: The stopping angle in radians (0 to 2*pi).
+      angle: The angle to check if it lies between start and stop (0 to 2*pi).
+
+  Returns:
+      True if the angle lies between start and stop counter-clockwise, False otherwise.
+  """
+
+  # Normalize angles to 0-2*pi range
+  start_angle = start_angle % (2 * np.pi)
+  stop_angle = stop_angle % (2 * np.pi)
+  angle = angle % (2 * np.pi)
+
+  # Handle wraparound
+  if stop_angle < start_angle:
+    return (angle > start_angle or angle < stop_angle)
+  else:
+    return start_angle < angle < stop_angle
+
         
 def combine_attached_arcs(arcs):
     # For some reason the c++ function splits arcs into two segments, this function will combine them
@@ -209,8 +233,10 @@ def combine_attached_arcs(arcs):
                 if plot:
                     fig,ax = plt.subplots()
                     ax.set_aspect('equal')
-                    ax.set_xlim([-1.5e6,1.5e6])
-                    ax.set_ylim([-.5e6,3e6])
+                    # ax.set_xlim([-1.5e6,1.5e6])
+                    # ax.set_ylim([-.5e6,3e6])
+                    ax.set_xlim([-10000,40000])
+                    ax.set_ylim([-20000,30000])
                     p1 = arcs[i][0:2]
                     p2 = arcs[i][2:4]
                     center = arcs[i][4:6]
@@ -248,14 +274,22 @@ def combine_attached_arcs(arcs):
 
                 # Step 5: Get indices of these unique elements in the original array
                 indices = np.array([index for index, element in enumerate(roundedThetas) if element in unique_elements_single_occurrence])
+                
                 if len(indices) == 2:
+                    middleAngle = unique_elements[counts==2]
                     points = np.array([arcs[i][0:2],arcs[i][2:4],arcs[j][0:2],arcs[j][2:4]])
                     minIndex = np.argmin(thetas[indices])
                     maxIndex = np.argmax(thetas[indices])
-                    # arcs[j][0:2] = points[minIndex]
-                    # arcs[j][2:4] = points[maxIndex]
+                    startAngle = thetas[indices[minIndex]]
+                    stopAngle = thetas[indices[maxIndex]]
+                    if not is_between_angles_radians(startAngle,stopAngle,middleAngle):
+                        temp = maxIndex
+                        maxIndex = minIndex
+                        minIndex = temp
                     arcs[j][0:2] = points[indices[minIndex]]
                     arcs[j][2:4] = points[indices[maxIndex]]
+
+                    
                     
                     
 
@@ -267,8 +301,10 @@ def combine_attached_arcs(arcs):
                         center = arcs[j][4:6]
                         theta1 = np.arctan2(p1[1]-center[1],p1[0]-center[0])
                         theta2 = np.arctan2(p2[1]-center[1],p2[0]-center[0])
+                        print("theta1: ",theta1)
                         if theta2 < theta1:
                             theta2 += 2*np.pi
+                        print("theta2: ",theta2)
                         plot_arc(center,np.linalg.norm(p1-center),theta1,theta2,ax=ax,c = 'g')
                         plt.show()
                     break
@@ -399,34 +435,22 @@ def save_points_and_weights_to_file(radarList,filename):
         
 def compute_path_weighted_voronoi(radarList,plot =False,ax=None):
 
-    startTime = time.time()
     save_points_and_weights_to_file(radarList,"my_input.pnts")
-    print("Time to save points and weights to file: ",time.time()-startTime)
 
-    startTime = time.time()
     weighted_voronoi_diagram()
-    print("Time to compute weighted voronoi diagram: ",time.time()-startTime)
     
     filename = "output.txt"
 
-    startTime = time.time()
     arcs = load_weighted_voronoi_segments_from_file(filename)
+
     arcs = combine_attached_arcs(arcs)
-    print("Time to load and combine arcs: ",time.time()-startTime)
 
-    startTime = time.time()
+
     arcs,boundarySegments = intersect_arcs_with_boundary(arcs,params.bounds,ax)
-    print("Time to intersect arcs with boundary: ",time.time()-startTime)
-    startTime = time.time()
     adjacencyMatrix,nodes,edges = create_adjacency_matrix_from_arcs_and_bounary(arcs,boundarySegments,ax)
-    print("Time to create adjacency matrix: ",time.time()-startTime)
-    startTime = time.time()
     path = create_graph_and_find_shortest_path(adjacencyMatrix,nodes)
-    print("Time to find shortest path: ",time.time()-startTime)
 
-    startTime = time.time()
     path = fill_in_path(path,edges,nodes,spacing=50)
-    print("Time to fill in path: ",time.time()-startTime)
 
     if plot:
         plot_weighted_voronoi_arcs(arcs,boundarySegments,ax)
