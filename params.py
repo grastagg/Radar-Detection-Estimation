@@ -8,7 +8,7 @@ from scipy.constants import k as boltzman
 # np.random.seed(124912)
 
 # np.random.seed(91231)
-np.random.seed(129122)
+np.random.seed(91212)
 
         
 def db_to_amplitude(db):

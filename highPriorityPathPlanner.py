@@ -6,7 +6,7 @@ import jax
 jax.config.update("jax_enable_x64", True)
 from scipy.constants import k as boltzman
 import matplotlib
-# matplotlib.use('TkAgg')
+
 
 import matplotlib.pyplot as plt
 import params
@@ -223,7 +223,8 @@ class HighPriorityPathPlannerDeterministic:
         optProb.addObj("obj")
         opt = OPT("ipopt")
         # opt.options['derivative_test'] = 'first-order'
-        opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+        # opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+        opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['linear_solver'] = 'ma97'
         opt.options['print_level'] = 0
         opt.options['max_iter'] = 1000
