@@ -43,17 +43,21 @@ def plot_dist_grid(X_test, points,weights,ax):
 
             
 def plot_arc(center,radius,theta1= 0, theta2 = 2*np.pi, ax=None,c = 'b'):
-    theta = np.linspace(theta1,theta2,100)
+    # theta = np.linspace(theta1,theta2,100)
     # theta = np.unwrap(theta)
+    out = evaluate_arc(center,radius,theta1,theta2,spacing = 50)
+    x = out[:,0]
+    y = out[:,1]
     
-    x = center[0] + radius*np.cos(theta)
-    y = center[1] + radius*np.sin(theta)
+    # x = center[0] + radius*np.cos(theta)
+    # y = center[1] + radius*np.sin(theta)
     ax.plot(x,y,c = c)
 
 def plot_weighted_voronoi_arcs(arcs,boundarySegments,ax):
     # for arc in arcs:
     # arc = arcs[3]
-    for arc in arcs:
+    for i,arc in enumerate(arcs):
+        
         p1 = arc[0:2]
         p2 = arc[2:4]
         center = arc[4:6]
@@ -368,8 +372,8 @@ def create_adjacency_matrix_from_arcs_and_bounary(arcs,boundarySegments,ax=None)
         arcLength = get_arc_length(arc)
         adjacencyMatrix[node1,node2] = arcLength
         adjacencyMatrix[node2,node1] = arcLength
-        edges[(node1,node2)] = {"arc":True,"center":arc[4:6]}
-        edges[(node2,node1)] = {"arc":True,"center":arc[4:6]}
+        edges[(node1,node2)] = {"arc":True,"center":arc[4:6],"direction":"counterClockwise"}
+        edges[(node2,node1)] = {"arc":True,"center":arc[4:6],"direction":"clockwise"}
     
     for seg in boundarySegments:
         node1 = None
@@ -395,6 +399,8 @@ def create_graph_and_find_shortest_path(adejacenyMatrix,nodes):
 
 # def evaluate_circular_arc(center,radius,theta1,theta2,point):
 def evaluate_arc(center,radius,theta1, theta2, spacing):
+    # if theta1 < theta2:
+    #     theta2 += 2*np.pi
     # dTheta = np.arccos((-spacing**2+2*radius**2)/(2*radius**2))
     dTheta = spacing/radius
     numTheta = int((abs(theta2-theta1))/dTheta)
@@ -410,13 +416,31 @@ def fill_in_path(path,edges,nodes,spacing = 500):
     newPath = []
     for i in range(len(path[0])-1):
         if edges[(path[0][i],path[0][i+1])]["arc"]:
-            p1 = nodes[path[0][i]]
-            p2 = nodes[path[0][i+1]]
-            center = edges[(path[0][i],path[0][i+1])]["center"]
+            if edges[(path[0][i],path[0][i+1])]["direction"] == "counterClockwise":
+                p1 = nodes[path[0][i]]
+                p2 = nodes[path[0][i+1]]
+                center = edges[(path[0][i],path[0][i+1])]["center"]
+            else:
+                p2 = nodes[path[0][i]]
+                p1 = nodes[path[0][i+1]]
+                center = edges[(path[0][i],path[0][i+1])]["center"]
+                
+            # theta1 = np.arctan2(p1[1]-center[1],p1[0]-center[0])
+            # theta2 = np.arctan2(p2[1]-center[1],p2[0]-center[0])
             theta1 = np.arctan2(p1[1]-center[1],p1[0]-center[0])
             theta2 = np.arctan2(p2[1]-center[1],p2[0]-center[0])
-            # if theta2 < theta1:
-            #     theta2 += 2*np.pi
+            if theta2 < theta1:
+                theta2 += 2*np.pi
+            # if i == 7:
+            #     print("p1: ",p1)
+            #     print("p2: ",p2)
+            #     print("center: ",center)
+            #     fig,ax = plt.subplots()
+            #     ax.set_aspect('equal')
+            #     ax.set_xlim([0,params.bounds[0]])
+            #     ax.set_ylim([0,params.bounds[1]])
+            #     plot_arc(center,np.linalg.norm(p1-center),theta1,theta2,ax=ax)
+            #     plt.show()
             arc = evaluate_arc(center,np.linalg.norm(p1-center),theta1,theta2,spacing)
             newPath.append(arc)
         else:
