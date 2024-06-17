@@ -136,43 +136,60 @@ def intersect_arcs_with_boundary(arcs, bounds,ax):
     
     boundarySegments = []
     intersections = np.array(intersections)
-    leftBoundaryIntersections = np.sort(intersections[intersections[:,0] == 0],axis=0)
-    rightBoundaryIntersections = np.sort(intersections[intersections[:,0] == bounds[0]],axis=0)
-    topBoundaryIntersections = np.sort(intersections[intersections[:,1] == bounds[1]],axis=0)
-    bottomBoundaryIntersections = np.sort(intersections[intersections[:,1] == 0],axis=0)
+    # leftBoundaryIntersections = np.sort(intersections[intersections[:,0] == 0],axis=0)
+    # rightBoundaryIntersections = np.sort(intersections[intersections[:,0] == bounds[0]],axis=0)
+    # topBoundaryIntersections = np.sort(intersections[intersections[:,1] == bounds[1]],axis=0)
+    # bottomBoundaryIntersections = np.sort(intersections[intersections[:,1] == 0],axis=0)
+
+    leftBoundaryIntersections = np.sort(intersections[np.isclose(intersections[:,0],0)],axis=0)
+    rightBoundaryIntersections = np.sort(intersections[np.isclose(intersections[:,0],bounds[0])],axis=0)
+    topBoundaryIntersections = np.sort(intersections[np.isclose(intersections[:,1],bounds[1])],axis=0)
+    bottomBoundaryIntersections = np.sort(intersections[np.isclose(intersections[:,1],0)],axis=0)
+    
 
 
-    for i in range(len(leftBoundaryIntersections)+1):
-        if i == 0:
-            boundarySegments.append(np.array([[0,0],leftBoundaryIntersections[0]]))
-        elif i == len(leftBoundaryIntersections):
-            boundarySegments.append(np.array([leftBoundaryIntersections[-1],[0,bounds[1]]]))
-        else:
-            boundarySegments.append(np.array([leftBoundaryIntersections[i-1],leftBoundaryIntersections[i]]))
-    
-    for i in range(len(rightBoundaryIntersections)+1):
-        if i == 0:
-            boundarySegments.append(np.array([[bounds[0],0],rightBoundaryIntersections[0]]))
-        elif i == len(rightBoundaryIntersections):
-            boundarySegments.append(np.array([rightBoundaryIntersections[-1],[bounds[0],bounds[1]]]))
-        else:
-            boundarySegments.append(np.array([rightBoundaryIntersections[i-1],rightBoundaryIntersections[i]]))
-    
-    for i in range(len(topBoundaryIntersections)+1):
-        if i == 0:
-            boundarySegments.append(np.array([[0,bounds[1]],topBoundaryIntersections[0]]))
-        elif i == len(topBoundaryIntersections):
-            boundarySegments.append(np.array([topBoundaryIntersections[-1],[bounds[0],bounds[1]]]))
-        else:
-            boundarySegments.append(np.array([topBoundaryIntersections[i-1],topBoundaryIntersections[i]]))
-    for i in range(len(bottomBoundaryIntersections)+1):
-        if i == 0:
-            boundarySegments.append(np.array([[0,0],bottomBoundaryIntersections[0]]))
-        elif i == len(bottomBoundaryIntersections):
-            boundarySegments.append(np.array([bottomBoundaryIntersections[-1],[bounds[0],0]]))
-        else:
-            boundarySegments.append(np.array([bottomBoundaryIntersections[i-1],bottomBoundaryIntersections[i]]))
+    if len(leftBoundaryIntersections) == 0:
+        leftBoundaryIntersections = np.array([[0,0],[0,bounds[1]]])
+    else:
+        for i in range(len(leftBoundaryIntersections)+1):
+            if i == 0:
+                boundarySegments.append(np.array([[0,0],leftBoundaryIntersections[0]]))
+            elif i == len(leftBoundaryIntersections):
+                boundarySegments.append(np.array([leftBoundaryIntersections[-1],[0,bounds[1]]]))
+            else:
+                boundarySegments.append(np.array([leftBoundaryIntersections[i-1],leftBoundaryIntersections[i]]))
+    if len(rightBoundaryIntersections) == 0:
+        rightBoundaryIntersections = np.array([[bounds[0],0],[bounds[0],bounds[1]]])
+    else:
+        for i in range(len(rightBoundaryIntersections)+1):
+            if i == 0:
+                boundarySegments.append(np.array([[bounds[0],0],rightBoundaryIntersections[0]]))
+            elif i == len(rightBoundaryIntersections):
+                boundarySegments.append(np.array([rightBoundaryIntersections[-1],[bounds[0],bounds[1]]]))
+            else:
+                boundarySegments.append(np.array([rightBoundaryIntersections[i-1],rightBoundaryIntersections[i]]))
         
+    if len(topBoundaryIntersections) == 0:
+        topBoundaryIntersections = np.array([[0,bounds[1]],[bounds[0],bounds[1]]])
+    else:
+        for i in range(len(topBoundaryIntersections)+1):
+            if i == 0:
+                boundarySegments.append(np.array([[0,bounds[1]],topBoundaryIntersections[0]]))
+            elif i == len(topBoundaryIntersections):
+                boundarySegments.append(np.array([topBoundaryIntersections[-1],[bounds[0],bounds[1]]]))
+            else:
+                boundarySegments.append(np.array([topBoundaryIntersections[i-1],topBoundaryIntersections[i]]))
+    if len(bottomBoundaryIntersections) == 0:
+        bottomBoundaryIntersections = np.array([[0,0],[bounds[0],0]])
+    else:
+        for i in range(len(bottomBoundaryIntersections)+1):
+            if i == 0:
+                boundarySegments.append(np.array([[0,0],bottomBoundaryIntersections[0]]))
+            elif i == len(bottomBoundaryIntersections):
+                boundarySegments.append(np.array([bottomBoundaryIntersections[-1],[bounds[0],0]]))
+            else:
+                boundarySegments.append(np.array([bottomBoundaryIntersections[i-1],bottomBoundaryIntersections[i]]))
+            
     
     
 
