@@ -95,7 +95,7 @@ def plot_weighted_voronoi_arcs(arcs,boundarySegments,ax):
         # plot_arc(center, radius, np.min([theta1,theta2]), np.max([theta2,theta1]), ax)
         plot_arc(center, radius, theta1,theta2, ax)
     for seg in boundarySegments:
-        ax.plot(seg[:,0],seg[:,1],c = 'g')
+        ax.plot(seg[:,0],seg[:,1],c = 'b',marker='o')
     # plt.plot([0,0,params.bounds[0],params.bounds[0],0],[0,params.bounds[1],params.bounds[1],0,0],c = 'k')
 
 # def combine_arcs(arcs):
@@ -591,34 +591,38 @@ def trim_arcs_pd_threshold(arcs,radarList,weights, pdThreshold,ax):
 
         plot=False
         if plot:
-            p1 = arc[0:2]
-            p2 = arc[2:4]
-            center = arc[4:6]
-            radius = np.linalg.norm(p1-center)
-            # theta1 = minimize_angle(np.arctan2(p1[1]-center[1],p1[0]-center[0]))
-            # theta2 = minimize_angle(np.arctan2(p2[1]-center[1],p2[0]-center[0]))
-            theta1 = np.arctan2(p1[1]-center[1],p1[0]-center[0])
-            theta2 = np.arctan2(p2[1]-center[1],p2[0]-center[0])
-            if theta2 < theta1:
-                theta2 += 2*np.pi
-            fig,ax1 = plt.subplots()
-            c = plot_arc_pd(center, radius, radarList, theta1,theta2, ax1)
-            fig.colorbar(c,ax=ax1)
-            # ax1.scatter(minDistancePoint[0],minDistancePoint[1],c = 'c')
-            # ax1.plot([minDistancePoint[0],intersecionts[minDistanceIndex][0]],[minDistancePoint[1],intersecionts[minDistanceIndex][1]],c = 'c')
-            ax1.set_aspect('equal')
-            ax1.scatter(arc[4],arc[5],c = 'r')
-            ax1.scatter(highestPdPoint[0],highestPdPoint[1],c = 'r',marker='x')
-            for i,inter in enumerate(intersecionts):
-                # ax1.scatter(inter[0],inter[1],c = 'c')
-                ax1.plot([radarPositions[i][0],arc[4]],[radarPositions[i][1],arc[5]],c = 'k',linestyle='--')
-                ax1.plot([radarPositions[i][0],inter[0]],[radarPositions[i][1],inter[1]],c = 'c')
-            plt.show()
+            if pdAtIntersections[maxPdIndex] > pdThreshold:
+                print("deleteing arc",a)
+                print("maxpd",pdAtIntersections[maxPdIndex])
+                print("threshold",pdThreshold)
+                p1 = arc[0:2]
+                p2 = arc[2:4]
+                center = arc[4:6]
+                radius = np.linalg.norm(p1-center)
+                # theta1 = minimize_angle(np.arctan2(p1[1]-center[1],p1[0]-center[0]))
+                # theta2 = minimize_angle(np.arctan2(p2[1]-center[1],p2[0]-center[0]))
+                theta1 = np.arctan2(p1[1]-center[1],p1[0]-center[0])
+                theta2 = np.arctan2(p2[1]-center[1],p2[0]-center[0])
+                if theta2 < theta1:
+                    theta2 += 2*np.pi
+                fig,ax1 = plt.subplots()
+                c = plot_arc_pd(center, radius, radarList, theta1,theta2, ax1)
+                fig.colorbar(c,ax=ax1)
+                # ax1.scatter(minDistancePoint[0],minDistancePoint[1],c = 'c')
+                # ax1.plot([minDistancePoint[0],intersecionts[minDistanceIndex][0]],[minDistancePoint[1],intersecionts[minDistanceIndex][1]],c = 'c')
+                ax1.set_aspect('equal')
+                ax1.scatter(arc[4],arc[5],c = 'r')
+                ax1.scatter(highestPdPoint[0],highestPdPoint[1],c = 'r',marker='x')
+                for i,inter in enumerate(intersecionts):
+                    # ax1.scatter(inter[0],inter[1],c = 'c')
+                    ax1.plot([radarPositions[i][0],arc[4]],[radarPositions[i][1],arc[5]],c = 'k',linestyle='--')
+                    ax1.plot([radarPositions[i][0],inter[0]],[radarPositions[i][1],inter[1]],c = 'c')
+                plt.show()
     return arcs
 
 
 def remove_unfeasible_segments(segments,radarPositions):
-    minRadarIndicies = np.array([np.argmin(np.linalg.norm(radarPositions-seg[0],axis=1)) for seg in segments])
+    minRadarIndicies = np.array([np.argmin(dist_of_points_to_line_segment(seg[0],seg[1],radarPositions)) for seg in segments])
     minRadarDists = np.array([np.min(dist_of_points_to_line_segment(seg[0],seg[1],radarPositions)) for seg in segments])
     
     
@@ -628,15 +632,16 @@ def remove_unfeasible_segments(segments,radarPositions):
         # ax.set_aspect('equal')
         # ax.set_xlim([-1000,params.bounds[0]+1000])
         # ax.set_ylim([-1000,params.bounds[1]+1000])
-        # for seg in segments[np.greater(minRadarDists,params.safePdDists[minRadarIndicies])]:
-        for seg in segments:
+        for seg in segments[~np.greater(minRadarDists,params.safePdDists[minRadarIndicies])]:
+        # for seg in segments:
             fig,ax = plt.subplots()
             ax.plot(seg[:,0],seg[:,1],c = 'g',marker='x')
             ax.scatter(radarPos[:,0],radarPos[:,1],c = 'r')
             for i,rad in enumerate(radarPos):
-                circle = plt.Circle(rad,params.safePdDists[minRadarIndicies[0]],fill=False)
+                circle = plt.Circle(rad,params.safePdDists[minRadarIndicies[i]],fill=False)
                 ax.add_artist(circle)
             pd = ground_truth_probability_of_detection(jnp.array(seg),radarList, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
+            print("pd: ",pd)
             plt.show()
             
             
@@ -653,36 +658,21 @@ def compute_path_weighted_voronoi(radarList,plot =False,ax=None):
     filename = "output.txt"
 
     arcs = load_weighted_voronoi_segments_from_file(filename)
-    # fig1,ax1 = plt.subplots()
-    # ax1.set_aspect('equal')
-    # ax1.set_xlim([0,params.bounds[0]])
-    # ax1.set_ylim([0,params.bounds[1]])
-    # plot_weighted_voronoi_arcs(arcs,[],ax1)
 
     arcs = combine_attached_arcs(arcs)
-    # fig2,ax2 = plt.subplots()
-    # ax2.set_xlim([0,params.bounds[0]])
-    # ax2.set_ylim([0,params.bounds[1]])
-    # ax2.set_aspect('equal')
-    # plot_weighted_voronoi_arcs(arcs,[],ax2)
 
     arcs = trim_arcs_pd_threshold(arcs,radarList, weights, params.probabilityOfDetectionThreshold,ax)
     arcs,boundarySegments = intersect_arcs_with_boundary(arcs,params.bounds,ax)
     boundarySegments = np.array(boundarySegments)
     boundarySegments = remove_unfeasible_segments(boundarySegments,radarPositions)
-    print("arcs: ",arcs.shape)
-    fig3,ax3 = plt.subplots()
-    ax3.set_aspect('equal')
-    plot_weighted_voronoi_arcs(arcs,boundarySegments,ax3)
-    
-
+    # fig,ax1 = plt.subplots()
+    # ax1.set_aspect('equal')
+    # ax1.set_xlim([-1000,params.bounds[0]+1000])
+    # ax1.set_ylim([-1000,params.bounds[1]+1000])
+    # plot_weighted_voronoi_arcs(arcs,boundarySegments,ax1)
     # plt.show()
-
-
+    
     adjacencyMatrix,nodes,edges = create_adjacency_matrix_from_arcs_and_bounary(arcs,boundarySegments,ax)
-    print("adjacencyMatrix: ",adjacencyMatrix.shape)
-    # print(adjacencyMatrix[adjacencyMatrix != adjacencyMatrix.T])
-    # print(adjacencyMatrix.T[adjacencyMatrix != adjacencyMatrix.T])
     path = create_graph_and_find_shortest_path(adjacencyMatrix,nodes)
 
     path = fill_in_path(path,edges,nodes,spacing=50)

@@ -5,10 +5,10 @@ import jax
 # from scipy.constants import boltzman
 from scipy.constants import k as boltzman
 
-# np.random.seed(124912)
+# np.random.seed(1241)
 
 # np.random.seed(91231)
-np.random.seed(91211232)
+np.random.seed(11102042)
 
         
 def db_to_amplitude(db):
@@ -37,7 +37,7 @@ highPriorityEnd = (bounds[0],bounds[1])
 highPriorityStraitLineA = highPriorityStart[1] - highPriorityEnd[1]
 highPriorityStraitLineB = highPriorityEnd[0] - highPriorityStart[0]
 highPriorityStraitLineC = highPriorityStart[0]*highPriorityEnd[1] - highPriorityEnd[0] * highPriorityStart[1]
-probabilityOfDetectionThreshold = 0.1
+probabilityOfDetectionThreshold = 0.15
 thresholdConfidence = 0.90
 highPriorityAgentRadarCrossSection = .1
 
@@ -93,35 +93,61 @@ radarPhases = []
 radarAngularRates = []
 
 
-safeRadius = find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
+# safeRadius = find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
+
+minInterRadarDistList = 1.1*np.array([find_radius_from_radar_pd(radarOutputPowerList[i], radarTransmitGainList[i], radarRecieveGainList[i], radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold) for i in range(numRadar)])
+minRadarDistFromStartList = 1.9*(minInterRadarDistList/2) 
+
+
+radarWeights = np.sqrt(np.sqrt(np.array([outputPower*transmitGain*recieveGain for outputPower,transmitGain,recieveGain in zip(radarOutputPowerList,radarTransmitGainList,radarRecieveGainList)])))
 
 
 # minRadarDistFromStart = 7000
-minInterRadarDist = 2.* find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
-minRadarDistFromStart = 1.9*(minInterRadarDist/2) 
 # minInterRadarDist = 6000
 # minInterRadarDist = 4000
 def find_min_dist_to_other_radar(potentialRadarPosition, currentRadarPositions):
     mindist = 1000000
-    for tempRadar in currentRadarPositions:
+    minIndex = -1
+    for i,tempRadar in enumerate(currentRadarPositions):
         dist = np.linalg.norm(tempRadar - potentialRadarPosition)
         if dist < mindist:
             mindist = dist
-    return mindist
+            minIndex = i
+    return mindist,minIndex
+
+def find_min_weighted_dist_to_other_radar(potentialRadarPosition, currentRadarPositions, radarWeights):
+    mindist = np.inf
+    minIndex = -1
+    for i,tempRadar in enumerate(currentRadarPositions):
+        dist = np.linalg.norm(tempRadar - potentialRadarPosition)/radarWeights[i]
+        if dist < mindist:
+            mindist = dist
+            minIndex = i
+    if minIndex == -1:
+        return np.inf, -1
+    mindist = np.linalg.norm(currentRadarPositions[minIndex] - potentialRadarPosition)
+    return mindist,minIndex
 
 def find_radar_position(currentRadarPositions):
     potentialRadarPosition = np.random.uniform(0,bounds[0]-2000,2) 
     # distToStart = np.linalg.norm(potentialRadarPosition)
     distToStart = np.linalg.norm(potentialRadarPosition-highPriorityStart)
     distToEnd = np.linalg.norm(potentialRadarPosition-highPriorityEnd)
-    minDistToOtherRadar = find_min_dist_to_other_radar(potentialRadarPosition, currentRadarPositions)
+    minDistToOtherRadar,minRadarIndex = find_min_weighted_dist_to_other_radar(potentialRadarPosition, currentRadarPositions,radarWeights)
+
+    radarIndex = len(radarPositions)
+
+    minInterRadarDist = minInterRadarDistList[radarIndex] + minInterRadarDistList[minRadarIndex]
+
+    minRadarDistFromStart = minRadarDistFromStartList[radarIndex]
     notFound = distToStart < minRadarDistFromStart or minDistToOtherRadar < minInterRadarDist or distToEnd < minRadarDistFromStart
 
     while notFound:
         potentialRadarPosition = np.random.uniform(0,bounds[0],2) 
         distToStart = np.linalg.norm(potentialRadarPosition)
         distToEnd = np.linalg.norm(potentialRadarPosition-highPriorityEnd)
-        minDistToOtherRadar = find_min_dist_to_other_radar(potentialRadarPosition, currentRadarPositions)
+        minDistToOtherRadar,radarIndex = find_min_weighted_dist_to_other_radar(potentialRadarPosition, currentRadarPositions, radarWeights)
+        minInterRadarDist = minInterRadarDistList[radarIndex] + minInterRadarDistList[minRadarIndex]
         # notFound = distToStart < minRadarDistFromStart or minDistToOtherRadar < minInterRadarDist
         notFound = distToStart < minRadarDistFromStart or minDistToOtherRadar < minInterRadarDist or distToEnd < minRadarDistFromStart
     return potentialRadarPosition
@@ -196,8 +222,8 @@ numObjectiveFunctionSamples = 20
 lowPrioritySafetyBestMeasurementTradeoff = .1
 lowPriorityDistanceBestMeasurementTradeoff = .6
 agentSpeed = 134
-# numControlPoints = 24
-numControlPoints = 20
+numControlPoints = 34
+# numControlPoints = 20
 maxTurnRate = 1
 velocityBounds = [100,134]
 numSamplesPerInterval = 3
