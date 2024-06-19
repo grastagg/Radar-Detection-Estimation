@@ -5,10 +5,10 @@ import jax
 # from scipy.constants import boltzman
 from scipy.constants import k as boltzman
 
-np.random.seed(124912)
+# np.random.seed(124912)
 
 # np.random.seed(91231)
-# np.random.seed(91212)
+np.random.seed(91211232)
 
         
 def db_to_amplitude(db):
@@ -37,7 +37,7 @@ highPriorityEnd = (bounds[0],bounds[1])
 highPriorityStraitLineA = highPriorityStart[1] - highPriorityEnd[1]
 highPriorityStraitLineB = highPriorityEnd[0] - highPriorityStart[0]
 highPriorityStraitLineC = highPriorityStart[0]*highPriorityEnd[1] - highPriorityEnd[0] * highPriorityStart[1]
-probabilityOfDetectionThreshold = 0.1
+probabilityOfDetectionThreshold = 0.25
 thresholdConfidence = 0.90
 highPriorityAgentRadarCrossSection = .1
 
@@ -61,17 +61,17 @@ def get_random_parameters(mean, range, numSamples):
     return np.random.uniform(mean-range, mean+range, numSamples)
 
 
-numRadar = 35
-# radarOutputPower = 10000
-radarOutputPower = 5000
-radarOutputPowerRange = 5000
+numRadar = 10
+radarOutputPower = 10000
+# radarOutputPower = 5000
+radarOutputPowerRange =10000
 radarOutputPowerList = get_random_parameters(radarOutputPower, radarOutputPowerRange, numRadar)
 
-radarTransmitGaindb = 5
+radarTransmitGaindb = 10
 radarTransmitGainRange = 0
 radarTransmitGainList = get_random_parameters(radarTransmitGaindb, radarTransmitGainRange, numRadar)
 # radarTransmitGaindb = 16
-radarRecieveGaindb = 5
+radarRecieveGaindb = 10
 radarRecieveGainRange = 0
 radarRecieveGainList = get_random_parameters(radarRecieveGaindb, radarRecieveGainRange, numRadar)
 

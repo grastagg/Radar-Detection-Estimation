@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import igraph as ig
 import time
+import jax.numpy as jnp
 
 
 from main_helper import create_radar_list
@@ -11,6 +12,7 @@ from weighted_voronoi import ground_truth_radar_voronoi_weighted
 from weightedVoronoiHelperFunctions import arc_line_segment_intersection
 from probabilityOfDetectionMap import ProbabilityOfDetectionMap
 from wevo_py import weighted_voronoi_diagram
+from probabilityOfDetectionJax import ground_truth_probability_of_detection
 
 
 
@@ -53,6 +55,25 @@ def plot_arc(center,radius,theta1= 0, theta2 = 2*np.pi, ax=None,c = 'b'):
     # y = center[1] + radius*np.sin(theta)
     ax.plot(x,y,c = c)
 
+def plot_arc_pd(center,radius,radarList, theta1= 0, theta2 = 2*np.pi, ax=None,c = 'b'):
+    # theta = np.linspace(theta1,theta2,100)
+    # theta = np.unwrap(theta)
+    out = evaluate_arc(center,radius,theta1,theta2,spacing = 50)
+    out = jnp.array(out)
+    pd = ground_truth_probability_of_detection(out,radarList, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
+    maxPdIndex = jnp.argmax(pd)
+
+
+    x = out[:,0]
+    y = out[:,1]
+    
+    # x = center[0] + radius*np.cos(theta)
+    # y = center[1] + radius*np.sin(theta)
+    c = ax.scatter(x,y,c = pd)
+    ax.scatter(x[maxPdIndex],y[maxPdIndex],c = 'g')
+    return c
+    
+
 def plot_weighted_voronoi_arcs(arcs,boundarySegments,ax):
     # for arc in arcs:
     # arc = arcs[3]
@@ -69,7 +90,7 @@ def plot_weighted_voronoi_arcs(arcs,boundarySegments,ax):
         if theta2 < theta1:
             theta2 += 2*np.pi
         
-        ax.scatter([p1[0],p2[0]],[p1[1],p2[1]],c = 'r')
+        ax.scatter([p1[0],p2[0]],[p1[1],p2[1]],c = 'b')
         # plot_arc(center, radius, np.min([theta1,theta2]), np.max([theta2,theta1]), ax)
         plot_arc(center, radius, theta1,theta2, ax)
     for seg in boundarySegments:
@@ -95,10 +116,11 @@ def load_weighted_voronoi_segments_from_file(filename):
 def intersect_arcs_with_boundary(arcs, bounds,ax):
     intersections = []
     arcsToDelete = []
+    arcsToAdd = []
     for i,arc in enumerate(arcs):
-        p1 = arc[0:2]
-        p2 = arc[2:4]
-        center = arc[4:6]
+        p1 = arc[0:2].copy()
+        p2 = arc[2:4].copy()
+        center = arc[4:6].copy()
         radius = np.linalg.norm(p1-center)
         
         currentIntersections = []
@@ -115,12 +137,35 @@ def intersect_arcs_with_boundary(arcs, bounds,ax):
             elif p2In:
                 arcs[i][0:2] = currentIntersections[0]
         if len(currentIntersections) == 2:
-            arcs[i][0:2] = currentIntersections[0]
-            arcs[i][2:4] = currentIntersections[1]
+            if p1In and p2In:
+                dist1 = np.linalg.norm(p1-currentIntersections[0])
+                dist2 = np.linalg.norm(p2-currentIntersections[0])
+                if dist1 < dist2:
+                    arcs[i][0:2] = currentIntersections[0]
+                    arcs[i][2:4] = p1
+                    arcsToAdd.append(np.array([p2,currentIntersections[1],center]).reshape(-1,6).flatten())
+                else:
+                    print("p1: ",p1)
+                    print("p2: ",p2)
+                    print("center: ",center)
+                    print("currentIntersections: ",currentIntersections)
+                    arcs[i][0:2] = p1
+                    arcs[i][2:4] = currentIntersections[1]
+
+                    print("new p1",p1)
+                    arcsToAdd.append(np.array([currentIntersections[0],p2,center]).reshape(-1,6).flatten())
+                    print("arcToAdd: ",arcsToAdd[-1])
+            
+            else:
+                arcs[i][0:2] = currentIntersections[0]
+                arcs[i][2:4] = currentIntersections[1]
         if not (p1In or p2In):
             arcsToDelete.append(i)
         intersections += currentIntersections
-        plot = False
+        if i == 1:
+            plot = False 
+        else:
+            plot = False
         if plot:
             fig,ax = plt.subplots()
             ax.set_aspect('equal')
@@ -130,6 +175,20 @@ def intersect_arcs_with_boundary(arcs, bounds,ax):
             if theta2 < theta1:
                 theta2 += 2*np.pi
             plot_arc(arc[4:6],np.linalg.norm(arc[0:2]-arc[4:6]),theta1,theta2,ax=ax,c = 'b')
+            if len(currentIntersections) ==2 and p1In and p2In:
+                print("arcsToAdd:",arcsToAdd)
+                p1 = arcsToAdd[-1][0:2]
+                p2 = arcsToAdd[-1][2:4]
+                center = arcsToAdd[-1][4:6]
+                # print("p1: ",p1)
+                # print("p2: ",p2)
+                # print("center: ",center)
+                radius = np.linalg.norm(p1-center)
+                theta1 = np.arctan2(p1[1]-center[1],p1[0]-center[0])
+                theta2 = np.arctan2(p2[1]-center[1],p2[0]-center[0])
+                if theta2 < theta1:
+                    theta2 += 2*np.pi
+                plot_arc(center,radius,theta1,theta2,ax=ax,c = 'r')
             for inter in currentIntersections:
                 ax.scatter(inter[0],inter[1],c = 'r')
             plt.show()
@@ -137,6 +196,9 @@ def intersect_arcs_with_boundary(arcs, bounds,ax):
     
     for i in reversed(arcsToDelete):
         arcs = np.delete(arcs,i,axis=0)
+    
+    for arc in arcsToAdd:
+        arcs = np.vstack((arcs,arc))
     
     boundarySegments = []
     intersections = np.array(intersections)
@@ -193,16 +255,11 @@ def intersect_arcs_with_boundary(arcs, bounds,ax):
                 boundarySegments.append(np.array([bottomBoundaryIntersections[-1],[bounds[0],0]]))
             else:
                 boundarySegments.append(np.array([bottomBoundaryIntersections[i-1],bottomBoundaryIntersections[i]]))
-            
-    
-    
-
-
-    
-    
-    
-    
     return arcs,boundarySegments
+
+
+
+
 def is_between_angles_radians(start_angle, stop_angle, angle):
   """
   Checks if a third angle lies between a start and stop angle counter-clockwise (radians).
@@ -223,9 +280,12 @@ def is_between_angles_radians(start_angle, stop_angle, angle):
 
   # Handle wraparound
   if stop_angle < start_angle:
-    return (angle > start_angle or angle < stop_angle)
+    # return (angle > start_angle or angle < stop_angle)
+    return np.logical_or(angle > start_angle, angle < stop_angle)
   else:
-    return start_angle < angle < stop_angle
+    # return start_angle < angle < stop_angle
+    return np.logical_and(start_angle<angle,angle<stop_angle)
+
 
         
 def combine_attached_arcs(arcs):
@@ -239,8 +299,8 @@ def combine_attached_arcs(arcs):
                     ax.set_aspect('equal')
                     # ax.set_xlim([-1.5e6,1.5e6])
                     # ax.set_ylim([-.5e6,3e6])
-                    ax.set_xlim([-10000,40000])
-                    ax.set_ylim([-20000,30000])
+                    # ax.set_xlim([-10000,40000])
+                    # ax.set_ylim([-20000,30000])
                     p1 = arcs[i][0:2]
                     p2 = arcs[i][2:4]
                     center = arcs[i][4:6]
@@ -452,26 +512,146 @@ def fill_in_path(path,edges,nodes,spacing = 500):
         
 def save_points_and_weights_to_file(radarList,filename):
     generatorPoints = np.array([radar.position for radar in radarList])
-    weights = np.sqrt(np.sqrt(np.array([radar.outputPower*radar.transmitGain*radar.recieveGain for radar in radarList])))
-    weights *= 1000
+    weightsOrg = np.sqrt(np.sqrt(np.array([radar.outputPower*radar.transmitGain*radar.recieveGain for radar in radarList])))
+    weights = 1000*weightsOrg
     data = np.rint(np.hstack((generatorPoints,weights.reshape(-1,1)))).astype(int)
     np.savetxt(filename,data,delimiter=' ',fmt='%i')
+    return generatorPoints,weightsOrg
+
+def dist_points_to_arc(arc, points,weights, ax = None):
+    center = arc[4:6]
+    radius = np.linalg.norm(arc[0:2]-center)
+    
+    distances = np.zeros(points.shape[0])
+    intersectionPointsAll = np.zeros((points.shape[0],2))
+    
+    theta1 = np.arctan2(arc[1]-arc[5],arc[0]-arc[4])
+    # if theta1 < 0:
+    #     theta1 += 2*np.pi
+    theta2 = np.arctan2(arc[3]-arc[5],arc[2]-arc[4])
+    # if theta2 < 0:
+    #     theta2 += 2*np.pi
+    thetas = np.arctan2(points[:,1]-arc[5],points[:,0]-arc[4])
+    # thetas[thetas < 0] += 2*np.pi
+    # theta2 -= theta1
+    # thetasTemp = thetas - theta1
+    # theta1 -= theta1
+    inRange = is_between_angles_radians(theta1,theta2,thetas)
+    
+
+    dist_A = np.divide(np.linalg.norm(points-arc[0:2],axis=1),weights)
+    dist_B = np.divide(np.linalg.norm(points-arc[2:4],axis=1),weights)
+
+    # inRange = np.logical_and(thetasTemp >= theta1,thetasTemp <= theta2)
+    # inRange = np.logical_and(thetas >= theta1,thetas <= theta2)
+    
+    if np.any(inRange):
+        intersectionPoints = center + radius*np.array([np.cos(thetas[inRange]),np.sin(thetas[inRange])]).T
+        distances[inRange] = np.divide(np.linalg.norm(intersectionPoints-points[inRange],axis=1),weights[inRange])
+        intersectionPointsAll[inRange] = intersectionPoints
+
+    distances[~inRange] = np.minimum(dist_A[~inRange],dist_B[~inRange])
+    if np.any(~inRange):
+        intersectionPointsAll[~inRange] = np.array([arc[0:2].reshape((2,1)) if a else arc[2:4].reshape((2,1)) for a in dist_A[~inRange] < dist_B[~inRange]]).squeeze()
+    # intersectionPointsAll[~inRange] = np.where(dist_A[~inRange] < dist_B[~inRange],1,0)
+
+    
+    return distances, intersectionPointsAll,inRange
+
+def trim_arcs_pd_threshold(arcs,radarList,weights, pdThreshold,ax):
+    radarPositions = np.array([radar.position for radar in radarList])
+    for a in range(len(arcs)-1,-1,-1):
+    # for a,arc in enumerate(arcs):
+        arc = arcs[a]
+        distances,intersecionts,inRange = dist_points_to_arc(arc,radarPositions,weights)
+        pdAtIntersections = ground_truth_probability_of_detection(jnp.array(intersecionts),radarList, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
+        maxPdIndex = np.argmax(pdAtIntersections)
+        highestPdPoint = intersecionts[maxPdIndex]
+        if pdAtIntersections[maxPdIndex] > pdThreshold:
+            arcs = np.delete(arcs,a,axis=0)
+            print("arc deleted",arcs.shape)
+        
+        plot = False
+        if plot:
+            p1 = arc[0:2]
+            p2 = arc[2:4]
+            center = arc[4:6]
+            radius = np.linalg.norm(p1-center)
+            theta1 = np.arctan2(p1[1]-center[1],p1[0]-center[0])
+            theta2 = np.arctan2(p2[1]-center[1],p2[0]-center[0])
+            if theta2 < theta1:
+                theta2 += 2*np.pi
+            c = plot_arc_pd(center, radius, radarList, theta1,theta2, ax)
+            ax.scatter(highestPdPoint[0],highestPdPoint[1],c = 'r',marker='x')
+
+        plot=False
+        if plot:
+            p1 = arc[0:2]
+            p2 = arc[2:4]
+            center = arc[4:6]
+            radius = np.linalg.norm(p1-center)
+            # theta1 = minimize_angle(np.arctan2(p1[1]-center[1],p1[0]-center[0]))
+            # theta2 = minimize_angle(np.arctan2(p2[1]-center[1],p2[0]-center[0]))
+            theta1 = np.arctan2(p1[1]-center[1],p1[0]-center[0])
+            theta2 = np.arctan2(p2[1]-center[1],p2[0]-center[0])
+            if theta2 < theta1:
+                theta2 += 2*np.pi
+            fig,ax1 = plt.subplots()
+            c = plot_arc_pd(center, radius, radarList, theta1,theta2, ax1)
+            fig.colorbar(c,ax=ax1)
+            # ax1.scatter(minDistancePoint[0],minDistancePoint[1],c = 'c')
+            # ax1.plot([minDistancePoint[0],intersecionts[minDistanceIndex][0]],[minDistancePoint[1],intersecionts[minDistanceIndex][1]],c = 'c')
+            ax1.set_aspect('equal')
+            ax1.scatter(arc[4],arc[5],c = 'r')
+            ax1.scatter(highestPdPoint[0],highestPdPoint[1],c = 'r',marker='x')
+            for i,inter in enumerate(intersecionts):
+                # ax1.scatter(inter[0],inter[1],c = 'c')
+                ax1.plot([radarPositions[i][0],arc[4]],[radarPositions[i][1],arc[5]],c = 'k',linestyle='--')
+                ax1.plot([radarPositions[i][0],inter[0]],[radarPositions[i][1],inter[1]],c = 'c')
+            plt.show()
+    return arcs
+
+
+    
         
 def compute_path_weighted_voronoi(radarList,plot =False,ax=None):
 
-    save_points_and_weights_to_file(radarList,"my_input.pnts")
+    radarPositions, weights = save_points_and_weights_to_file(radarList,"my_input.pnts")
 
     weighted_voronoi_diagram()
     
     filename = "output.txt"
 
     arcs = load_weighted_voronoi_segments_from_file(filename)
+    # fig1,ax1 = plt.subplots()
+    # ax1.set_aspect('equal')
+    # ax1.set_xlim([0,params.bounds[0]])
+    # ax1.set_ylim([0,params.bounds[1]])
+    # plot_weighted_voronoi_arcs(arcs,[],ax1)
 
     arcs = combine_attached_arcs(arcs)
+    # fig2,ax2 = plt.subplots()
+    # ax2.set_xlim([0,params.bounds[0]])
+    # ax2.set_ylim([0,params.bounds[1]])
+    # ax2.set_aspect('equal')
+    # plot_weighted_voronoi_arcs(arcs,[],ax2)
 
-
+    arcs = trim_arcs_pd_threshold(arcs,radarList, weights, params.probabilityOfDetectionThreshold,ax)
     arcs,boundarySegments = intersect_arcs_with_boundary(arcs,params.bounds,ax)
+    print("arcs: ",arcs.shape)
+    fig3,ax3 = plt.subplots()
+    ax3.set_aspect('equal')
+    plot_weighted_voronoi_arcs(arcs,boundarySegments,ax3)
+
+    print("arcs after trimming: ",arcs.shape)
+    plot_weighted_voronoi_arcs(arcs,boundarySegments,ax)
+    # plt.show()
+
+
     adjacencyMatrix,nodes,edges = create_adjacency_matrix_from_arcs_and_bounary(arcs,boundarySegments,ax)
+    print("adjacencyMatrix: ",adjacencyMatrix.shape)
+    # print(adjacencyMatrix[adjacencyMatrix != adjacencyMatrix.T])
+    # print(adjacencyMatrix.T[adjacencyMatrix != adjacencyMatrix.T])
     path = create_graph_and_find_shortest_path(adjacencyMatrix,nodes)
 
     path = fill_in_path(path,edges,nodes,spacing=50)
