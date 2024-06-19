@@ -842,6 +842,7 @@ class HighPriorityPathPlannerDeterministic:
 ######################
 
         else:
+            print(type(radarList))
             path = compute_path_weighted_voronoi(radarList,plot,ax)
         
         
@@ -862,16 +863,17 @@ class HighPriorityPathPlannerDeterministic:
         controlPoints = self.move_last_control_point_so_spline_passes_through_end(controlPoints,knotPoints,params.highPriorityEnd,[10,10])
 
         spline = self.spline_seg(controlPoints, knotPoints)
+
         
 
 
 
         if plot:
-            # tmpSpline = self.spline_seg(controlPoints, knotPoints)
-            # self.plot_spline(tmpSpline,ax)
-            self.plot_spline_from_control_points(controlPoints, knotPoints,ax)
+            tmpSpline = self.spline_seg(controlPoints, knotPoints)
+            self.plot_spline(tmpSpline,ax)
+            # self.plot_spline_from_control_points(controlPoints, knotPoints,ax)
 
-            ax.plot(path[:,0], path[:,1], 'r--')
+            # ax.plot(path[:,0], path[:,1])
             # for key in nodes.keys():
             #     ax.scatter(nodes[key][0], nodes[key][1], c='b',zorder=1000000)
             #     ax.text(nodes[key][0], nodes[key][1], str(key),c='c',zorder=1000000)
@@ -956,11 +958,12 @@ if __name__ == "__main__":
     fig,ax = plt.subplots()
     hpp.plan_deterministic_path(tuple(radarList),plot=True,ax=ax)
     print("path planning time", time.time()-startTime)
-    startTime = time.time()
+    # startTime = time.time()
     # ax = hpp.plan_deterministic_path(tuple(radarList),plot=True)
     # print("path planning time", time.time()-startTime)
     # startTime = time.time()
-    # _,_,ax = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=True)
+    # fig,ax = plt.subplots()
+    # _,_ = hpp.get_initial_guess_voronoi(radarList,params.bounds,plot=True,ax=ax)
     # print("time to get initial guess", time.time()-startTime)
     
     # fig,ax = plt.subplots
@@ -970,7 +973,6 @@ if __name__ == "__main__":
     else:
         fig = ax.get_figure()
     c = pdMap.plot_mean(ax,plotGroundTruth=True)
-    # ax.set_colorbar(c)
     fig.colorbar(c, ax=ax)
     hpp.plot_spline(hpp.spline,ax)
     hpp.plot_constraints(hpp.spline, tuple(radarList))

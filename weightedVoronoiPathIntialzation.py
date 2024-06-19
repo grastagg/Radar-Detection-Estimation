@@ -13,6 +13,7 @@ from weightedVoronoiHelperFunctions import arc_line_segment_intersection
 from probabilityOfDetectionMap import ProbabilityOfDetectionMap
 from wevo_py import weighted_voronoi_diagram
 from probabilityOfDetectionJax import ground_truth_probability_of_detection
+from highPriorityHelperFunctions import dist_of_points_to_line_segment
 
 
 
@@ -501,7 +502,11 @@ def fill_in_path(path,edges,nodes,spacing = 500):
             #     ax.set_ylim([0,params.bounds[1]])
             #     plot_arc(center,np.linalg.norm(p1-center),theta1,theta2,ax=ax)
             #     plt.show()
-            arc = evaluate_arc(center,np.linalg.norm(p1-center),theta1,theta2,spacing)
+            if edges[(path[0][i],path[0][i+1])]["direction"] == "counterClockwise":
+                arc = evaluate_arc(center,np.linalg.norm(p1-center),theta1,theta2,spacing)
+            else:
+                arc = evaluate_arc(center,np.linalg.norm(p1-center),theta2,theta1,spacing)
+            # arc = evaluate_arc(center,np.linalg.norm(p1-center),theta1,theta2,spacing)
             newPath.append(arc)
         else:
             numPoints = int(np.linalg.norm(nodes[path[0][i]]-nodes[path[0][i+1]])/spacing)
@@ -564,7 +569,7 @@ def trim_arcs_pd_threshold(arcs,radarList,weights, pdThreshold,ax):
     # for a,arc in enumerate(arcs):
         arc = arcs[a]
         distances,intersecionts,inRange = dist_points_to_arc(arc,radarPositions,weights)
-        pdAtIntersections = ground_truth_probability_of_detection(jnp.array(intersecionts),radarList, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
+        pdAtIntersections = ground_truth_probability_of_detection(jnp.array(intersecionts),tuple(radarList), params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
         maxPdIndex = np.argmax(pdAtIntersections)
         highestPdPoint = intersecionts[maxPdIndex]
         if pdAtIntersections[maxPdIndex] > pdThreshold:
@@ -612,6 +617,31 @@ def trim_arcs_pd_threshold(arcs,radarList,weights, pdThreshold,ax):
     return arcs
 
 
+def remove_unfeasible_segments(segments,radarPositions):
+    minRadarIndicies = np.array([np.argmin(np.linalg.norm(radarPositions-seg[0],axis=1)) for seg in segments])
+    minRadarDists = np.array([np.min(dist_of_points_to_line_segment(seg[0],seg[1],radarPositions)) for seg in segments])
+    
+    
+    plot = False 
+    if plot:
+        radarPos = radarPositions[minRadarIndicies]
+        # ax.set_aspect('equal')
+        # ax.set_xlim([-1000,params.bounds[0]+1000])
+        # ax.set_ylim([-1000,params.bounds[1]+1000])
+        # for seg in segments[np.greater(minRadarDists,params.safePdDists[minRadarIndicies])]:
+        for seg in segments:
+            fig,ax = plt.subplots()
+            ax.plot(seg[:,0],seg[:,1],c = 'g',marker='x')
+            ax.scatter(radarPos[:,0],radarPos[:,1],c = 'r')
+            for i,rad in enumerate(radarPos):
+                circle = plt.Circle(rad,params.safePdDists[minRadarIndicies[0]],fill=False)
+                ax.add_artist(circle)
+            pd = ground_truth_probability_of_detection(jnp.array(seg),radarList, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
+            plt.show()
+            
+            
+    # return segments[minRadarDists > self.radarMinDistance]
+    return segments[np.greater(minRadarDists,params.safePdDists[minRadarIndicies])]
     
         
 def compute_path_weighted_voronoi(radarList,plot =False,ax=None):
@@ -638,13 +668,14 @@ def compute_path_weighted_voronoi(radarList,plot =False,ax=None):
 
     arcs = trim_arcs_pd_threshold(arcs,radarList, weights, params.probabilityOfDetectionThreshold,ax)
     arcs,boundarySegments = intersect_arcs_with_boundary(arcs,params.bounds,ax)
+    boundarySegments = np.array(boundarySegments)
+    boundarySegments = remove_unfeasible_segments(boundarySegments,radarPositions)
     print("arcs: ",arcs.shape)
     fig3,ax3 = plt.subplots()
     ax3.set_aspect('equal')
     plot_weighted_voronoi_arcs(arcs,boundarySegments,ax3)
+    
 
-    print("arcs after trimming: ",arcs.shape)
-    plot_weighted_voronoi_arcs(arcs,boundarySegments,ax)
     # plt.show()
 
 
@@ -658,7 +689,7 @@ def compute_path_weighted_voronoi(radarList,plot =False,ax=None):
 
     if plot:
         plot_weighted_voronoi_arcs(arcs,boundarySegments,ax)
-        ax.scatter(path[:,0],path[:,1],c = 'k')
+        ax.plot(path[:,0],path[:,1],c = 'r')
     
     
     return path

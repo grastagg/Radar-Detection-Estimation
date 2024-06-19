@@ -37,7 +37,7 @@ highPriorityEnd = (bounds[0],bounds[1])
 highPriorityStraitLineA = highPriorityStart[1] - highPriorityEnd[1]
 highPriorityStraitLineB = highPriorityEnd[0] - highPriorityStart[0]
 highPriorityStraitLineC = highPriorityStart[0]*highPriorityEnd[1] - highPriorityEnd[0] * highPriorityStart[1]
-probabilityOfDetectionThreshold = 0.25
+probabilityOfDetectionThreshold = 0.1
 thresholdConfidence = 0.90
 highPriorityAgentRadarCrossSection = .1
 
@@ -61,7 +61,8 @@ def get_random_parameters(mean, range, numSamples):
     return np.random.uniform(mean-range, mean+range, numSamples)
 
 
-numRadar = 10
+numRadar = 11
+
 radarOutputPower = 10000
 # radarOutputPower = 5000
 radarOutputPowerRange =10000
@@ -132,6 +133,12 @@ for i in range(numRadar):
     radarPhases.append(np.random.uniform(0,np.pi,1)[0])
     radarAngularRates.append(np.random.uniform(2,4,1)[0])
 
+safePdDists = []
+
+for i in range(numRadar):
+    safePdDists.append(find_radius_from_radar_pd(radarOutputPowerList[i], radarTransmitGainList[i], radarRecieveGainList[i], radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold))
+
+safePdDists = np.array(safePdDists)
 
 #agent parameters
 # agentInitialStates = [[100,100,np.pi/4]]
