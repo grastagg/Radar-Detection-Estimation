@@ -39,7 +39,7 @@ def get_spline_velocity(controlPoints, tf, splineOrder, numSamplesPerInterval):
     return jnp.linalg.norm(out_d1,axis=1)
 
 @partial(jit, static_argnums=(2,3,4,5)) 
-def get_pd_along_spline(controlpoints, tf, radarlist, numcontrolpoints, splineorder, numsamplesperinterval, radaroutputpower, radartransmitgain, radarrecievegainpriormean, radarwavelengthpriormean, agentradarcrosssection, radarpulsewidth, radarsystemtemperaturepriormean, radarprobabilityoffalsealarmpriormean):
+def get_pd_along_spline(controlpoints, tf, radarlist, numcontrolpoints, splineorder, numsamplesperinterval, radarwavelengthpriormean, agentradarcrosssection, radarpulsewidth, radarsystemtemperaturepriormean, radarprobabilityoffalsealarmpriormean):
     controlpoints = controlpoints.reshape((numcontrolpoints,2))
     knotpoints = create_unclamped_knot_points(0, tf, numcontrolpoints,splineorder)
     pos = evaluate_spline(controlpoints,knotpoints,numsamplesperinterval)

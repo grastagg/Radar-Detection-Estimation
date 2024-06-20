@@ -8,7 +8,7 @@ from scipy.constants import k as boltzman
 # np.random.seed(1241)
 
 # np.random.seed(91231)
-np.random.seed(11102042)
+np.random.seed(1102042)
 
         
 def db_to_amplitude(db):
@@ -61,7 +61,7 @@ def get_random_parameters(mean, range, numSamples):
     return np.random.uniform(mean-range, mean+range, numSamples)
 
 
-numRadar = 11
+numRadar = 14
 
 radarOutputPower = 10000
 # radarOutputPower = 5000
@@ -69,11 +69,11 @@ radarOutputPowerRange =10000
 radarOutputPowerList = get_random_parameters(radarOutputPower, radarOutputPowerRange, numRadar)
 
 radarTransmitGaindb = 10
-radarTransmitGainRange = 0
+radarTransmitGainRange = 10
 radarTransmitGainList = get_random_parameters(radarTransmitGaindb, radarTransmitGainRange, numRadar)
 # radarTransmitGaindb = 16
 radarRecieveGaindb = 10
-radarRecieveGainRange = 0
+radarRecieveGainRange = 10
 radarRecieveGainList = get_random_parameters(radarRecieveGaindb, radarRecieveGainRange, numRadar)
 
 # radarRecieveGaindb = 16
@@ -189,7 +189,7 @@ measurementCov = np.array([[agentAngleMeasurementStdDev**2,0],[0,agentPowerMeasu
 
 
 #unknown parameters
-radarRecieveGainPriorMean = radarRecieveGain
+radarRecieveGain = radarRecieveGain
 radarRecieveGainPriorVariance = 0
 
 radarProbabilityOfFalseAlarmPriorMean = radarProbabilityOfFalseAlarm

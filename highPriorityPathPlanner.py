@@ -130,7 +130,7 @@ class HighPriorityPathPlannerDeterministic:
 
         # pd = self.ground_truth_probability_of_detection(pos, radarList)
 
-        pd = get_pd_along_spline(controlPoints, tf, radarList, params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
+        pd = get_pd_along_spline(controlPoints, tf, radarList, params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
         # return np.max(pdMean), u, v, pos
         return pd, u, v, pos
 
@@ -194,8 +194,8 @@ class HighPriorityPathPlannerDeterministic:
             dVelocityDtf = np.array(self.dVelocityDtf(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval),dtype=np.float64)
             # dTurnRateDControlPoints = jacfwd(self.get_spline_turn_rate)(controlPoints, tf)
             # dTurnRateDtf = np.array(jacfwd(self.get_spline_turn_rate,argnums=1)(controlPoints, tf),dtype=np.float64)
-            dPdDControlPoints = self.dPdDControlPoints(controlPoints, tf, radar_list,params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean )
-            dPdDtf = np.array(self.dPdDtf(controlPoints, tf, radar_list,params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarOutputPower, params.radarTransmitGain, params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean),dtype=np.float64)
+            dPdDControlPoints = self.dPdDControlPoints(controlPoints, tf, radar_list,params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean )
+            dPdDtf = np.array(self.dPdDtf(controlPoints, tf, radar_list,params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean),dtype=np.float64)
 
             dTurnRateDControlPoints = self.dTurnRateDControlPoints(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval)
             dTurnRateDtf = np.array(self.dTurnRateTf(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval),dtype=np.float64)
