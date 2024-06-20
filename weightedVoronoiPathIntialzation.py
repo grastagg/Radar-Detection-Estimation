@@ -704,6 +704,13 @@ if __name__ == '__main__':
     plt.show()
 
     
+    fig,ax = plt.subplots()
+    ax.set_aspect('equal')
+    c = pdMap.plot_mean(ax,plotGroundTruth=True)
+    fig.colorbar(c,ax=ax)
+    plt.show()
+
+    
 
     # generatorPoints = np.array([radar.position for radar in radarList])
     # weights = np.sqrt(np.sqrt(np.array([radar.outputPower*radar.transmitGain*radar.recieveGain for radar in radarList])))

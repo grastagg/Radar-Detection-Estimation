@@ -265,6 +265,8 @@ class ProbabilityOfDetectionMap():
 
 
             c = ax.pcolormesh(x_test, y_test, self.groundTruthpdMap.reshape((params.numTestPoints, params.numTestPoints)))
+            levels = np.linspace(0,.01,10)
+            # c = ax.contour(x_test, y_test, self.groundTruthpdMap.reshape((params.numTestPoints, params.numTestPoints)), levels = levels)
             
         else:
             if self.pdMap is not None:
