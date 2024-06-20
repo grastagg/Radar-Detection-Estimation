@@ -4,6 +4,7 @@ from jax import jacfwd,grad
 from jax import jit
 import jax
 jax.config.update("jax_enable_x64", True)
+jax.config.update('jax_platform_name', 'cpu') # Sets the default device to CPU
 from scipy.constants import k as boltzman
 import matplotlib
 
@@ -223,8 +224,8 @@ class HighPriorityPathPlannerDeterministic:
         optProb.addObj("obj")
         opt = OPT("ipopt")
         # opt.options['derivative_test'] = 'first-order'
-        opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
-        # opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+        # opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+        opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['linear_solver'] = 'ma97'
         opt.options['print_level'] = 0
         opt.options['max_iter'] = 1000
