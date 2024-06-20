@@ -45,7 +45,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.min_aoa_measurement = None
         self.max_aoa_measurement = None
         self.min_aoa_diff_to_start = .2
-        self.minDistBetweenModels = params.minInterRadarDist
+        # self.minDistBetweenModels = params.minInterRadarDist
+        self.minDistBetweenModels = np.min([params.minInterRadarDistList])
 
         
         self.saveRadarData = True
