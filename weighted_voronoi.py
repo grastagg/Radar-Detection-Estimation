@@ -145,8 +145,8 @@ if __name__ == '__main__':
 
     # ground_truth_radar_voronoi(params.X_test,radarList,ax)
 
-    # fig2, ax2 = plt.subplots()
-    # ax2.set_aspect('equal')
+    fig2, ax2 = plt.subplots()
+    ax2.set_aspect('equal')
     ground_truth_radar_voronoi_weighted(params.X_test,radarList,ax2)
     # plt.show()
 
