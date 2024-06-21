@@ -73,7 +73,7 @@ radarTransmitGainRange = 10
 radarTransmitGainList = get_random_parameters(radarTransmitGaindb, radarTransmitGainRange, numRadar)
 # radarTransmitGaindb = 16
 radarRecieveGaindb = 10
-radarRecieveGainRange = 10
+radarRecieveGainRange = 0
 radarRecieveGainList = get_random_parameters(radarRecieveGaindb, radarRecieveGainRange, numRadar)
 
 # radarRecieveGaindb = 16

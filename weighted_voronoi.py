@@ -145,9 +145,6 @@ if __name__ == '__main__':
 
     # ground_truth_radar_voronoi(params.X_test,radarList,ax)
 
-    fig2, ax2 = plt.subplots()
-    ax2.set_aspect('equal')
-    ground_truth_radar_voronoi_weighted(params.X_test,radarList,ax2)
     # plt.show()
 
     
@@ -170,6 +167,15 @@ if __name__ == '__main__':
     #         plt.colorbar(c,ax=ax)
     #         plt.savefig("saved_data/seed_91212_good/safe_corridor_vid/"+str(paramNum)+".png")
     #         plt.close()
+
+    radarParams = np.load("saved_data/currentData/estimated_params/1000.npy")
+    radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/1000.npy")
+    safe_corridor = safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGainPriorMean,params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean,params.radarProbabilityOfFalseAlarmPriorVariance)
+    fig, ax = plt.subplots()
+    ax.set_aspect('equal')
+    c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),safe_corridor.reshape(params.numTestPoints,params.numTestPoints))
+    ax.set_title("Estimated Safe Corridor for params: " + str(1000))
+    plt.colorbar(c,ax=ax)
 
 
     fig3, ax3 = plt.subplots()
