@@ -7,7 +7,6 @@ import jax.numpy as jnp
 
 from main_helper import create_radar_list
 import params
-from weighted_voronoi import ground_truth_radar_voronoi_weighted
 
 from weightedVoronoiHelperFunctions import arc_line_segment_intersection
 from probabilityOfDetectionMap import ProbabilityOfDetectionMap
@@ -146,16 +145,10 @@ def intersect_arcs_with_boundary(arcs, bounds,ax):
                     arcs[i][2:4] = p1
                     arcsToAdd.append(np.array([p2,currentIntersections[1],center]).reshape(-1,6).flatten())
                 else:
-                    print("p1: ",p1)
-                    print("p2: ",p2)
-                    print("center: ",center)
-                    print("currentIntersections: ",currentIntersections)
                     arcs[i][0:2] = p1
                     arcs[i][2:4] = currentIntersections[1]
 
-                    print("new p1",p1)
                     arcsToAdd.append(np.array([currentIntersections[0],p2,center]).reshape(-1,6).flatten())
-                    print("arcToAdd: ",arcsToAdd[-1])
             
             else:
                 arcs[i][0:2] = currentIntersections[0]
@@ -177,13 +170,9 @@ def intersect_arcs_with_boundary(arcs, bounds,ax):
                 theta2 += 2*np.pi
             plot_arc(arc[4:6],np.linalg.norm(arc[0:2]-arc[4:6]),theta1,theta2,ax=ax,c = 'b')
             if len(currentIntersections) ==2 and p1In and p2In:
-                print("arcsToAdd:",arcsToAdd)
                 p1 = arcsToAdd[-1][0:2]
                 p2 = arcsToAdd[-1][2:4]
                 center = arcsToAdd[-1][4:6]
-                # print("p1: ",p1)
-                # print("p2: ",p2)
-                # print("center: ",center)
                 radius = np.linalg.norm(p1-center)
                 theta1 = np.arctan2(p1[1]-center[1],p1[0]-center[0])
                 theta2 = np.arctan2(p2[1]-center[1],p2[0]-center[0])
@@ -366,10 +355,8 @@ def combine_attached_arcs(arcs):
                         center = arcs[j][4:6]
                         theta1 = np.arctan2(p1[1]-center[1],p1[0]-center[0])
                         theta2 = np.arctan2(p2[1]-center[1],p2[0]-center[0])
-                        print("theta1: ",theta1)
                         if theta2 < theta1:
                             theta2 += 2*np.pi
-                        print("theta2: ",theta2)
                         plot_arc(center,np.linalg.norm(p1-center),theta1,theta2,ax=ax,c = 'g')
                         plt.show()
                     break
@@ -473,7 +460,6 @@ def evaluate_arc(center,radius,theta1, theta2, spacing):
     return np.hstack((x.reshape(-1,1),y.reshape(-1,1)))
 
 def fill_in_path(path,edges,nodes,spacing = 500):
-    # print("Path before filling in: ",path[0])
     newPath = []
     for i in range(len(path[0])-1):
         if edges[(path[0][i],path[0][i+1])]["arc"]:
@@ -574,7 +560,6 @@ def trim_arcs_pd_threshold(arcs,radarList,weights, pdThreshold,ax):
         highestPdPoint = intersecionts[maxPdIndex]
         if pdAtIntersections[maxPdIndex] > pdThreshold:
             arcs = np.delete(arcs,a,axis=0)
-            print("arc deleted",arcs.shape)
         
         plot = False
         if plot:
@@ -592,9 +577,6 @@ def trim_arcs_pd_threshold(arcs,radarList,weights, pdThreshold,ax):
         plot=False
         if plot:
             if pdAtIntersections[maxPdIndex] > pdThreshold:
-                print("deleteing arc",a)
-                print("maxpd",pdAtIntersections[maxPdIndex])
-                print("threshold",pdThreshold)
                 p1 = arc[0:2]
                 p2 = arc[2:4]
                 center = arc[4:6]
@@ -641,7 +623,6 @@ def remove_unfeasible_segments(segments,radarPositions):
                 circle = plt.Circle(rad,params.safePdDists[minRadarIndicies[i]],fill=False)
                 ax.add_artist(circle)
             pd = ground_truth_probability_of_detection(jnp.array(seg),radarList, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
-            print("pd: ",pd)
             plt.show()
             
             
@@ -660,6 +641,8 @@ def compute_path_weighted_voronoi(radarList,plot =False,ax=None):
     arcs = load_weighted_voronoi_segments_from_file(filename)
 
     arcs = combine_attached_arcs(arcs)
+    if plot:
+        plot_weighted_voronoi_arcs(arcs,[],ax)
 
     arcs = trim_arcs_pd_threshold(arcs,radarList, weights, params.probabilityOfDetectionThreshold,ax)
     arcs,boundarySegments = intersect_arcs_with_boundary(arcs,params.bounds,ax)
@@ -678,7 +661,6 @@ def compute_path_weighted_voronoi(radarList,plot =False,ax=None):
     path = fill_in_path(path,edges,nodes,spacing=50)
 
     if plot:
-        plot_weighted_voronoi_arcs(arcs,boundarySegments,ax)
         ax.plot(path[:,0],path[:,1],c = 'r')
     
     

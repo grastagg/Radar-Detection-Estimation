@@ -24,7 +24,8 @@ def frequency_to_wavelength(freq):
 #simulation parameters
 # bounds = (18000.0, 18000.0) #meters
 bounds = (22000.0, 22000.0) #meters
-numTestPoints = 500
+numTestPoints = 20
+
 # numTestPoints = 1
 # numTestPoints =30
 simulationEndTime = 10000
@@ -63,30 +64,31 @@ def get_random_parameters(mean, range, numSamples):
 
 numRadar = 13
 
-radarOutputPower = 10000
+radarOutputPower = 10000.0
 # radarOutputPower = 5000
-radarOutputPowerRange =10000
+radarOutputPowerRange =10000.0
 radarOutputPowerList = get_random_parameters(radarOutputPower, radarOutputPowerRange, numRadar)
 
-radarTransmitGaindb = 10
-radarTransmitGainRange = 10
+radarTransmitGaindb = 10.0
+radarTransmitGainRange = 10.0
 radarTransmitGainList = get_random_parameters(radarTransmitGaindb, radarTransmitGainRange, numRadar)
 # radarTransmitGaindb = 16
-radarRecieveGaindb = 10
-radarRecieveGainRange = 0
+radarRecieveGaindb = 10.0
+radarRecieveGainRange = 0.0
 radarRecieveGainList = get_random_parameters(radarRecieveGaindb, radarRecieveGainRange, numRadar)
 
 # radarRecieveGaindb = 16
 radarTransmitGain = db_to_amplitude(radarTransmitGaindb)
 radarRecieveGain = db_to_amplitude(radarRecieveGaindb)
 
-radarFrequency = 3e9
+radarFrequency = 3.0e9
 radarWavelength = frequency_to_wavelength(radarFrequency)
 
-radarProbabilityOfFalseAlarm = 1e-6
+radarProbabilityOfFalseAlarm = 1.0e-6
 radarPulseWidth = 1.1e-5
 
 radarSystemTemperature = 745.4148
+
 
 radarPositions = []
 radarPhases = []
@@ -305,3 +307,9 @@ def measurement_jacobian_jax(xem, yem, erp, x, y):
     return jnp.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
 
     
+
+c = (radarRecieveGain*radarWavelength**2*agentRadarCrossSection*radarPulseWidth)/((4*np.pi)**3*boltzman*radarSystemTemperature)
+print(c)
+erp = radarOutputPower*radarTransmitGain
+print(erp)
+print(np.log(radarProbabilityOfFalseAlarm))

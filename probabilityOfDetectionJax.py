@@ -2,6 +2,7 @@ import jax.numpy as jnp
 import jax
 import jax.scipy as jsp
 from jax import jit, vmap
+jax.config.update("jax_enable_x64", True)
 from functools import partial
 from scipy.constants import k as boltzman
 import params
@@ -49,6 +50,38 @@ def pd_jacobian_emittor_params(position, estimatedRadarParams, radarRecieveGain,
     d_pd_d_erp = -(Gr * jnp.log(Pfa) * rcs * tau_p * wavelength**2 * exp_term) / (64 * jnp.pi**3 * T_s * k * ((y - y_em)**2 + (x - x_em)**2)**2 * (SNR + 1)**2)
     d_pd_d_xem = -(ERP * Gr * jnp.log(Pfa) * rcs * tau_p * wavelength**2 * (x - x_em) * exp_term) / (16 * jnp.pi**3 * T_s * k * ((x - x_em)**2 + (y - y_em)**2)**3 * (SNR + 1)**2)
     d_pd_d_yem = -(ERP * Gr * jnp.log(Pfa) * rcs * tau_p * wavelength**2 * (y - y_em) * exp_term) / (16 * jnp.pi**3 * T_s * k * ((y - y_em)**2 + (x - x_em)**2)**3 * (SNR + 1)**2)
+
+    #test code 
+    c = (Gr * wavelength**2 * rcs * radarPulseWidth) / ((4.0 * jnp.pi)**3 * boltzman * radarSystemTemperature)
+
+    R = jnp.sqrt((x - x_em)**2 + (y - y_em)**2)
+
+    snr_test = (ERP*c)/(R**4)
+    
+    exp_term = jnp.exp(jnp.log(Pfa) / ((ERP*c)/(R**4) + 1))
+    # d_pd_d_xem_test = (-4*ERP*c*jnp.log(Pfa)*(x-x_em)*exp_term)/(((ERP*c)/(R**4) + 1)**2*R**6)
+    # d_pd_d_yem_test = (-4*ERP*c*jnp.log(Pfa)*(y-y_em)*exp_term)/(((ERP*c)/(R**4) + 1)**2*R**6)
+    # d_pd_d_erp_test = (-c*jnp.log(Pfa)*exp_term)/(R**4*((ERP*c)/(R**4) + 1)**2)
+
+    common_factor = (c**2*jnp.log(Pfa)**2*exp_term**2)/(R**8*(snr_test+1)**4)
+
+    # d_pd_d_xem_squared_test = common_factor* (16*ERP**2*(x-x_em)**2)/(R**4)
+    # d_pd_d_yem_squared_test = common_factor* (16*ERP**2*(y-y_em)**2)/(R**4)
+    # d_pd_d_erp_squared_test = common_factor
+    # d_pd_d_erp_squared = d_pd_d_erp**2
+
+    # d_pd_d_xem_time_d_pd_d_yem_test = common_factor*(16*ERP**2*(x-x_em)*(y-y_em))/(R**4)
+    # d_pd_d_xem_time_d_pd_d_erp_test = common_factor*(4*ERP*(x-x_em))/(R**2)
+    # d_pd_d_yem_time_d_pd_d_erp_test = common_factor*(4*ERP*(y-y_em))/(R**2)
+    # d_pd_d_yem_time_d_pd_d_erp = d_pd_d_yem*d_pd_d_erp
+
+    # jax.debug.print("tru: {x}",x=d_pd_d_xem)
+    # jax.debug.print("test: {x}",x=d_pd_d_xem_test)
+    # jax.debug.print("true: {x}",x=d_pd_d_xem_squared)
+    # jax.debug.print("test: {x}",x=d_pd_d_xem_squared_test)
+    # jax.debug.print("match: {x}",x=jnp.allclose(d_pd_d_yem_time_d_pd_d_erp,d_pd_d_yem_time_d_pd_d_erp_test,atol=1e-10))
+    # jax.debug.print("match: {x}",x=jnp.allclose(d_pd_d_xem,d_pd_d_xem_test,atol=1e-10))
+    
     
     return jnp.array([d_pd_d_xem, d_pd_d_yem, d_pd_d_erp])
 
@@ -73,12 +106,89 @@ def pd_jacobian_unknown_radar_parameters(position, estimatedRadarParams, radarRe
 
 @jit
 def probability_of_detection_uncertainty_single_radar_at_xy(position, estimatedRadarParams, estimatedRadarParamsCov, radarRecieveGain, radarRecieveGainVar, radarWavelength, radarWavelengthVar, agentRadarCrossSection, radarPulseWidth, radarPulseWidthVar, radarSystemTemperature, radarSystemTemperatureVar, radarProbabilityOfFalseAlarm, radarProbabilityOfFalseAlarmVar):
+
     estimatedRadarParamsJacobian = pd_jacobian_emittor_params(position, estimatedRadarParams, radarRecieveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm).T
     unknownRadarParametersJacobian = pd_jacobian_unknown_radar_parameters(position, estimatedRadarParams, radarRecieveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm).T
     
     radarParametersCovariance = jnp.diag(jnp.array([radarRecieveGainVar, radarWavelengthVar, 0, radarPulseWidthVar, radarSystemTemperatureVar, radarProbabilityOfFalseAlarmVar]))
 
     uncertainty = vmap(lambda i: estimatedRadarParamsJacobian[i] @ estimatedRadarParamsCov @ estimatedRadarParamsJacobian[i].T + unknownRadarParametersJacobian[i] @ radarParametersCovariance @ unknownRadarParametersJacobian[i].T)(jnp.arange(len(position)))
+    
+
+    
+    #test code 
+    ERP = estimatedRadarParams[2]
+    x_em, y_em = estimatedRadarParams[:2]
+    Gr, Pfa, rcs, tau_p, wavelength, T_s, k = radarRecieveGain, radarProbabilityOfFalseAlarm, agentRadarCrossSection, radarPulseWidth, radarWavelength, radarSystemTemperature, boltzman
+    x = position[:, 0]
+    y = position[:, 1]
+    c = (Gr * wavelength**2 * rcs * radarPulseWidth) / ((4.0 * jnp.pi)**3 * boltzman * radarSystemTemperature)
+
+    R = jnp.sqrt((x - x_em)**2 + (y - y_em)**2)
+
+    snr_test = (ERP*c)/(R**4)
+    
+    exp_term = jnp.exp(jnp.log(Pfa) / ((ERP*c)/(R**4) + 1))
+
+    common_factor = (c**2*jnp.log(Pfa)**2*exp_term**2)/(R**8*(snr_test+1)**4)
+    
+    sigma_xx = estimatedRadarParamsCov[0,0]
+    sigma_xy = estimatedRadarParamsCov[0,1]
+    sigma_yy = estimatedRadarParamsCov[1,1]
+    sigma_xerp = estimatedRadarParamsCov[0,2]
+    sigma_yerp = estimatedRadarParamsCov[1,2]
+    sigma_erp = estimatedRadarParamsCov[2,2]
+
+    sigma = common_factor*((16*ERP**2*(x-x_em)**2)/(R**4)*sigma_xx + 2*(16*ERP**2*(x-x_em)*(y-y_em))/(R**4)*sigma_xy + (16*ERP**2*(y-y_em)**2)/(R**4)*sigma_yy + 2*(4*ERP*(x-x_em))/(R**2)*sigma_xerp + 2*(4*ERP*(y-y_em))/(R**2)*sigma_yerp + sigma_erp)
+
+
+    
+    w,v = jnp.linalg.eigh(estimatedRadarParamsCov)
+    # jax.debug.print("COV: {x}",x=estimatedRadarParamsCov)
+    # jax.debug.print("w: {x}",x=w)
+    minEig = jnp.min(w)
+    maxEig = jnp.max(w)
+    
+    # f = common_factor * ((16*ERP**2*(x-x_em)**2)/(R**4) + (16*ERP**2*(y-y_em)**2)/(R**4) + 1)
+    f = common_factor*((16*ERP**2)/(R**2))
+
+    # jax.debug.print("ERP: {x}",x=ERP)
+
+    index = jnp.argmax(sigma)
+    # jax.debug.print("R at max: {x}",x=R[index])
+    # jax.debug.print("f : {x}",x=jnp.max(f))
+
+    # jax.debug.print("f_test : {x}",x=jnp.max(f_test))
+
+    # jax.debug.print("match: {x}",x=jnp.allclose(f,f_test,atol=1e-15))
+    
+    sigma_upper = maxEig * f# common_factor * ((16*ERP**2*(x-x_em)**2)/(R**4) + (16*ERP**2*(y-y_em)**2)/(R**4) + 1)
+    sigma_lower = minEig * f#common_factor * ((16*ERP**2*(x-x_em)**2)/(R**4) + (16*ERP**2*(y-y_em)**2)/(R**4) + 1)
+    # jax.debug.print("max eig: {x}",x=maxEig)
+    
+    jax.debug.print("max upper bound: {x}",x=sigma_upper[index])
+    jax.debug.print("max uncertainty: {x}",x=sigma[index])
+    jax.debug.print("min lower bound: {x}",x=sigma_lower[index])
+    # jax.debug.print("upper: {x}",x=jnp.all(jnp.less(sigma,sigma_upper)))
+    # jax.debug.print("lower: {x}",x=jnp.all(jnp.greater(sigma,sigma_lower)))
+
+
+    
+    
+
+    # pdThreshold = 0.15
+    # test_dist = jnp.divide(pdThreshold-exp_term, jnp.sqrt(sigma))
+
+    # jax.debug.print("match: {x}",x=jnp.allclose(uncertainty[],sigma[0],atol=1e-10))
+
+    
+    
+    
+    
+
+    
+    
+    
     
     return uncertainty
 
@@ -101,6 +211,9 @@ def compute_probability_of_detection_at_points_multiple_radar(X_test, estimatedR
         pdCov += dpdt_dpdind1**2 * pdi_covs[ind1]
 
     return pd, pdCov
+
+
+
 if __name__=="__main__":
 
     testDeterministicCase = False
