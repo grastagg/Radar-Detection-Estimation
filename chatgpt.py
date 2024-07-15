@@ -1,16 +1,28 @@
 import numpy as np
+from scipy.spatial import Voronoi, voronoi_plot_2d
+from matplotlib import pyplot as plt
 
-# Step 2: Create a NumPy array with repeated elements
-array_with_repeats = np.array([1, 2, 2, 3, 4, 4, 4, 5, 6, 6, 7])
+points = np.array([[0,0],[1,0],[0,1],[1,1],[0.5,0.5]])
+vor = Voronoi(points)
 
-# Step 3: Find unique elements and their counts
-unique_elements, counts = np.unique(array_with_repeats, return_counts=True)
+fig,ax = plt.subplots()
+voronoi_plot_2d(vor,ax)
 
-# Step 4: Filter elements that occur exactly once
-unique_elements_single_occurrence = unique_elements[counts == 1]
+print("vor.points",vor.points)
+print("vor.point_region",vor.point_region)
+print("vor.regions",vor.regions)
 
-# Step 5: Get indices of these unique elements in the original array
-indices = np.array([index for index, element in enumerate(array_with_repeats) if element in unique_elements_single_occurrence])
+for i,point in enumerate(vor.vertices):
+    ax.text(point[0],point[1],str(i))
 
-print("Original array:", array_with_repeats)
-print("Indices of elements that appear only once:", indices)
+for i in range(len(points)):
+    point = points[i]
+    ax.text(point[0],point[1],str(i))
+    ax.scatter(point[0],point[1])
+    
+# for i in vor.point_region:
+    
+#     point = vor.points[i-1]
+#     # ax.scatter(point[0],point[1])
+#     ax.text(point[0],point[1],str(i))
+plt.show()

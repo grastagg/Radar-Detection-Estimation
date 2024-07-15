@@ -115,8 +115,10 @@ def probability_of_detection_uncertainty_single_radar_at_xy(position, estimatedR
     uncertainty = vmap(lambda i: estimatedRadarParamsJacobian[i] @ estimatedRadarParamsCov @ estimatedRadarParamsJacobian[i].T + unknownRadarParametersJacobian[i] @ radarParametersCovariance @ unknownRadarParametersJacobian[i].T)(jnp.arange(len(position)))
     
 
-    
-    #test code 
+    return uncertainty
+
+@jit
+def probability_of_detection_uncertainty_single_radar_at_xy_bounds(position, estimatedRadarParams, estimatedRadarParamsCov, radarRecieveGain, radarRecieveGainVar, radarWavelength, radarWavelengthVar, agentRadarCrossSection, radarPulseWidth, radarPulseWidthVar, radarSystemTemperature, radarSystemTemperatureVar, radarProbabilityOfFalseAlarm, radarProbabilityOfFalseAlarmVar):
     ERP = estimatedRadarParams[2]
     x_em, y_em = estimatedRadarParams[:2]
     Gr, Pfa, rcs, tau_p, wavelength, T_s, k = radarRecieveGain, radarProbabilityOfFalseAlarm, agentRadarCrossSection, radarPulseWidth, radarWavelength, radarSystemTemperature, boltzman
@@ -139,7 +141,7 @@ def probability_of_detection_uncertainty_single_radar_at_xy(position, estimatedR
     sigma_yerp = estimatedRadarParamsCov[1,2]
     sigma_erp = estimatedRadarParamsCov[2,2]
 
-    sigma = common_factor*((16*ERP**2*(x-x_em)**2)/(R**4)*sigma_xx + 2*(16*ERP**2*(x-x_em)*(y-y_em))/(R**4)*sigma_xy + (16*ERP**2*(y-y_em)**2)/(R**4)*sigma_yy + 2*(4*ERP*(x-x_em))/(R**2)*sigma_xerp + 2*(4*ERP*(y-y_em))/(R**2)*sigma_yerp + sigma_erp)
+    variance = common_factor*((16*ERP**2*(x-x_em)**2)/(R**4)*sigma_xx + 2*(16*ERP**2*(x-x_em)*(y-y_em))/(R**4)*sigma_xy + (16*ERP**2*(y-y_em)**2)/(R**4)*sigma_yy + 2*(4*ERP*(x-x_em))/(R**2)*sigma_xerp + 2*(4*ERP*(y-y_em))/(R**2)*sigma_yerp + sigma_erp)
 
 
     
@@ -147,50 +149,22 @@ def probability_of_detection_uncertainty_single_radar_at_xy(position, estimatedR
     # jax.debug.print("COV: {x}",x=estimatedRadarParamsCov)
     # jax.debug.print("w: {x}",x=w)
     minEig = jnp.min(w)
-    maxEig = jnp.max(w)
+    # maxEig = w[1]
+    maxEig = jnp.trace(estimatedRadarParamsCov)/3
+    # maxEig = jnp.max(w)
     
     # f = common_factor * ((16*ERP**2*(x-x_em)**2)/(R**4) + (16*ERP**2*(y-y_em)**2)/(R**4) + 1)
     f = common_factor*((16*ERP**2)/(R**2))
-
-    # jax.debug.print("ERP: {x}",x=ERP)
-
-    index = jnp.argmax(sigma)
-    # jax.debug.print("R at max: {x}",x=R[index])
-    # jax.debug.print("f : {x}",x=jnp.max(f))
-
-    # jax.debug.print("f_test : {x}",x=jnp.max(f_test))
-
-    # jax.debug.print("match: {x}",x=jnp.allclose(f,f_test,atol=1e-15))
     
-    sigma_upper = maxEig * f# common_factor * ((16*ERP**2*(x-x_em)**2)/(R**4) + (16*ERP**2*(y-y_em)**2)/(R**4) + 1)
-    sigma_lower = minEig * f#common_factor * ((16*ERP**2*(x-x_em)**2)/(R**4) + (16*ERP**2*(y-y_em)**2)/(R**4) + 1)
-    # jax.debug.print("max eig: {x}",x=maxEig)
+    variance_upper = maxEig * f# common_factor * ((16*ERP**2*(x-x_em)**2)/(R**4) + (16*ERP**2*(y-y_em)**2)/(R**4) + 1)
+    variance_lower = minEig * f#common_factor * ((16*ERP**2*(x-x_em)**2)/(R**4) + (16*ERP**2*(y-y_em)**2)/(R**4) + 1)
     
-    jax.debug.print("max upper bound: {x}",x=sigma_upper[index])
-    jax.debug.print("max uncertainty: {x}",x=sigma[index])
-    jax.debug.print("min lower bound: {x}",x=sigma_lower[index])
-    # jax.debug.print("upper: {x}",x=jnp.all(jnp.less(sigma,sigma_upper)))
-    # jax.debug.print("lower: {x}",x=jnp.all(jnp.greater(sigma,sigma_lower)))
+    # sigma = jnp.sqrt(variance)
+    
+    # sigma_upper = jnp.abs((4*ERP*c*jnp.log(Pfa)*exp_term)/(R**5*(snr_test+1)**2)*jnp.sqrt(maxEig))
 
 
-    
-    
-
-    # pdThreshold = 0.15
-    # test_dist = jnp.divide(pdThreshold-exp_term, jnp.sqrt(sigma))
-
-    # jax.debug.print("match: {x}",x=jnp.allclose(uncertainty[],sigma[0],atol=1e-10))
-
-    
-    
-    
-    
-
-    
-    
-    
-    
-    return uncertainty
+    return variance_lower,variance_upper
 
 def compute_probability_of_detection_at_points_multiple_radar(X_test, estimatedRadarParamsList, estimatedRadarParamsCovList, radarRecieveGain, radarRecieveGainVar, radarWavelength, radarWavelengthVar, agentRadarCrossSection, radarPulseWidth, radarPulseWidthVar, radarSystemTemperature, radarSystemTemperatureVar, radarProbabilityOfFalseAlarm, radarProbabilityOfFalseAlarmVar):
     def compute_pdi(estimatedRadarParams):
