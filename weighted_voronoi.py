@@ -15,6 +15,9 @@ import pickle
 
 import cv2
 
+from scipy import interpolate
+from scipy.interpolate import splrep
+
 def get_weighted_distance(p,x,weight):
     return np.linalg.norm(p-x)/weight
 
@@ -237,9 +240,8 @@ def weighted_voronoi_uncertain_radar_grid_method(X_test,prob_list,estimatedRadar
     # Z = np.argmax(prob_list,axis=0)
     return Z
 
-def get_closest_neighbor_triplets(points):
+def get_closest_neighbor_triplets(vor):
     # Compute the Voronoi diagram for the given points
-    vor = Voronoi(points[:, 0:2])
     num_vertices = len(vor.vertices)
     vertex_to_regions = [[] for _ in range(num_vertices)]
 
@@ -300,55 +302,179 @@ def find_generalized_voronoi_verticies(prob_list,closetNeighborTriples):
         verticies[index] = {"neighbors":neighbors,"point":(x,y)}
                 
     return verticies
+import numpy as np
 
-def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2):
+def filter_points_by_vertices(contour, vertex1, vertex2, reference_point):
+    """
+    Filters points in the contour that lie between the two vertices.
+
+    Parameters:
+    contour (np.ndarray): Array of points representing the contour (shape: [n_points, 2]).
+    vertex1 (tuple): Coordinates of the first vertex (x, y).
+    vertex2 (tuple): Coordinates of the second vertex (x, y).
+    reference_point (tuple): Coordinates of the reference point (x, y) to measure angles from.
+
+    Returns:
+    np.ndarray: Array of points that lie between the two vertices.
+    """
+    # Calculate angles for each point in the contour relative to the reference point
+    angles = np.arctan2(contour[:, 1] - reference_point[1], contour[:, 0] - reference_point[0])
+    
+    # Calculate angles for the vertices relative to the reference point
+    angle_vertex1 = np.arctan2(vertex1[1] - reference_point[1], vertex1[0] - reference_point[0])
+    angle_vertex2 = np.arctan2(vertex2[1] - reference_point[1], vertex2[0] - reference_point[0])
+
+    # Normalize angles to the range [0, 2*pi]
+    angles = np.mod(angles + 2 * np.pi, 2 * np.pi)
+    angle_vertex1 = np.mod(angle_vertex1 + 2 * np.pi, 2 * np.pi)
+    angle_vertex2 = np.mod(angle_vertex2 + 2 * np.pi, 2 * np.pi)
+    diff = np.abs(angle_vertex1 - angle_vertex2)
+    singularity = False
+    if diff > np.pi:
+        singularity = True
+    
+    
+        
+    # angles = np.unwrap(angles)
+    # angle_vertex1 = np.unwrap(np.append(angles,angle_vertex1))[-1]
+    # angle_vertex2 = np.unwrap(np.append(angles,angle_vertex2))[-1]
+    # angle_vertex2 = np.unwrap([angles,angle_vertex2])[-1]
+
+    # print("Angles:", angles)
+    # print("Angle Vertex 1:", angle_vertex1)
+    # print("Angle Vertex 2:", angle_vertex2)
+
+    if singularity:
+        # print("Singularity")
+        if angle_vertex1 > angle_vertex2:
+            mask = (angles >= angle_vertex1) | (angles <= angle_vertex2)
+        else:
+            mask = (angles >= angle_vertex2) | (angles <= angle_vertex1)
+
+    else:
+        if angle_vertex1 > angle_vertex2:
+            mask = (angles >= angle_vertex2) & (angles <= angle_vertex1)
+        else:
+            mask = (angles >= angle_vertex1) & (angles <= angle_vertex2)
+
+    # Filter points based on the mask
+    points_in_range = contour[mask]
+
+    return points_in_range
+
+def sort_points(points, reference_point):
+    """
+    Sorts points in the contour based on their angles relative to the reference point.
+
+    Parameters:
+    points (np.ndarray): Array of points representing the contour (shape: [n_points, 2]).
+    reference_point (tuple): Coordinates of the reference point (x, y) to measure angles from.
+
+    Returns:
+    np.ndarray: Array of points sorted based on their angles.
+    """
+    # Calculate angles for each point in the contour relative to the reference point
+    angles = np.unwrap(np.arctan2(points[:, 1] - reference_point[1], points[:, 0] - reference_point[0]))
+
+    # Sort points based on the angles
+    sorted_points = points[np.argsort(angles)]
+
+    return sorted_points
+def fit_spline_to_path(path, num_control_points, spline_order):
+        tf = 1
+        t = np.linspace(0,tf, len(path))
+        
+        # num_control_points = params.numControlPoints
+        n_interior_knots = num_control_points - spline_order - 1
+        qs = np.linspace(0, 1, n_interior_knots + 2)[1:-1]
+        knots = np.quantile(t, qs)
+
+        tck_x = splrep(t,path[:,0],k=spline_order,t=knots,s=1)
+        control_points_x = tck_x[1]
+        control_points_x = control_points_x[control_points_x != 0]
+
+        tck_y = splrep(t,path[:,1],k=spline_order,t=knots,s=1)
+        control_points_y = tck_y[1]
+        control_points_y = control_points_y[control_points_y != 0]
+        combined_control_points = np.hstack((control_points_x.reshape((len(control_points_x),1)), control_points_y.reshape((len(control_points_y),1))))
+
+        combined_knot_points = tck_x[0]
+        return combined_control_points,combined_knot_points
+
+
+def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams,radarParamsCovDeterminants):
 
     i,j = ridgeNeighborIndecies
+    if radarParamsCovDeterminants[i] > radarParamsCovDeterminants[j]:
+        radarPositioni = radarParams[j,0:2]
+    else:
+        radarPositioni = radarParams[i,0:2]
     celliprob = prob_list[i]
     celljprob = prob_list[j]
     cellAssignment = np.where(celliprob < celljprob,0,1).reshape(params.numTestPoints,params.numTestPoints)
-    fig,ax2 = plt.subplots()
-    # ax2.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),cellAssignment.reshape(params.numTestPoints,params.numTestPoints))
-    ax2.scatter(vertex1[0],vertex1[1],marker='*',color='r')
-    ax2.scatter(vertex2[0],vertex2[1],marker='*',color='r')
 
     contour,_ = cv2.findContours(cellAssignment.astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     pixelDist = params.bounds[0]/params.numTestPoints
-    points = contour[1].squeeze()*pixelDist
-    print(points.shape)
-    ax2.plot(points[:,0],points[:,1])
-    # ax2.plot(contour[:,0,0]*pixelDist,contour[:,0,1]*pixelDist)
-
-    plt.show()
-    print("contour",contour[0])
+    points = contour[-1].squeeze()*pixelDist
 
 
+    points = points[points[:,0]!=0]
+    points = points[points[:,1]!=0]
+    points = points[~np.isclose(points[:,0],params.bounds[0],atol=50)]
+    points = points[~np.isclose(points[:,1],params.bounds[1],atol=50)]
+
+    pointsInRange = filter_points_by_vertices(points, vertex1, vertex2, radarPositioni)
+    pointsInRange = np.append(pointsInRange, vertex1).reshape(-1,2)
+    pointsInRange = np.append(pointsInRange, vertex2).reshape(-1,2)
+    pointsInRange = sort_points(pointsInRange, radarPositioni)
+
+    splineControlPoints,splineKnotPoints = fit_spline_to_path(pointsInRange, 10, 3)
+    return splineControlPoints,splineKnotPoints,pointsInRange 
     
-    # vertex1Index = xy_to_index(vertex1[0],vertex1[1])
-    # vertex2Index = xy_to_index(vertex2[0],vertex2[1])
-    # diffij = np.abs(prob_list[i] - prob_list[j])
-    # print("diffij",diffij[vertex1Index])
-    # print("diffij",diffij[vertex2Index])
-    # maxDiff = np.min([diffij[vertex1Index],diffij[vertex2Index]])/10
-    # ridgeIndecies = np.where(diffij < 2*maxDiff)[0]
-    # ridgeIndeciesX,ridgeIndeciesY = indecies_to_xy(ridgeIndecies)
-    # return ridgeIndeciesX,ridgeIndeciesY
-    
+def plot_spline(spline,ax):
+    controlPoints = spline.c
+    tf = spline.t[-1]
+    t = np.linspace(0, tf, 1000)
+    pos = spline(t)
+    ax.plot(pos[:,0], pos[:,1])
 
-def find_generalized_voronoi_ridges(prob_list,verticies,ax = None):
+def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsCov,ax = None):
+    radarParamsCovDeterminants = [np.linalg.det(cov) for cov in radarParamsCov]
 
     ridges = {}
     for i in range(len(verticies)):
-        for j in range(len(verticies)):
+        for j in range(i,len(verticies)):
             if i != j:
                 commonNeighbors = np.intersect1d(verticies[i]['neighbors'],verticies[j]['neighbors'])
                 if len(commonNeighbors) == 2:
-                    print("i,j",i,j)
-                    print("verticies[i]",verticies[i]['neighbors'])
-                    print("verticies[j]",verticies[j]['neighbors'])
-                    ridgeLinePoints = find_ridge_line(prob_list,commonNeighbors,verticies[i]['point'],verticies[j]['point'])
+                    # print("verticies[i]",verticies[i]['neighbors'])
+                    # print("verticies[j]",verticies[j]['neighbors'])
+                    ridgeLineControlPoints,ridgeLineKnotPoints,points = find_ridge_line(prob_list,commonNeighbors,verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants)
+                    ridges[(i,j)] = {"control_points":ridgeLineControlPoints,"knot_points":ridgeLineKnotPoints}
                     if ax is not None:
-                        ax.scatter(ridgeLinePoints[0],ridgeLinePoints[1])
+                        spline = interpolate.BSpline(ridgeLineKnotPoints,ridgeLineControlPoints,3)
+                        # fig,ax2 = plt.subplots()
+                        # ax2.set_aspect('equal')
+                        # ax2.plot(points[:,0],points[:,1])
+                        plot_spline(spline,ax)
+                        # plt.show()
+
+def find_exterior_points(vor):
+    exteriorPoints = []
+    
+    print("vor.regions",vor.regions)
+    print("vor.point_region",vor.point_region)
+    # for i,region in enumerate(vor.regions):
+    for point_idx, region_idx in enumerate(vor.point_region):
+        region = vor.regions[region_idx]
+        if -1 in region:
+            exteriorPoints.append(vor.point_region[point_idx])
+    return exteriorPoints
+
+
+def find_generalized_voronoi_edge_verticies(prob_list, exteriorPoints):
+    
+    pass
                     
 
 
@@ -438,31 +564,39 @@ if __name__ == '__main__':
     
     # new generailzed voronoi
     fig, ax = plt.subplots()
+    points = radarParams[:,0:2]
+    vor = Voronoi(points[:, 0:2])
+
     prob_list = create_probability_of_detection_below_threshold_grid_list(params.X_test,radarParams,radarParamsCov)
     # Z = weighted_voronoi_uncertain_radar_grid_method(params.X_test,prob_list,radarParams,radarParamsCov,useUpperBound=False,ax=ax)
-    closestNeighborTriples = get_closest_neighbor_triplets(radarParams[:,0:2])
+
+    closestNeighborTriples = get_closest_neighbor_triplets(vor)
 
     verticies = find_generalized_voronoi_verticies(prob_list,closestNeighborTriples)
-    ridges = find_generalized_voronoi_ridges(prob_list,verticies,ax=ax)
+    ridges = find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsCov,ax=ax)
+
+    exteriorPoints = find_exterior_points(vor)
+    print("Exterior Points:",exteriorPoints)
+    
     ax.set_aspect('equal')
     for i in range(len(verticies)):
         vertex = verticies[i]
         point = vertex['point']
         ax.scatter(point[0],point[1],marker='*',color='g')
-        ax.text(point[0],point[1],str(i))
+        # ax.text(point[0],point[1],str(i))
     
     
 
-    # vor = Voronoi(radarParams[:,0:2])
+    vor = Voronoi(radarParams[:,0:2])
     # voronoi_plot_2d(vor,ax=ax,show_vertices=False)
 
     # for i,point in enumerate(vor.vertices):
     #     ax.text(point[0],point[1],str(i))
 
-    # for i in range(len(vor.points)):
-    #     point = vor.points[i]
-    #     ax.text(point[0],point[1],str(i))
-    #     ax.scatter(point[0],point[1])
+    for i in range(len(vor.points)):
+        point = vor.points[i]
+        ax.text(point[0],point[1],str(i))
+        ax.scatter(point[0],point[1])
 
     plt.show()
     
