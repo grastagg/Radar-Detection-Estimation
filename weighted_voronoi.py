@@ -251,8 +251,7 @@ def get_closest_neighbor_triplets(vor):
         for vertex_idx in region:
             if vertex_idx != -1:  # Skip the point at infinity
                 vertex_to_regions[vertex_idx].append(point_idx)
-
-
+            
     return np.array(vertex_to_regions)
 
 def create_probability_of_detection_below_threshold_grid_list(X_test,estimatedRadarParamsList,estiamtedRadarParamsCovList):
@@ -380,26 +379,29 @@ def sort_points(points, reference_point):
     sorted_points = points[np.argsort(angles)]
 
     return sorted_points
+
 def fit_spline_to_path(path, num_control_points, spline_order):
-        tf = 1
-        t = np.linspace(0,tf, len(path))
-        
-        # num_control_points = params.numControlPoints
-        n_interior_knots = num_control_points - spline_order - 1
-        qs = np.linspace(0, 1, n_interior_knots + 2)[1:-1]
-        knots = np.quantile(t, qs)
+    if len(path) < num_control_points:
+        num_control_points = len(path)
+    tf = 1
+    t = np.linspace(0,tf, len(path))
+    
+    # num_control_points = params.numControlPoints
+    n_interior_knots = num_control_points - spline_order - 1
+    qs = np.linspace(0, 1, n_interior_knots + 2)[1:-1]
+    knots = np.quantile(t, qs)
 
-        tck_x = splrep(t,path[:,0],k=spline_order,t=knots,s=1)
-        control_points_x = tck_x[1]
-        control_points_x = control_points_x[control_points_x != 0]
+    tck_x = splrep(t,path[:,0],k=spline_order,t=knots,s=1)
+    control_points_x = tck_x[1]
+    control_points_x = control_points_x[control_points_x != 0]
 
-        tck_y = splrep(t,path[:,1],k=spline_order,t=knots,s=1)
-        control_points_y = tck_y[1]
-        control_points_y = control_points_y[control_points_y != 0]
-        combined_control_points = np.hstack((control_points_x.reshape((len(control_points_x),1)), control_points_y.reshape((len(control_points_y),1))))
+    tck_y = splrep(t,path[:,1],k=spline_order,t=knots,s=1)
+    control_points_y = tck_y[1]
+    control_points_y = control_points_y[control_points_y != 0]
+    combined_control_points = np.hstack((control_points_x.reshape((len(control_points_x),1)), control_points_y.reshape((len(control_points_y),1))))
 
-        combined_knot_points = tck_x[0]
-        return combined_control_points,combined_knot_points
+    combined_knot_points = tck_x[0]
+    return combined_control_points,combined_knot_points
 
 
 def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams,radarParamsCovDeterminants):
@@ -430,6 +432,21 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
 
     splineControlPoints,splineKnotPoints = fit_spline_to_path(pointsInRange, 10, 3)
     return splineControlPoints,splineKnotPoints,pointsInRange 
+
+def find_ridge_line_from_points(points,vertex1,vertex2,radarPositioni):
+    points = points[points[:,0]!=0]
+    points = points[points[:,1]!=0]
+    points = points[~np.isclose(points[:,0],params.bounds[0],atol=50)]
+    points = points[~np.isclose(points[:,1],params.bounds[1],atol=50)]
+
+    pointsInRange = filter_points_by_vertices(points, vertex1, vertex2, radarPositioni)
+    pointsInRange = np.append(pointsInRange, vertex1).reshape(-1,2)
+    pointsInRange = np.append(pointsInRange, vertex2).reshape(-1,2)
+    pointsInRange = sort_points(pointsInRange, radarPositioni)
+
+    splineControlPoints,splineKnotPoints = fit_spline_to_path(pointsInRange, 10, 3)
+    return splineControlPoints,splineKnotPoints,pointsInRange 
+    
     
 def plot_spline(spline,ax):
     controlPoints = spline.c
@@ -458,23 +475,97 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
                         # ax2.plot(points[:,0],points[:,1])
                         plot_spline(spline,ax)
                         # plt.show()
+    return ridges
 
 def find_exterior_points(vor):
     exteriorPoints = []
-    
-    print("vor.regions",vor.regions)
-    print("vor.point_region",vor.point_region)
-    # for i,region in enumerate(vor.regions):
+
     for point_idx, region_idx in enumerate(vor.point_region):
         region = vor.regions[region_idx]
+        
         if -1 in region:
-            exteriorPoints.append(vor.point_region[point_idx])
+            exteriorPoints.append(point_idx)
+    
     return exteriorPoints
 
-
-def find_generalized_voronoi_edge_verticies(prob_list, exteriorPoints):
+def closest_side(point, bounds):
+    x, y = point
+    left, right, bottom, top = 0, bounds[0], 0, bounds[1]
     
-    pass
+    # Calculate distances to each side
+    distance_to_left = x - left
+    distance_to_right = right - x
+    distance_to_bottom = y - bottom
+    distance_to_top = top - y
+    
+    # Create a dictionary to map distances to side names
+    distances = {
+        'left': distance_to_left,
+        'right': distance_to_right,
+        'bottom': distance_to_bottom,
+        'top': distance_to_top
+    }
+    
+    # Find the side with the minimum distance
+    closest_side = min(distances, key=distances.get)
+    
+    return closest_side
+
+def find_generalized_voronoi_edge_verticies_and_ridges(prob_list, exteriorPoints,verticies):
+    print("exterior points",exteriorPoints)
+    print("verticies",verticies)
+    currentVertex = len(verticies)
+    for i in range(len(verticies)):
+        # print(i,verticies[i]['neighbors'])
+        intersection = np.intersect1d(verticies[i]['neighbors'],exteriorPoints)
+        if len(intersection) ==2:
+            celliprob = prob_list[intersection[0]]
+            celljprob = prob_list[intersection[1]]
+            cellAssignment = np.where(celliprob < celljprob,0,1).reshape(params.numTestPoints,params.numTestPoints)
+
+            contour,_ = cv2.findContours(cellAssignment.astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            pixelDist = params.bounds[0]/params.numTestPoints
+            points = contour[-1].squeeze()*pixelDist
+            # points = points[points!=[0,0]]
+            upperBound = np.max(points)
+            lowerBound = np.min(points)
+            corners = np.array([[lowerBound,lowerBound],[lowerBound,upperBound],[upperBound,upperBound],[upperBound,lowerBound]])
+            mask = np.all(points[:,None]!=corners,axis=2).all(axis=1)
+            mask = ~np.any((points[:, None] == corners).all(axis=2), axis=1)
+            points = points[mask]
+
+            # edgePoints = points[points[:,0]==lowerBound or points[:,0]==upperBound or points[:,1]==lowerBound or points[:,1]==upperBound]
+            edgePoints = points[(points[:, 0] == lowerBound) | (points[:, 0] == upperBound) |
+                    (points[:, 1] == lowerBound) | (points[:, 1] == upperBound)]
+                
+            distances = np.linalg.norm(edgePoints - verticies[i]['point'],axis=1)
+            vertex = edgePoints[np.argmin(distances)]
+
+            # fig,ax = plt.subplots()
+            # ax.plot(points[:,0],points[:,1])
+            # ax.scatter(verticies[i]['point'][0],verticies[i]['point'][1],marker='*',color='r')
+            # ax.scatter(vertex[0],vertex[1],marker='*',color='r')
+            # plt.show()
+            verticies[currentVertex] = {"neighbors":intersection,"point":vertex}
+            currentVertex += 1
+
+            
+            
+            
+
+            
+            
+            
+
+
+            
+            
+
+            
+
+
+    
+    return verticies
                     
 
 
@@ -573,17 +664,19 @@ if __name__ == '__main__':
     closestNeighborTriples = get_closest_neighbor_triplets(vor)
 
     verticies = find_generalized_voronoi_verticies(prob_list,closestNeighborTriples)
+    exteriorPoints = find_exterior_points(vor)
+    verticies = find_generalized_voronoi_edge_verticies_and_ridges(prob_list, exteriorPoints, verticies)
     ridges = find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsCov,ax=ax)
 
-    exteriorPoints = find_exterior_points(vor)
-    print("Exterior Points:",exteriorPoints)
+
+        
     
     ax.set_aspect('equal')
     for i in range(len(verticies)):
         vertex = verticies[i]
         point = vertex['point']
         ax.scatter(point[0],point[1],marker='*',color='g')
-        # ax.text(point[0],point[1],str(i))
+        ax.text(point[0],point[1],str(i),c='g')
     
     
 
@@ -593,10 +686,10 @@ if __name__ == '__main__':
     # for i,point in enumerate(vor.vertices):
     #     ax.text(point[0],point[1],str(i))
 
-    for i in range(len(vor.points)):
-        point = vor.points[i]
-        ax.text(point[0],point[1],str(i))
-        ax.scatter(point[0],point[1])
+    # for i in range(len(vor.points)):
+    #     point = vor.points[i]
+    #     ax.text(point[0],point[1],str(i))
+    #     ax.scatter(point[0],point[1])
 
     plt.show()
     
