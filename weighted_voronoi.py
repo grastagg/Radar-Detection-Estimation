@@ -686,10 +686,10 @@ if __name__ == '__main__':
     # for i,point in enumerate(vor.vertices):
     #     ax.text(point[0],point[1],str(i))
 
-    # for i in range(len(vor.points)):
-    #     point = vor.points[i]
-    #     ax.text(point[0],point[1],str(i))
-    #     ax.scatter(point[0],point[1])
+    for i in range(len(vor.points)):
+        point = vor.points[i]
+        ax.text(point[0],point[1],str(i))
+        ax.scatter(point[0],point[1])
 
     plt.show()
     
