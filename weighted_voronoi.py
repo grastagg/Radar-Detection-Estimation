@@ -298,7 +298,7 @@ def find_generalized_voronoi_verticies(prob_list,closetNeighborTriples):
         # x = indx*indexToXYConversion
         # y = indy*indexToXYConversion
         x,y = indecies_to_xy(ind)
-        verticies[index] = {"neighbors":neighbors,"point":(x,y)}
+        verticies[index] = {"neighbors":neighbors,"point":(x,y),"edge":False}
                 
     return verticies
 import numpy as np
@@ -334,14 +334,6 @@ def filter_points_by_vertices(contour, vertex1, vertex2, reference_point):
     
     
         
-    # angles = np.unwrap(angles)
-    # angle_vertex1 = np.unwrap(np.append(angles,angle_vertex1))[-1]
-    # angle_vertex2 = np.unwrap(np.append(angles,angle_vertex2))[-1]
-    # angle_vertex2 = np.unwrap([angles,angle_vertex2])[-1]
-
-    # print("Angles:", angles)
-    # print("Angle Vertex 1:", angle_vertex1)
-    # print("Angle Vertex 2:", angle_vertex2)
 
     if singularity:
         # print("Singularity")
@@ -380,7 +372,39 @@ def sort_points(points, reference_point):
 
     return sorted_points
 
-def fit_spline_to_path(path, num_control_points, spline_order):
+def move_control_points_so_spline_passes_through_start_and_end(controlPoints, start, end):
+    A = np.array([[1.0/6.0,0],[0,1.0/6.0]])
+    c2x = controlPoints[1,0]
+    c2y = controlPoints[1,1]
+    c3x = controlPoints[2,0]
+    c3y = controlPoints[2,1]
+    b = np.array([[start[0] - (2.0/3.0)*c2x-(1.0/6.0)*c3x],[start[1]- (2.0/3.0)*c2y-(1.0/6.0)*c3y]])
+
+
+    x = np.linalg.solve(A,b)
+    controlPoints[0:1,0:2] = x.reshape((1,2))
+
+
+    cn_minus_2_x = controlPoints[-3,0]
+    cn_minus_2_y = controlPoints[-3,1]
+    cn_minus_1_x = controlPoints[-2,0]
+    cn_minus_1_y = controlPoints[-2,1]
+
+    b = np.array([[end[0] - (2.0/3.0)*cn_minus_1_x-(1.0/6.0)*cn_minus_2_x],[end[1]- (2.0/3.0)*cn_minus_1_y-(1.0/6.0)*cn_minus_2_y]])
+
+    controlPoints[-1:,0:2] = np.linalg.solve(A,b).reshape((1,2))
+
+
+    return controlPoints
+
+def create_unclamped_knot_points(t0, tf, numControlPoints,splineOrder):
+    internalKnots = np.linspace(t0, tf, numControlPoints - 2, endpoint=True)
+    h = internalKnots[1] - internalKnots[0]
+    knots = np.concatenate((np.linspace(t0-splineOrder*h,t0-h,splineOrder), internalKnots, np.linspace(tf+h,tf+splineOrder*h,splineOrder)))
+    
+    return knots
+
+def fit_spline_to_path(path, num_control_points, spline_order,vertex1,vertex2):
     if len(path) < num_control_points:
         num_control_points = len(path)
     tf = 1
@@ -394,13 +418,19 @@ def fit_spline_to_path(path, num_control_points, spline_order):
     tck_x = splrep(t,path[:,0],k=spline_order,t=knots,s=1)
     control_points_x = tck_x[1]
     control_points_x = control_points_x[control_points_x != 0]
+    
 
     tck_y = splrep(t,path[:,1],k=spline_order,t=knots,s=1)
     control_points_y = tck_y[1]
     control_points_y = control_points_y[control_points_y != 0]
     combined_control_points = np.hstack((control_points_x.reshape((len(control_points_x),1)), control_points_y.reshape((len(control_points_y),1))))
 
+    
+    
+    combined_control_points = move_control_points_so_spline_passes_through_start_and_end(combined_control_points, path[0],path[-1])
+
     combined_knot_points = tck_x[0]
+    combined_knot_points = create_unclamped_knot_points(0,tf,num_control_points,spline_order)
     return combined_control_points,combined_knot_points
 
 
@@ -414,10 +444,19 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
     celliprob = prob_list[i]
     celljprob = prob_list[j]
     cellAssignment = np.where(celliprob < celljprob,0,1).reshape(params.numTestPoints,params.numTestPoints)
+    # fig,ax = plt.subplots()
+    # ax.set_aspect('equal')
+    # ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),cellAssignment)
+    # ax.scatter(vertex1[0],vertex1[1],marker='*',color='r')
+    # ax.scatter(vertex2[0],vertex2[1],marker='*',color='r')
+    
 
     contour,_ = cv2.findContours(cellAssignment.astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     pixelDist = params.bounds[0]/params.numTestPoints
-    points = contour[-1].squeeze()*pixelDist
+    points = contour[0].squeeze()*pixelDist
+    for i in range(1,len(contour)):
+        points = np.append(points,contour[i].squeeze()*pixelDist,axis=0)
+    # points = contour[-1].squeeze()*pixelDist
 
 
     points = points[points[:,0]!=0]
@@ -429,28 +468,30 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
     pointsInRange = np.append(pointsInRange, vertex1).reshape(-1,2)
     pointsInRange = np.append(pointsInRange, vertex2).reshape(-1,2)
     pointsInRange = sort_points(pointsInRange, radarPositioni)
+    # ax.plot(pointsInRange[:,0],pointsInRange[:,1])
+    # plt.show()
 
-    splineControlPoints,splineKnotPoints = fit_spline_to_path(pointsInRange, 10, 3)
+    splineControlPoints,splineKnotPoints = fit_spline_to_path(pointsInRange, 10, 3,vertex1,vertex2)
     return splineControlPoints,splineKnotPoints,pointsInRange 
 
-def find_ridge_line_from_points(points,vertex1,vertex2,radarPositioni):
-    points = points[points[:,0]!=0]
-    points = points[points[:,1]!=0]
-    points = points[~np.isclose(points[:,0],params.bounds[0],atol=50)]
-    points = points[~np.isclose(points[:,1],params.bounds[1],atol=50)]
+# def find_ridge_line_from_points(points,vertex1,vertex2,radarPositioni):
+#     points = points[points[:,0]!=0]
+#     points = points[points[:,1]!=0]
+#     points = points[~np.isclose(points[:,0],params.bounds[0],atol=50)]
+#     points = points[~np.isclose(points[:,1],params.bounds[1],atol=50)]
 
-    pointsInRange = filter_points_by_vertices(points, vertex1, vertex2, radarPositioni)
-    pointsInRange = np.append(pointsInRange, vertex1).reshape(-1,2)
-    pointsInRange = np.append(pointsInRange, vertex2).reshape(-1,2)
-    pointsInRange = sort_points(pointsInRange, radarPositioni)
+#     pointsInRange = filter_points_by_vertices(points, vertex1, vertex2, radarPositioni)
+#     pointsInRange = np.append(pointsInRange, vertex1).reshape(-1,2)
+#     pointsInRange = np.append(pointsInRange, vertex2).reshape(-1,2)
+#     pointsInRange = sort_points(pointsInRange, radarPositioni)
 
-    splineControlPoints,splineKnotPoints = fit_spline_to_path(pointsInRange, 10, 3)
-    return splineControlPoints,splineKnotPoints,pointsInRange 
+#     splineControlPoints,splineKnotPoints = fit_spline_to_path(pointsInRange, 10, 3)
+#     return splineControlPoints,splineKnotPoints,pointsInRange 
     
     
 def plot_spline(spline,ax):
     controlPoints = spline.c
-    tf = spline.t[-1]
+    tf = spline.t[-1-spline.k]
     t = np.linspace(0, tf, 1000)
     pos = spline(t)
     ax.plot(pos[:,0], pos[:,1])
@@ -464,8 +505,12 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
             if i != j:
                 commonNeighbors = np.intersect1d(verticies[i]['neighbors'],verticies[j]['neighbors'])
                 if len(commonNeighbors) == 2:
-                    # print("verticies[i]",verticies[i]['neighbors'])
-                    # print("verticies[j]",verticies[j]['neighbors'])
+                    print("verticies[i]",verticies[i]['neighbors'])
+                    print("verticies[j]",verticies[i]['point'])
+                    print("verticies[j]",verticies[j]['neighbors'])
+                    print("verticies[j]",verticies[j]['point'])
+                    print("commonNeighbors",commonNeighbors)
+
                     ridgeLineControlPoints,ridgeLineKnotPoints,points = find_ridge_line(prob_list,commonNeighbors,verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants)
                     ridges[(i,j)] = {"control_points":ridgeLineControlPoints,"knot_points":ridgeLineKnotPoints}
                     if ax is not None:
@@ -511,162 +556,178 @@ def closest_side(point, bounds):
     
     return closest_side
 
-def find_generalized_voronoi_edge_verticies_and_ridges(prob_list, exteriorPoints,verticies):
-    print("exterior points",exteriorPoints)
-    print("verticies",verticies)
+def find_edge_vertex(prob_list,i,j,verticies,vertexIndex):
+    celliprob = prob_list[i]
+    celljprob = prob_list[j]
+    cellAssignment = np.where(celliprob < celljprob,0,1).reshape(params.numTestPoints,params.numTestPoints)
+
+    contour,_ = cv2.findContours(cellAssignment.astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    pixelDist = params.bounds[0]/params.numTestPoints
+    points = contour[-1].squeeze()*pixelDist
+    # points = points[points!=[0,0]]
+    upperBound = np.max(points)
+    lowerBound = np.min(points)
+    corners = np.array([[lowerBound,lowerBound],[lowerBound,upperBound],[upperBound,upperBound],[upperBound,lowerBound]])
+    mask = np.all(points[:,None]!=corners,axis=2).all(axis=1)
+    mask = ~np.any((points[:, None] == corners).all(axis=2), axis=1)
+    points = points[mask]
+
+    # edgePoints = points[points[:,0]==lowerBound or points[:,0]==upperBound or points[:,1]==lowerBound or points[:,1]==upperBound]
+    edgePoints = points[(points[:, 0] == lowerBound) | (points[:, 0] == upperBound) |
+            (points[:, 1] == lowerBound) | (points[:, 1] == upperBound)]
+    
+    
+        
+    distances = np.linalg.norm(edgePoints - verticies[vertexIndex]['point'],axis=1)
+    return edgePoints[np.argmin(distances)]
+
+def find_possible_edge_vertex(prob_list,i,j):
+    celliprob = prob_list[i]
+    celljprob = prob_list[j]
+    cellAssignment = np.where(celliprob < celljprob,0,1).reshape(params.numTestPoints,params.numTestPoints)
+
+    contour,_ = cv2.findContours(cellAssignment.astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    pixelDist = params.bounds[0]/params.numTestPoints
+
+    points = contour[0].squeeze()*pixelDist
+    for i in range(1,len(contour)):
+        con = contour[i]
+        points = np.vstack((points,con.squeeze()*pixelDist))
+        # points = points.con.squeeze()*pixelDist
+
+    # points = contour[-1].squeeze()*pixelDist
+    # points = points[points!=[0,0]]
+    upperBound = np.max(points)
+    lowerBound = np.min(points)
+    corners = np.array([[lowerBound,lowerBound],[lowerBound,upperBound],[upperBound,upperBound],[upperBound,lowerBound]])
+    mask = np.all(points[:,None]!=corners,axis=2).all(axis=1)
+    mask = ~np.any((points[:, None] == corners).all(axis=2), axis=1)
+    points = points[mask]
+    
+
+    # edgePoints = points[points[:,0]==lowerBound or points[:,0]==upperBound or points[:,1]==lowerBound or points[:,1]==upperBound]
+    edgePoints = points[(points[:, 0] == lowerBound) | (points[:, 0] == upperBound) |
+            (points[:, 1] == lowerBound) | (points[:, 1] == upperBound)]
+    # ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),cellAssignment)
+    
+    return edgePoints
+    
+
+def find_generalized_voronoi_edge_verticies(prob_list, exteriorPoints,verticies,points):
     currentVertex = len(verticies)
+
+    interoirRidges = []
+    
     for i in range(len(verticies)):
-        # print(i,verticies[i]['neighbors'])
+        for j in range(i+1,len(verticies)):
+            if i != j:
+                commonNeighbors = np.intersect1d(verticies[i]['neighbors'],verticies[j]['neighbors'])
+                if len(commonNeighbors) == 2:
+                    interoirRidges.append(commonNeighbors)
+
+    center = np.mean(points,axis=0)
+
+
+    for i in range(len(verticies)):
         intersection = np.intersect1d(verticies[i]['neighbors'],exteriorPoints)
         if len(intersection) ==2:
-            celliprob = prob_list[intersection[0]]
-            celljprob = prob_list[intersection[1]]
-            cellAssignment = np.where(celliprob < celljprob,0,1).reshape(params.numTestPoints,params.numTestPoints)
-
-            contour,_ = cv2.findContours(cellAssignment.astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            pixelDist = params.bounds[0]/params.numTestPoints
-            points = contour[-1].squeeze()*pixelDist
-            # points = points[points!=[0,0]]
-            upperBound = np.max(points)
-            lowerBound = np.min(points)
-            corners = np.array([[lowerBound,lowerBound],[lowerBound,upperBound],[upperBound,upperBound],[upperBound,lowerBound]])
-            mask = np.all(points[:,None]!=corners,axis=2).all(axis=1)
-            mask = ~np.any((points[:, None] == corners).all(axis=2), axis=1)
-            points = points[mask]
-
-            # edgePoints = points[points[:,0]==lowerBound or points[:,0]==upperBound or points[:,1]==lowerBound or points[:,1]==upperBound]
-            edgePoints = points[(points[:, 0] == lowerBound) | (points[:, 0] == upperBound) |
-                    (points[:, 1] == lowerBound) | (points[:, 1] == upperBound)]
-                
-            distances = np.linalg.norm(edgePoints - verticies[i]['point'],axis=1)
-            vertex = edgePoints[np.argmin(distances)]
+            vertex = find_edge_vertex(prob_list,intersection[0],intersection[1],verticies,i)
 
             # fig,ax = plt.subplots()
             # ax.plot(points[:,0],points[:,1])
             # ax.scatter(verticies[i]['point'][0],verticies[i]['point'][1],marker='*',color='r')
             # ax.scatter(vertex[0],vertex[1],marker='*',color='r')
             # plt.show()
-            verticies[currentVertex] = {"neighbors":intersection,"point":vertex}
+            verticies[currentVertex] = {"neighbors":intersection,"point":vertex,"edge":True}
             currentVertex += 1
+        if len(intersection) == 3:
+            for k in range(len(intersection)):
+                for l in range(k+1,len(intersection)):
+                    for ridge in interoirRidges:
+                        if len(np.intersect1d(ridge,[intersection[k],intersection[l]])) != 2:
+                            
+                            tangent = points[intersection[k]] - points[intersection[l]]
+                            tangent = tangent/np.linalg.norm(tangent)
+                            normal = np.array([-tangent[1],tangent[0]])
+                            midpoint = (points[intersection[k]] + points[intersection[l]])/2
+                            direction = np.sign(np.dot(midpoint - center,normal))*normal
+                            
+                            possibleVerticies = find_possible_edge_vertex(prob_list,intersection[k],intersection[l])
+                            vertexVectors = possibleVerticies - verticies[i]['point']
+                            vertexVectors = vertexVectors/np.linalg.norm(vertexVectors,axis=1)[:,None]
 
-            
-            
+                            # errors = np.linalg.norm(direction - np.dot(vertexVectors,direction)[:,None]*vertexVectors,axis=1)
+                            # smallestErrorIndex = np.argmin(errors)
+                            dotProducts = np.dot(vertexVectors,direction)
+                            closestVectorIndex = np.argmax(dotProducts)
+                            
+                            vertex = possibleVerticies[closestVectorIndex]
+                            # vertex = possibleVerticies[np.argmin(np.linalg.norm(possibleVerticies - verticies[i]['point'],axis=1))]
+                            verticies[currentVertex] = {"neighbors":[intersection[k],intersection[l]],"point":vertex,"edge":True}
+                            currentVertex += 1
+        #     vertex = find_edge_vertex(prob_list,intersection[0],intersection[1],verticies,i)
+        # elif len(intersection) == 3:
+                    
             
 
-            
-            
-            
+    return verticies
 
+def find_boundary_segments(verticies):
+    boundarySegments = {}
 
-            
-            
-
-            
-
+    edgeVerticies = np.array([verticies[vertex]["point"] for vertex in verticies if verticies[vertex]['edge']])
+    edgeVerticiesIndicies = np.array([vertex for vertex in verticies if verticies[vertex]['edge']])
 
     
-    return verticies
+    print("Edge Verticies",edgeVerticies[edgeVerticies[:,0]==0])
+    print("Edge Verticies Indicies",edgeVerticiesIndicies)
+    
+    return None
                     
 
 
 
 
 
+            # t = vor.points[pointidx[1]] - vor.points[pointidx[0]]  # tangent
+            # t /= np.linalg.norm(t)
+            # n = np.array([-t[1], t[0]])  # normal
 
-    
-    
+            # midpoint = vor.points[pointidx].mean(axis=0)
+            # direction = np.sign(np.dot(midpoint - center, n)) * n
     
     
     
     
 
-if __name__ == '__main__':
-    # points = np.array([[1,1],[2,2]])
-    # weights = np.array([1,2])
-    # fig, ax = plt.subplots()
-    # ax.set_aspect('equal')
+def main():
     radarList = tuple(create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm))
 
-    # ground_truth_radar_voronoi(params.X_test,radarList,ax)
-
-    # plt.show()
-
-    
-    ### safe corridors
-    # for i in range(1,1358,1):
-    #     paramNum = i
-    #     radarParams = np.load("saved_data/seed_91212_good/estimated_params/"+str(paramNum) + ".npy")
-    #     radarParamsCov = np.load("saved_data/seed_91212_good/estimated_params_cov/"+str(paramNum) + ".npy")
 
 
-    #     startTime = time()
-    #     if len(radarParams) > 0:
-    #         safe_corridor = safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGainPriorMean,params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean,params.radarProbabilityOfFalseAlarmPriorVariance)
-
-    #         fig, ax = plt.subplots()
-    #         ax.set_aspect('equal')
-    #         c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),safe_corridor.reshape(params.numTestPoints,params.numTestPoints))
-    #         ax.set_title("Estimated Safe Corridor for params: " + str(paramNum))
-    #         plt.colorbar(c,ax=ax)
-    #         plt.savefig("saved_data/seed_91212_good/safe_corridor_vid/"+str(paramNum)+".png")
-    #         plt.close()
-
-    radarParams = np.load("saved_data/currentData/estimated_params/639.npy")
-    radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/639.npy")
-    # radarParams = np.load("saved_data/currentData/estimated_params/168.npy")
-    # radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/168.npy")
-    # safe_corridor = safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGain,params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean,params.radarProbabilityOfFalseAlarmPriorVariance)
-    # fig, ax = plt.subplots()
-    # ax.set_aspect('equal')
-    # c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),safe_corridor.reshape(params.numTestPoints,params.numTestPoints))
-    # ax.set_title("Estimated Safe Corridor for params: " + str(1000))
-    # plt.colorbar(c,ax=ax)
-
-
-    # fig3, ax3 = plt.subplots()
-    # ax3.set_aspect('equal')
-    # ground_truth_safe_corridors(params.X_test, params.probabilityOfDetectionThreshold, radarList, ax3)
-
-    
-    # fig2, ax2 = plt.subplots()
-    # ax2.set_aspect('equal')
-    # # Z_upper = weighted_voronoi_uncertain_radar_grid_method(params.X_test,radarParams,radarParamsCov,useUpperBound=True)
-    # labels = np.arange(0,len(radarParams))
-    # levels = np.linspace(-1,len(radarParams)+1,len(radarParams)+3)
-    # ax2.contourf(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints),levels=levels)
-    # # ax2.contour(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z_upper.reshape(params.numTestPoints,params.numTestPoints),levels=levels,cmap = 'tab20')
-    # ax2.scatter(radarParams[:,0],radarParams[:,1],marker='*',color='r')
-    # for lab in labels:
-    #     ax2.text(radarParams[lab,0],radarParams[lab,1],str(lab))
-    # levels = [0,params.thresholdConfidence,1]
-    # c = ax2.contourf(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),safe_corridor.reshape(params.numTestPoints,params.numTestPoints),levels=levels)
-    # c = ax2.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),safe_corridor.reshape(params.numTestPoints,params.numTestPoints))
-    # fig2.colorbar(c,ax=ax2)
-
-
-    
-    # ax2.set_aspect('equal')
-    # ax2.set_xlim([0,params.bounds[0]])
-    # ax2.set_ylim([0,params.bounds[1]])
-    # radarlist = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
-    # compute_path_weighted_voronoi(radarList, plot=True, ax=ax2)
-    
-    
-    
+    # dataIndex = 639
+    dataIndex = 200
+    # radarParams = np.load("saved_data/currentData/estimated_params/639.npy")
+    # radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/639.npy")
+    radarParams = np.load("saved_data/currentData/estimated_params/"+str(dataIndex)+".npy")
+    radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/"+str(dataIndex)+".npy")
     # new generailzed voronoi
     fig, ax = plt.subplots()
     points = radarParams[:,0:2]
     vor = Voronoi(points[:, 0:2])
 
     prob_list = create_probability_of_detection_below_threshold_grid_list(params.X_test,radarParams,radarParamsCov)
-    # Z = weighted_voronoi_uncertain_radar_grid_method(params.X_test,prob_list,radarParams,radarParamsCov,useUpperBound=False,ax=ax)
+    Z = weighted_voronoi_uncertain_radar_grid_method(params.X_test,prob_list,radarParams,radarParamsCov,useUpperBound=False,ax=ax)
 
     closestNeighborTriples = get_closest_neighbor_triplets(vor)
 
     verticies = find_generalized_voronoi_verticies(prob_list,closestNeighborTriples)
     exteriorPoints = find_exterior_points(vor)
-    verticies = find_generalized_voronoi_edge_verticies_and_ridges(prob_list, exteriorPoints, verticies)
+    # print("Exterior Points",exteriorPoints)
+    verticies = find_generalized_voronoi_edge_verticies(prob_list, exteriorPoints, verticies,points)
+    # print("Verticies",verticies)
     ridges = find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsCov,ax=ax)
+    # boundarySegments = find_boundary_segments(verticies)
 
 
         
@@ -676,12 +737,14 @@ if __name__ == '__main__':
         vertex = verticies[i]
         point = vertex['point']
         ax.scatter(point[0],point[1],marker='*',color='g')
-        ax.text(point[0],point[1],str(i),c='g')
+        ax.text(point[0],point[1],str(vertex["neighbors"]),c='g')
     
     
 
     vor = Voronoi(radarParams[:,0:2])
     # voronoi_plot_2d(vor,ax=ax,show_vertices=False)
+    ax.set_xlim([0,params.bounds[0]])
+    ax.set_ylim([0,params.bounds[1]])
 
     # for i,point in enumerate(vor.vertices):
     #     ax.text(point[0],point[1],str(i))
@@ -695,6 +758,8 @@ if __name__ == '__main__':
     
     
 
+if __name__ == "__main__":
+    main()
     
 
     
