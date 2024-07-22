@@ -68,6 +68,7 @@ class HighPriorityPathPlannerDeterministic:
         print("Time to compile jax functions", time.time()-start)
 
         self.useWeightedVoronoi = True
+        self.uncertainRadar = True
 
         
     
@@ -843,10 +844,12 @@ class HighPriorityPathPlannerDeterministic:
             path = np.array([nodes[node] for node in path[0]])
             path = self.fill_in_path(path)
 ######################
-
         else:
-            print(type(radarList))
-            path = compute_path_weighted_voronoi(radarList,plot,ax)
+            if not self.uncertainRadar:
+                print(type(radarList))
+                path = compute_path_weighted_voronoi(radarList,plot,ax)
+            else:
+                path = compute_path_weighted_voronoi_uncertain(radarList,plot,ax)
         
         
         
