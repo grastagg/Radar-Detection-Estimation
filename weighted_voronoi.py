@@ -471,7 +471,7 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
     # ax.plot(pointsInRange[:,0],pointsInRange[:,1])
     # plt.show()
 
-    splineControlPoints,splineKnotPoints = fit_spline_to_path(pointsInRange, 10, 3,vertex1,vertex2)
+    splineControlPoints,splineKnotPoints = fit_spline_to_path(pointsInRange, 15, 3,vertex1,vertex2)
     return splineControlPoints,splineKnotPoints,pointsInRange 
 
 # def find_ridge_line_from_points(points,vertex1,vertex2,radarPositioni):
@@ -505,12 +505,6 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
             if i != j:
                 commonNeighbors = np.intersect1d(verticies[i]['neighbors'],verticies[j]['neighbors'])
                 if len(commonNeighbors) == 2:
-                    print("verticies[i]",verticies[i]['neighbors'])
-                    print("verticies[j]",verticies[i]['point'])
-                    print("verticies[j]",verticies[j]['neighbors'])
-                    print("verticies[j]",verticies[j]['point'])
-                    print("commonNeighbors",commonNeighbors)
-
                     ridgeLineControlPoints,ridgeLineKnotPoints,points = find_ridge_line(prob_list,commonNeighbors,verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants)
                     ridges[(i,j)] = {"control_points":ridgeLineControlPoints,"knot_points":ridgeLineKnotPoints}
                     if ax is not None:
@@ -673,14 +667,61 @@ def find_generalized_voronoi_edge_verticies(prob_list, exteriorPoints,verticies,
     return verticies
 
 def find_boundary_segments(verticies):
+    verticies[len(verticies)] = {"point":[0,0],"edge":True,"neighbors":[],"type":"start"}
+    verticies[len(verticies)] = {"point":[params.bounds[0],0],"edge":True,"neighbors":[]}
+    verticies[len(verticies)] = {"point":[0,params.bounds[1]],"edge":True,"neighbors":[]}
+    verticies[len(verticies)] = {"point":[params.bounds[0],params.bounds[1]],"edge":True,"neighbors":[],"type":"end"}
+
     boundarySegments = {}
 
     edgeVerticies = np.array([verticies[vertex]["point"] for vertex in verticies if verticies[vertex]['edge']])
+    print("Edge Verticies",edgeVerticies)
     edgeVerticiesIndicies = np.array([vertex for vertex in verticies if verticies[vertex]['edge']])
 
+    # leftEdgeVertexIndicies = np.argsort(edgeVerticies[np.where(np.isclose(edgeVerticies[:,0],0,atol=50))[0]],axis=0)
+    leftEdgeVertexIndicies = np.where(np.isclose(edgeVerticies[:,0],0,atol=50))[0]
+    sortedLeftEdgeVertexIndicies = leftEdgeVertexIndicies[np.argsort(edgeVerticies[leftEdgeVertexIndicies][:,1])]
+    rightEdgeVertexIndicies = np.where(np.isclose(edgeVerticies[:,0],params.bounds[0],atol=50))[0]
+    sortedRightEdgeVertexIndicies = rightEdgeVertexIndicies[np.argsort(edgeVerticies[rightEdgeVertexIndicies][:,1])]
+    topEdgeVertexIndicies = np.where(np.isclose(edgeVerticies[:,1],params.bounds[1],atol=50))[0]
+    sortedTopEdgeVertexIndicies = topEdgeVertexIndicies[np.argsort(edgeVerticies[topEdgeVertexIndicies][:,0])]
+    bottomEdgeVertexIndicies = np.where(np.isclose(edgeVerticies[:,1],0,atol=50))[0]
+    sortedBottomEdgeVertexIndicies = bottomEdgeVertexIndicies[np.argsort(edgeVerticies[bottomEdgeVertexIndicies][:,0])]
     
-    print("Edge Verticies",edgeVerticies[edgeVerticies[:,0]==0])
-    print("Edge Verticies Indicies",edgeVerticiesIndicies)
+    print("left",leftEdgeVertexIndicies)
+    print("left sorted",sortedLeftEdgeVertexIndicies)
+
+    
+    # for index in sortedLeftEdgeVertexIndicies:
+    for i in range(len(sortedLeftEdgeVertexIndicies)-1):
+        index = sortedLeftEdgeVertexIndicies[i]
+        boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedLeftEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedLeftEdgeVertexIndicies[i+1]]])
+    for i in range(len(sortedRightEdgeVertexIndicies)-1):
+        index = sortedRightEdgeVertexIndicies[i]
+        boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedRightEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedRightEdgeVertexIndicies[i+1]]])
+    for i in range(len(sortedTopEdgeVertexIndicies)-1):
+        index = sortedTopEdgeVertexIndicies[i]
+        boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedTopEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedTopEdgeVertexIndicies[i+1]]])
+    for i in range(len(sortedBottomEdgeVertexIndicies)-1):
+        index = sortedBottomEdgeVertexIndicies[i]
+        boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedBottomEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedBottomEdgeVertexIndicies[i+1]]])
+    
+    
+    
+    return boundarySegments
+
+    
+    
+    # print("Edge Verticies",edgeVerticies)
+    # print("Edge Verticies Indicies",edgeVerticiesIndicies)
+
+    # print("right verticies", edgeVerticies[rightEdgeVertexIndicies])
+    # print("left verticies", edgeVerticies[leftEdgeVertexIndicies])
+    # print("top verticies", edgeVerticies[topEdgeVertexIndicies])
+    # print("bottom verticies", edgeVerticies[bottomEdgeVertexIndicies])
+    
+
+    
     
     return None
                     
@@ -697,6 +738,18 @@ def find_boundary_segments(verticies):
             # direction = np.sign(np.dot(midpoint - center, n)) * n
     
     
+def plot_generalized_voronoi(verticies,ridges,boundarySegments,ax):
+    for ridge in ridges:
+        controlPoints = ridges[ridge]["control_points"]
+        knotPoints = ridges[ridge]["knot_points"]
+        spline = interpolate.BSpline(knotPoints,controlPoints,3)
+        plot_spline(spline,ax)
+    for vertex in verticies:
+        ax.scatter(verticies[vertex]["point"][0],verticies[vertex]["point"][1],marker='*',color='r')
+    for segment in boundarySegments:
+        print("Segment",boundarySegments[segment])
+        ax.plot(boundarySegments[segment][:,0],boundarySegments[segment][:,1])
+
     
     
 
@@ -712,12 +765,11 @@ def main():
     radarParams = np.load("saved_data/currentData/estimated_params/"+str(dataIndex)+".npy")
     radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/"+str(dataIndex)+".npy")
     # new generailzed voronoi
-    fig, ax = plt.subplots()
     points = radarParams[:,0:2]
     vor = Voronoi(points[:, 0:2])
 
     prob_list = create_probability_of_detection_below_threshold_grid_list(params.X_test,radarParams,radarParamsCov)
-    Z = weighted_voronoi_uncertain_radar_grid_method(params.X_test,prob_list,radarParams,radarParamsCov,useUpperBound=False,ax=ax)
+    # Z = weighted_voronoi_uncertain_radar_grid_method(params.X_test,prob_list,radarParams,radarParamsCov,useUpperBound=False,ax=ax)
 
     closestNeighborTriples = get_closest_neighbor_triplets(vor)
 
@@ -726,8 +778,13 @@ def main():
     # print("Exterior Points",exteriorPoints)
     verticies = find_generalized_voronoi_edge_verticies(prob_list, exteriorPoints, verticies,points)
     # print("Verticies",verticies)
-    ridges = find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsCov,ax=ax)
-    # boundarySegments = find_boundary_segments(verticies)
+    ridges = find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsCov,ax=None)
+    boundarySegments = find_boundary_segments(verticies)
+
+    fig, ax = plt.subplots()
+    plot_generalized_voronoi(verticies,ridges,boundarySegments,ax)
+    
+
 
 
         
@@ -737,14 +794,15 @@ def main():
         vertex = verticies[i]
         point = vertex['point']
         ax.scatter(point[0],point[1],marker='*',color='g')
-        ax.text(point[0],point[1],str(vertex["neighbors"]),c='g')
+        # ax.text(point[0],point[1],str(vertex["neighbors"]),c='g')
+        ax.text(point[0],point[1],str(i),c='g')
     
     
 
     vor = Voronoi(radarParams[:,0:2])
     # voronoi_plot_2d(vor,ax=ax,show_vertices=False)
-    ax.set_xlim([0,params.bounds[0]])
-    ax.set_ylim([0,params.bounds[1]])
+    ax.set_xlim([-1000,params.bounds[0]+1000])
+    ax.set_ylim([-1000,params.bounds[1]+1000])
 
     # for i,point in enumerate(vor.vertices):
     #     ax.text(point[0],point[1],str(i))
