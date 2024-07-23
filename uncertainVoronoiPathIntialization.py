@@ -20,6 +20,7 @@ from scipy import interpolate
 from scipy.interpolate import splrep
 
 import igraph
+import highPriorityHelperFunctions
 
 def get_weighted_distance(p,x,weight):
     return np.linalg.norm(p-x)/weight
@@ -387,6 +388,7 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
         radarPositioni = radarParams[i,0:2]
     celliprob = prob_list[i]
     celljprob = prob_list[j]
+
     cellAssignment = np.where(celliprob < celljprob,0,1).reshape(params.numTestPoints,params.numTestPoints)
     
 
@@ -430,7 +432,13 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
                 commonNeighbors = np.intersect1d(verticies[i]['neighbors'],verticies[j]['neighbors'])
                 if len(commonNeighbors) == 2:
                     ridgeLineControlPoints,ridgeLineKnotPoints,points = find_ridge_line(prob_list,commonNeighbors,verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants)
-                    ridges[(i,j)] = {"control_points":ridgeLineControlPoints,"knot_points":ridgeLineKnotPoints}
+                    # probPDLessThanThreshold = safe_corridors_uncertain_radar(points,params.probabilityOfDetectionThreshold,params.thresholdConfidence,radarParams,radarParamsCov, params.radarRecieveGain,params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean,params.radarProbabilityOfFalseAlarmPriorVariance)
+                    probPDLessThanThreshold = highPriorityHelperFunctions.get_prob_pd_less_than_threshold(points, radarParams, radarParamsCov, params.probabilityOfDetectionThreshold, params.radarRecieveGain,0,params.radarWavelength, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance,params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
+                    minProb = np.min(probPDLessThanThreshold)
+                    print("min Prob",minProb)
+                    if minProb > params.thresholdConfidence:
+                        ridges[(i,j)] = {"control_points":ridgeLineControlPoints,"knot_points":ridgeLineKnotPoints}
+                        
                     if ax is not None:
                         spline = interpolate.BSpline(ridgeLineKnotPoints,ridgeLineControlPoints,3)
                         plot_spline(spline,ax)
@@ -720,8 +728,14 @@ def main():
     radarParams = np.load("saved_data/currentData/estimated_params/"+str(dataIndex)+".npy")
     radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/"+str(dataIndex)+".npy")
 
+    Z = safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold,params.thresholdConfidence,radarParams,radarParamsCov, params.radarRecieveGain,params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean,params.radarProbabilityOfFalseAlarmPriorVariance)
+    Z = Z > params.thresholdConfidence
+
+
     
     fig, ax = plt.subplots()
+    c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints))
+    fig.colorbar(c, ax=ax)
 
     pathPoints = find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,100,ax=ax)
 

@@ -132,6 +132,7 @@ def normcdf(x, mu, sigma):
 #     # probPdLessThanThreshold = normcdf(pdThreshold, pdMean, jnp.sqrt(pdCov))
 #     return probPdLessThanThreshold
 
+@jit
 def get_prob_pd_less_than_threshold(X_test, estimatedRadarParams, estimatedRadarParamsCov,pdThreshold,radarRecieveGain,radarRecieveGainVar, radarWavelength,radarWavelengthVar, agentRadarCrossSection, radarPulseWidth,radarPulseWidthVar, radarSystemTemperature,radarSystemTemperatureVar, radarProbabilityOfFalseAlarm,radarProbabilityOfFalseAlarmVar):
     
     pdMean,pdCov = compute_probability_of_detection_at_points_multiple_radar(X_test, estimatedRadarParams, estimatedRadarParamsCov, radarRecieveGain,radarRecieveGainVar, radarWavelength,radarWavelengthVar, agentRadarCrossSection, radarPulseWidth,radarPulseWidthVar, radarSystemTemperature,radarSystemTemperatureVar, radarProbabilityOfFalseAlarm,radarProbabilityOfFalseAlarmVar)
