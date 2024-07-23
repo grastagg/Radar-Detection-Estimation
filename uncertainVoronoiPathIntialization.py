@@ -5,6 +5,7 @@ from time import time
 from jax import jit
 from scipy.constants import k as boltzman
 from scipy.spatial import Voronoi, voronoi_plot_2d
+import scipy
 
 from main_helper import create_radar_list
 import params
@@ -123,10 +124,15 @@ def chance_constraint(self,threshold, thresholdConfidence, mean, var):
 def safe_corridors_uncertain_radar(X_test,pdThreshold, likleyhoodThreshold, estimatedRadarParams, estimatedRadarParamsCov,radarRecieveGain,radarRecieveGainVar, radarWavelength,radarWavelengthVar, agentRadarCrossSection, radarPulseWidth,radarPulseWidthVar, radarSystemTemperature,radarSystemTemperatureVar, radarProbabilityOfFalseAlarm,radarProbabilityOfFalseAlarmVar):
     
     pdMean,pdCov = compute_probability_of_detection_at_points_multiple_radar(X_test, estimatedRadarParams, estimatedRadarParamsCov, radarRecieveGain,radarRecieveGainVar, radarWavelength,radarWavelengthVar, agentRadarCrossSection, radarPulseWidth,radarPulseWidthVar, radarSystemTemperature,radarSystemTemperatureVar, radarProbabilityOfFalseAlarm,radarProbabilityOfFalseAlarmVar)
+    # print("test pd cov", pdCov)
 
     pdSigma = np.sqrt(pdCov)
     
-    probabilityPdLessThanThreshold = normcdf(pdThreshold,pdMean,pdSigma)
+    
+    # probabilityPdLessThanThreshold = normcdf(pdThreshold,pdMean,pdSigma)
+    probabilityPdLessThanThreshold = scipy.stats.norm.cdf(pdThreshold,pdMean,pdSigma)
+
+
     # return probabilityPdLessThanThreshold > likleyhoodThreshold
     return probabilityPdLessThanThreshold
     # return pdMean > pdThreshold
@@ -236,7 +242,7 @@ def find_generalized_voronoi_verticies(prob_list,closetNeighborTriples):
         sumDiff = diffij + diffik + diffjk
         ind = np.argmin(sumDiff)
         x,y = indecies_to_xy(ind)
-        verticies[index] = {"neighbors":neighbors,"point":(x,y),"edge":False}
+        verticies[index] = {"neighbors":neighbors,"point":np.array([x,y]),"edge":False}
                 
     return verticies
 import numpy as np
@@ -401,7 +407,7 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
     pointsInRange = np.append(pointsInRange, vertex2).reshape(-1,2)
     pointsInRange = sort_points(pointsInRange, radarPositioni)
 
-    splineControlPoints,splineKnotPoints = fit_spline_to_path(pointsInRange, 15, 3,vertex1,vertex2)
+    splineControlPoints,splineKnotPoints = fit_spline_to_path(pointsInRange, 10, 3,vertex1,vertex2)
     return splineControlPoints,splineKnotPoints,pointsInRange 
 
     
@@ -412,6 +418,7 @@ def plot_spline(spline,ax):
     t = np.linspace(0, tf, 1000)
     pos = spline(t)
     ax.plot(pos[:,0], pos[:,1])
+    # ax.scatter(controlPoints[:,0],controlPoints[:,1],color='r')
 
 def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsCov,ax = None):
     radarParamsCovDeterminants = [np.linalg.det(cov) for cov in radarParamsCov]
@@ -540,11 +547,11 @@ def find_generalized_voronoi_edge_verticies(prob_list, exteriorPoints,verticies,
 
 def find_boundary_segments(verticies):
     startVertexIndex = len(verticies)
-    verticies[len(verticies)] = {"point":[0,0],"edge":True,"neighbors":[],"type":"start"}
-    verticies[len(verticies)] = {"point":[params.bounds[0],0],"edge":True,"neighbors":[]}
-    verticies[len(verticies)] = {"point":[0,params.bounds[1]],"edge":True,"neighbors":[]}
+    verticies[len(verticies)] = {"point":np.array([0,0]),"edge":True,"neighbors":[],"type":"start"}
+    verticies[len(verticies)] = {"point":np.array([params.bounds[0],0]),"edge":True,"neighbors":[]}
+    verticies[len(verticies)] = {"point":np.array([0,params.bounds[1]]),"edge":True,"neighbors":[]}
     endVertexIndex = len(verticies)
-    verticies[len(verticies)] = {"point":[params.bounds[0],params.bounds[1]],"edge":True,"neighbors":[],"type":"end"}
+    verticies[len(verticies)] = {"point":np.array([params.bounds[0],params.bounds[1]]),"edge":True,"neighbors":[],"type":"end"}
 
     boundarySegments = {}
 
@@ -630,8 +637,6 @@ def create_adjacency_matrix_from_ridges_and_boundary(ridges,boundarySegments,ver
         adjacencyMatrix[j,i] = splineDistance
     
     for segment in boundarySegments.keys():
-        print("Boundary Segment",segment)
-        print("Boundary Segment Points",boundarySegments[segment])
         i,j = segment
         distance = np.linalg.norm(boundarySegments[segment][0] - boundarySegments[segment][1])
         adjacencyMatrix[i,j] = distance
@@ -639,11 +644,67 @@ def create_adjacency_matrix_from_ridges_and_boundary(ridges,boundarySegments,ver
     
     return adjacencyMatrix
 
-def create_graph_and_find_shortest_path(adejacenyMatrix,nodes):
+def create_graph_and_find_shortest_path(adejacenyMatrix,startIndex,endIndex):
     g = igraph.Graph.Weighted_Adjacency(adejacenyMatrix.tolist(),mode=igraph.ADJ_UNDIRECTED,attr="weight")
-    path = g.get_shortest_paths(0,to=len(nodes)-1,weights=g.es["weight"])
+    path = g.get_shortest_paths(startIndex,to=endIndex,weights=g.es["weight"])
 
-    return path
+    return path[0]
+
+def path_to_points(path,ridges,boundarySegments,verticies,spacing):
+
+    pointsCombined = []
+
+    previousPoint = verticies[path[0]]['point']
+
+    for i in range(len(path)-1):
+        ridgeVertex = (path[i],path[i+1])
+        flippedRidgeVertex = (path[i+1],path[i])
+        numPoints = int(np.linalg.norm(verticies[path[i]]['point'] - verticies[path[i+1]]['point'])/spacing)
+        if ridgeVertex in ridges.keys():
+            spline = interpolate.BSpline(ridges[ridgeVertex]["knot_points"],ridges[ridgeVertex]["control_points"],3)
+            points = spline(np.linspace(0,1,numPoints))
+        elif ridgeVertex in boundarySegments.keys():
+            points = np.linspace(verticies[path[i]]['point'],verticies[path[i+1]]['point'],numPoints)
+        elif flippedRidgeVertex in ridges.keys():
+            spline = interpolate.BSpline(ridges[flippedRidgeVertex]["knot_points"],ridges[flippedRidgeVertex]["control_points"],3)
+            points = spline(np.linspace(0,1,numPoints))
+        elif flippedRidgeVertex in boundarySegments.keys():
+            points = np.linspace(verticies[path[i+1]]['point'],verticies[path[i]]['point'],numPoints)
+        
+        previousPointIndex = np.argmin(np.linalg.norm(points - previousPoint,axis=1))
+        if previousPointIndex != 0:
+            points = np.flip(points,axis=0)
+        previousPoint = points[-1]
+        # print("Points",points)
+
+        # fig, ax = plt.subplots()
+        # ax.plot(points[:,0],points[:,1])
+        # ax.scatter(verticies[path[i]]['point'][0],verticies[path[i]]['point'][1],marker='*',color='r')
+        # ax.scatter(verticies[path[i+1]]['point'][0],verticies[path[i+1]]['point'][1],marker='*',color='r')
+        # plt.show()
+        pointsCombined.append(points)
+    
+    
+    return np.vstack(pointsCombined)
+
+def find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing,ax=None):
+    start = time()
+    verticies,ridges,boundarySegments,startVertexIndex,endVertexIndex = find_generalized_voronoi(radarParams,radarParamsCov)
+    print("Time",time()-start)
+
+    adjecencyMatrix = create_adjacency_matrix_from_ridges_and_boundary(ridges,boundarySegments,verticies)
+    path = create_graph_and_find_shortest_path(adjecencyMatrix,startVertexIndex,endVertexIndex)
+
+    pathPoints = path_to_points(path,ridges,boundarySegments,verticies,spacing)
+
+    if ax is not None:
+        plot_generalized_voronoi(verticies,ridges,boundarySegments,ax)
+        ax.plot(pathPoints[:,0],pathPoints[:,1],color='k')
+    
+
+    return pathPoints
+    
+
         
     
     
@@ -659,14 +720,13 @@ def main():
     radarParams = np.load("saved_data/currentData/estimated_params/"+str(dataIndex)+".npy")
     radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/"+str(dataIndex)+".npy")
 
-    start = time()
-    verticies,ridges,boundarySegments,startVertexIndex,endVertexIndex = find_generalized_voronoi(radarParams,radarParamsCov)
-    print("Time",time()-start)
-
-    create_adjacency_matrix_from_ridges_and_boundary(ridges,boundarySegments,verticies)
-
+    
     fig, ax = plt.subplots()
-    plot_generalized_voronoi(verticies,ridges,boundarySegments,ax)
+
+    pathPoints = find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,100,ax=ax)
+
+
+
     
 
 
@@ -674,27 +734,12 @@ def main():
         
     
     ax.set_aspect('equal')
-    for i in range(len(verticies)):
-        vertex = verticies[i]
-        point = vertex['point']
-        ax.scatter(point[0],point[1],marker='*',color='g')
-        # ax.text(point[0],point[1],str(vertex["neighbors"]),c='g')
-        ax.text(point[0],point[1],str(i),c='g')
     
     
 
-    vor = Voronoi(radarParams[:,0:2])
-    # voronoi_plot_2d(vor,ax=ax,show_vertices=False)
     ax.set_xlim([-1000,params.bounds[0]+1000])
     ax.set_ylim([-1000,params.bounds[1]+1000])
 
-    # for i,point in enumerate(vor.vertices):
-    #     ax.text(point[0],point[1],str(i))
-
-    for i in range(len(vor.points)):
-        point = vor.points[i]
-        ax.text(point[0],point[1],str(i))
-        ax.scatter(point[0],point[1])
 
     plt.show()
     
