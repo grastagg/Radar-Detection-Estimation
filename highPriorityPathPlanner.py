@@ -74,7 +74,7 @@ class HighPriorityPathPlannerDeterministic:
         print("Time to compile jax functions", time.time()-start)
 
         self.useWeightedVoronoi = True
-        self.uncertainRadar = False
+        self.uncertainRadar =True 
 
         
     

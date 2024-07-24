@@ -414,12 +414,12 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
 
     
     
-def plot_spline(spline,ax):
+def plot_spline(spline,ax,c='g'):
     controlPoints = spline.c
     tf = spline.t[-1-spline.k]
     t = np.linspace(0, tf, 1000)
     pos = spline(t)
-    ax.plot(pos[:,0], pos[:,1])
+    ax.plot(pos[:,0], pos[:,1],c=c)
     # ax.scatter(controlPoints[:,0],controlPoints[:,1],color='r')
 
 def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsCov,ax = None):
@@ -629,15 +629,16 @@ def find_generalized_voronoi(radarParams, radarParamsCov):
     
     
 def plot_generalized_voronoi(verticies,ridges,boundarySegments,ax):
+    c = 'g'
     for ridge in ridges:
         controlPoints = ridges[ridge]["control_points"]
         knotPoints = ridges[ridge]["knot_points"]
         spline = interpolate.BSpline(knotPoints,controlPoints,3)
-        plot_spline(spline,ax)
+        plot_spline(spline,ax,c)
     for vertex in verticies:
-        ax.scatter(verticies[vertex]["point"][0],verticies[vertex]["point"][1],marker='*',color='r')
+        ax.scatter(verticies[vertex]["point"][0],verticies[vertex]["point"][1],marker='*',color=c)
     for segment in boundarySegments:
-        ax.plot(boundarySegments[segment][:,0],boundarySegments[segment][:,1])
+        ax.plot(boundarySegments[segment][:,0],boundarySegments[segment][:,1],c=c)
 
 def integrate_spline(spline):
     numPoints = 100
@@ -722,7 +723,7 @@ def find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing,a
 
     if ax is not None:
         plot_generalized_voronoi(verticies,ridges,boundarySegments,ax)
-        ax.plot(pathPoints[:,0],pathPoints[:,1],color='k')
+        ax.plot(pathPoints[:,0],pathPoints[:,1],color='r')
     
 
     return pathPoints
