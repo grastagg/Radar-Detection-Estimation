@@ -432,10 +432,10 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
                 commonNeighbors = np.intersect1d(verticies[i]['neighbors'],verticies[j]['neighbors'])
                 if len(commonNeighbors) == 2:
                     ridgeLineControlPoints,ridgeLineKnotPoints,points = find_ridge_line(prob_list,commonNeighbors,verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants)
-                    # probPDLessThanThreshold = safe_corridors_uncertain_radar(points,params.probabilityOfDetectionThreshold,params.thresholdConfidence,radarParams,radarParamsCov, params.radarRecieveGain,params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean,params.radarProbabilityOfFalseAlarmPriorVariance)
-                    probPDLessThanThreshold = highPriorityHelperFunctions.get_prob_pd_less_than_threshold(points, radarParams, radarParamsCov, params.probabilityOfDetectionThreshold, params.radarRecieveGain,0,params.radarWavelength, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance,params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
+                    t = np.linspace(0,1,1000)
+                    splinePoints = scipy.interpolate.BSpline(ridgeLineKnotPoints,ridgeLineControlPoints,3)(t)
+                    probPDLessThanThreshold = highPriorityHelperFunctions.get_prob_pd_less_than_threshold(splinePoints, radarParams, radarParamsCov, params.probabilityOfDetectionThreshold, params.radarRecieveGain,0,params.radarWavelength, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance,params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
                     minProb = np.min(probPDLessThanThreshold)
-                    print("min Prob",minProb)
                     if minProb > params.thresholdConfidence:
                         ridges[(i,j)] = {"control_points":ridgeLineControlPoints,"knot_points":ridgeLineKnotPoints}
                         
@@ -553,7 +553,18 @@ def find_generalized_voronoi_edge_verticies(prob_list, exteriorPoints,verticies,
 
     return verticies
 
-def find_boundary_segments(verticies):
+def add_boundary_segment(boundarySegments, segment, vertex1,vertex2, radarParams, radarParamsCov):
+    points = np.linspace(segment[0],segment[1],100)
+    probPdLessThanThreshold = highPriorityHelperFunctions.get_prob_pd_less_than_threshold(points, radarParams, radarParamsCov, params.probabilityOfDetectionThreshold, params.radarRecieveGain,0,params.radarWavelength, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance,params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
+    minProb = np.min(probPdLessThanThreshold)
+    if minProb > params.thresholdConfidence:
+        boundarySegments[(vertex1,vertex2)] = segment
+    
+    return boundarySegments
+    
+    
+
+def find_boundary_segments(verticies,radarParams,radarParamsCov):
     startVertexIndex = len(verticies)
     verticies[len(verticies)] = {"point":np.array([0,0]),"edge":True,"neighbors":[],"type":"start"}
     verticies[len(verticies)] = {"point":np.array([params.bounds[0],0]),"edge":True,"neighbors":[]}
@@ -577,16 +588,20 @@ def find_boundary_segments(verticies):
     
     for i in range(len(sortedLeftEdgeVertexIndicies)-1):
         index = sortedLeftEdgeVertexIndicies[i]
-        boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedLeftEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedLeftEdgeVertexIndicies[i+1]]])
+        # boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedLeftEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedLeftEdgeVertexIndicies[i+1]]])
+        boundarySegments = add_boundary_segment(boundarySegments, np.array([edgeVerticies[index],edgeVerticies[sortedLeftEdgeVertexIndicies[i+1]]]), edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedLeftEdgeVertexIndicies[i+1]], radarParams, radarParamsCov)
     for i in range(len(sortedRightEdgeVertexIndicies)-1):
         index = sortedRightEdgeVertexIndicies[i]
-        boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedRightEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedRightEdgeVertexIndicies[i+1]]])
+        # boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedRightEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedRightEdgeVertexIndicies[i+1]]])
+        boundarySegments = add_boundary_segment(boundarySegments, np.array([edgeVerticies[index],edgeVerticies[sortedRightEdgeVertexIndicies[i+1]]]), edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedRightEdgeVertexIndicies[i+1]], radarParams, radarParamsCov)
     for i in range(len(sortedTopEdgeVertexIndicies)-1):
         index = sortedTopEdgeVertexIndicies[i]
-        boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedTopEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedTopEdgeVertexIndicies[i+1]]])
+        # boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedTopEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedTopEdgeVertexIndicies[i+1]]])
+        boundarySegments = add_boundary_segment(boundarySegments, np.array([edgeVerticies[index],edgeVerticies[sortedTopEdgeVertexIndicies[i+1]]]), edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedTopEdgeVertexIndicies[i+1]], radarParams, radarParamsCov)
     for i in range(len(sortedBottomEdgeVertexIndicies)-1):
         index = sortedBottomEdgeVertexIndicies[i]
-        boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedBottomEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedBottomEdgeVertexIndicies[i+1]]])
+        # boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedBottomEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedBottomEdgeVertexIndicies[i+1]]])
+        boundarySegments = add_boundary_segment(boundarySegments, np.array([edgeVerticies[index],edgeVerticies[sortedBottomEdgeVertexIndicies[i+1]]]), edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedBottomEdgeVertexIndicies[i+1]], radarParams, radarParamsCov)
         
     return boundarySegments,startVertexIndex,endVertexIndex
 
@@ -607,7 +622,7 @@ def find_generalized_voronoi(radarParams, radarParamsCov):
     verticies = find_generalized_voronoi_edge_verticies(prob_list, exteriorPoints, verticies,points)
     # print("Verticies",verticies)
     ridges = find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsCov,ax=None)
-    boundarySegments,startVertexIndex,endVertexIndex = find_boundary_segments(verticies)
+    boundarySegments,startVertexIndex,endVertexIndex = find_boundary_segments(verticies,radarParams,radarParamsCov)
 
     return verticies,ridges,boundarySegments,startVertexIndex,endVertexIndex
     
