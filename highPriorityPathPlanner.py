@@ -47,7 +47,7 @@ import uncertainVoronoiPathIntialization
 
 
 
-class HighPriorityPathPlannerDeterministic:
+class HighPriorityPathPlanner:
     def __init__(self,radarList):
         #run jax function once to compile
         start = time.time()
@@ -179,9 +179,10 @@ class HighPriorityPathPlannerDeterministic:
         return spline
     
     def plan_deterministic_path(self, radar_list,plot=False,ax=None):
+        self.uncertainRadar = False
         startTimer = time.time()
         # initialControlPoints, tfIntial,ax = self.find_initial_guess_rrt_star(radarList,plot=plot)
-        initialControlPoints, tfIntial = self.get_initial_guess_voronoi(radarList,params.bounds,plot=plot,ax=ax)
+        initialControlPoints, tfIntial = self.get_initial_guess_voronoi(radar_list,params.bounds,plot=plot,ax=ax)
         print("Time to find initial guess", time.time()-startTimer)
         spline = self.spline_seg(initialControlPoints,create_unclamped_knot_points(0, tfIntial, params.numControlPoints,params.splineOrder))
 
@@ -253,7 +254,7 @@ class HighPriorityPathPlannerDeterministic:
 
         opt.options['hsllib'] = '/home/' + username + '/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['linear_solver'] = 'ma97'
-        opt.options['print_level'] = 0
+        opt.options['print_level'] = 5
         opt.options['max_iter'] = 1000
         opt.options['tol'] = 1e-8
         sol = opt(optProb, sens = sens)
@@ -270,7 +271,9 @@ class HighPriorityPathPlannerDeterministic:
         # initialControlPoints, tfIntial,ax = self.find_initial_guess_rrt_star(radarList,plot=plot)
         initialControlPoints, tfIntial = self.get_initial_guess_voronoi(radarList,params.bounds,estimateRadarParams, estimatedRadarParamsCov,plot=plot,ax=ax)
         print("Time to find initial guess", time.time()-startTimer)
-        spline = self.spline_seg(initialControlPoints,create_unclamped_knot_points(0, tfIntial, params.numControlPoints,params.splineOrder))
+
+        pd,u,v,pos = self.spline_constraints_uncertain_radar(estimateRadarParams,estimatedRadarParamsCov, initialControlPoints, create_unclamped_knot_points(0, tfIntial, params.numControlPoints,params.splineOrder),params.numConstraintSamples)
+        print("max velocity", np.max(v))
 
 
         def objective_function(xDict):
@@ -300,18 +303,10 @@ class HighPriorityPathPlannerDeterministic:
 
             dStartDControlPoints = self.get_start_constraint_jacobian(controlPoints)
             dEndDControlPoints = self.get_end_constraint_jacobian(controlPoints)
-            # dVelocityDControlPoints = jacfwd(get_spline_velocity)(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval)
             dVelocityDControlPoints = self.dVelocityDControlPoints(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval)
             dVelocityDtf = np.array(self.dVelocityDtf(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval),dtype=np.float64)
-            # dTurnRateDControlPoints = jacfwd(self.get_spline_turn_rate)(controlPoints, tf)
-            # dTurnRateDtf = np.array(jacfwd(self.get_spline_turn_rate,argnums=1)(controlPoints, tf),dtype=np.float64)
-            # dPdDControlPoints = self.dProbDControlPoints(controlPoints, tf, estimateRadarParams,estimatedRadarParamsCov,params.probabilityOfDetectionThreshold,params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean )
-# def get_prob_along_spline(controlpoints, tf, estimatedRadarParams, estimatedRadarParamsCov,pdThreshold, numcontrolpoints, splineorder, numsamplesperinterval,radarReceiveGain,radarReceiveGainVar, radarwavelengthpriormean,radarwavelengthvar, agentradarcrosssection, radarpulsewidth,radarpulsewidthvar, radarsystemtemperaturepriormean,radarsystemtemperaturepriorvar, radarprobabilityoffalsealarmpriormean,radarprobabilityoffalsealarmpriorvar):
             dPdDControlPoints = self.dProbDControlPoints(controlPoints, tf, estimateRadarParams,estimatedRadarParamsCov,params.probabilityOfDetectionThreshold,params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarRecieveGain,0,params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
             dPdDtf = np.array(self.dProbDtf(controlPoints, tf, estimateRadarParams,estimatedRadarParamsCov,params.probabilityOfDetectionThreshold,params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarRecieveGain,0,params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance))
-            # dPdDControlPoints = np.array(self.dProbDtf(controlPoints, tf, estimateRadarParams,estimatedRadarParamsCov,params.probabilityOfDetectionThreshold,params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance))
-
-            # dPdDtf = np.array(self.dProbDtf(controlPoints, tf, estimateRadarParams,estimatedRadarParamsCov,params.probabilityOfDetectionThreshold,params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean),dtype=np.float64)
 
             dTurnRateDControlPoints = self.dTurnRateDControlPoints(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval)
             dTurnRateDtf = np.array(self.dTurnRateTf(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval),dtype=np.float64)
@@ -319,8 +314,6 @@ class HighPriorityPathPlannerDeterministic:
             funcsSens['obj'] = {"control_points": np.zeros((1,2*params.numControlPoints)), "tf": 1}
             funcsSens['start'] = {"control_points": dStartDControlPoints, "tf": np.zeros((2,1))}
             funcsSens['end'] = {"control_points": dEndDControlPoints, "tf": np.zeros((2,1))}
-            # funcsSens['turn_rate'] = {"control_points": np.zeros((params.numConstraintSamples,2*params.numControlPoints)), "tf": np.zeros((params.numConstraintSamples,1))}
-            # funcsSens['velocity'] = {"control_points": np.zeros((params.numConstraintSamples,2*params.numControlPoints)), "tf": np.zeros((params.numConstraintSamples,1))}
             funcsSens['velocity'] = {"control_points": dVelocityDControlPoints, "tf": dVelocityDtf}
             funcsSens['turn_rate'] = {"control_points": dTurnRateDControlPoints, "tf": dTurnRateDtf}
             funcsSens['pd'] = {"control_points": dPdDControlPoints, "tf": dPdDtf}
@@ -333,6 +326,7 @@ class HighPriorityPathPlannerDeterministic:
         optProb = Optimization("low priority path", objective_function)
         optProb.addVarGroup(name = "control_points", nVars = 2*(params.numControlPoints), varType = 'c', value = initialControlPoints.reshape((2*(params.numControlPoints))), lower = 0-2000, upper=params.bounds[1]+2000)
         optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = tfIntial, lower = 0, upper=params.pathLengthMultiplier * straitLineDist/params.agentSpeed)
+        # optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = tfIntial, lower = 0, upper=None)
         optProb.addConGroup("turn_rate", params.numConstraintSamples, lower=-params.maxTurnRate, upper=params.maxTurnRate, scale=1.0 / params.maxTurnRate)
         optProb.addConGroup("velocity", params.numConstraintSamples, lower=-params.velocityBounds[0], upper=params.velocityBounds[1], scale=1.0 / params.velocityBounds[1])
         optProb.addConGroup("pd", params.numConstraintSamples, lower=params.thresholdConfidence, upper=1, scale=1.0)
@@ -346,8 +340,8 @@ class HighPriorityPathPlannerDeterministic:
         opt.options['hsllib'] = '/home/' + username + '/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['linear_solver'] = 'ma97'
         opt.options['print_level'] = 5
-        opt.options['max_iter'] = 200
-        opt.options['tol'] = 1e-5
+        opt.options['max_iter'] = 1000
+        opt.options['tol'] = 1e-8
         sol = opt(optProb, sens = sens)
         # sol = opt(optProb, sens = 'FD')
         print(sol)
@@ -421,6 +415,7 @@ class HighPriorityPathPlannerDeterministic:
             # combined_knot_points = self.create_unclamped_knot_points(0, tf, num_control_points,params.splineOrder)
             v = get_spline_velocity(controlPoints, tf,params.splineOrder,params.numSamplesPerInterval)
             # pd, u, v, pos = self.spline_constraints(radarList, controlPoints, combined_knot_points,params.numConstraintSamples)
+        print("max v", np.max(v))
         combined_knot_points = create_unclamped_knot_points(0, tf, num_control_points,params.splineOrder)
         return combined_knot_points,tf
         
@@ -964,10 +959,6 @@ class HighPriorityPathPlannerDeterministic:
                 print(type(radarList))
                 path = compute_path_weighted_voronoi(radarList,plot,ax)
             else:
-                # dataIndex = 639
-                # # dataIndex = 200
-                # radarParams = np.load("saved_data/currentData/estimated_params/"+str(dataIndex)+".npy")
-                # radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/"+str(dataIndex)+".npy")
                 startTime = time.time()
                 path = uncertainVoronoiPathIntialization.find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing=50,ax=ax)
                 print("Time to find initial trajectory", time.time()-startTime)
@@ -1071,12 +1062,12 @@ class HighPriorityPathPlannerDeterministic:
         
 def main():
     radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
-    dataIndex = 539
+    dataIndex = 639
     # dataIndex = 400
     radarParams = np.load("saved_data/currentData/estimated_params/"+str(dataIndex)+".npy")
     print("radarParams", radarParams)
     radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/"+str(dataIndex)+".npy")
-    hpp = HighPriorityPathPlannerDeterministic(tuple(radarList))
+    hpp = HighPriorityPathPlanner(tuple(radarList))
     pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList))
     fig,ax = plt.subplots()
     if hpp.uncertainRadar:
@@ -1084,10 +1075,11 @@ def main():
     else:
         Z = pdMap.groundTruthpdMap
     c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints))
-    # hpp.plan_deterministic_path(tuple(radarList),plot=True,ax=ax)
     startTime = time.time()
     hpp.plan_uncertain_path(tuple(radarList),radarParams,radarParamsCov,plot=True,ax=ax)
+    # hpp.plan_deterministic_path(tuple(radarList),plot=True,ax=ax)
     print("path planning time", time.time()-startTime)
+
 
     # _,_ = hpp.get_initial_guess_voronoi(radarList,params.bounds,radarParams,radarParamsCov,plot=True,ax=ax)
     

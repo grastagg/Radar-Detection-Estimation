@@ -219,7 +219,7 @@ plotBestMeasurement = False
 
 
 #path planning
-pathLengthMultiplier = 1.2
+pathLengthMultiplier = 2
 numObjectiveFunctionSamples = 20
 lowPrioritySafetyBestMeasurementTradeoff = .1
 lowPriorityDistanceBestMeasurementTradeoff = .6
