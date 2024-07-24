@@ -1074,6 +1074,7 @@ def main():
     # dataIndex = 639
     dataIndex = 400
     radarParams = np.load("saved_data/currentData/estimated_params/"+str(dataIndex)+".npy")
+    print("radarParams", radarParams)
     radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/"+str(dataIndex)+".npy")
     hpp = HighPriorityPathPlannerDeterministic(tuple(radarList))
     pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList))
