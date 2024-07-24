@@ -77,6 +77,7 @@ def plot_arc_pd(center,radius,radarList, theta1= 0, theta2 = 2*np.pi, ax=None,c 
 def plot_weighted_voronoi_arcs(arcs,boundarySegments,ax):
     # for arc in arcs:
     # arc = arcs[3]
+    c = 'g'
     for i,arc in enumerate(arcs):
         
         p1 = arc[0:2]
@@ -90,11 +91,11 @@ def plot_weighted_voronoi_arcs(arcs,boundarySegments,ax):
         if theta2 < theta1:
             theta2 += 2*np.pi
         
-        ax.scatter([p1[0],p2[0]],[p1[1],p2[1]],c = 'b')
+        ax.scatter([p1[0],p2[0]],[p1[1],p2[1]],c = c)
         # plot_arc(center, radius, np.min([theta1,theta2]), np.max([theta2,theta1]), ax)
-        plot_arc(center, radius, theta1,theta2, ax)
+        plot_arc(center, radius, theta1,theta2, ax,c = c)
     for seg in boundarySegments:
-        ax.plot(seg[:,0],seg[:,1],c = 'b',marker='o')
+        ax.plot(seg[:,0],seg[:,1],c = c,marker='o')
     # plt.plot([0,0,params.bounds[0],params.bounds[0],0],[0,params.bounds[1],params.bounds[1],0,0],c = 'k')
 
 # def combine_arcs(arcs):
@@ -641,8 +642,6 @@ def compute_path_weighted_voronoi(radarList,plot =False,ax=None):
     arcs = load_weighted_voronoi_segments_from_file(filename)
 
     arcs = combine_attached_arcs(arcs)
-    if plot:
-        plot_weighted_voronoi_arcs(arcs,[],ax)
 
     arcs = trim_arcs_pd_threshold(arcs,radarList, weights, params.probabilityOfDetectionThreshold,ax)
     arcs,boundarySegments = intersect_arcs_with_boundary(arcs,params.bounds,ax)
@@ -659,6 +658,9 @@ def compute_path_weighted_voronoi(radarList,plot =False,ax=None):
     path = create_graph_and_find_shortest_path(adjacencyMatrix,nodes)
 
     path = fill_in_path(path,edges,nodes,spacing=50)
+
+    if plot:
+        plot_weighted_voronoi_arcs(arcs,[],ax)
 
     if plot:
         ax.plot(path[:,0],path[:,1],c = 'r')

@@ -74,7 +74,7 @@ class HighPriorityPathPlannerDeterministic:
         print("Time to compile jax functions", time.time()-start)
 
         self.useWeightedVoronoi = True
-        self.uncertainRadar = True
+        self.uncertainRadar = False
 
         
     
@@ -1079,7 +1079,10 @@ def main():
     hpp = HighPriorityPathPlannerDeterministic(tuple(radarList))
     pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList))
     fig,ax = plt.subplots()
-    Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGain,0, params.radarWavelength,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperature,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarm,params.radarProbabilityOfFalseAlarmPriorVariance) 
+    if hpp.uncertainRadar:
+        Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGain,0, params.radarWavelength,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperature,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarm,params.radarProbabilityOfFalseAlarmPriorVariance) 
+    else:
+        Z = pdMap.groundTruthpdMap
     c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints))
     # hpp.plan_deterministic_path(tuple(radarList),plot=True,ax=ax)
     startTime = time.time()
