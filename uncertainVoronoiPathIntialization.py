@@ -350,6 +350,8 @@ def create_unclamped_knot_points(t0, tf, numControlPoints,splineOrder):
     return knots
 
 def fit_spline_to_path(path, num_control_points, spline_order,vertex1,vertex2):
+    if len(path) < spline_order:
+        path = np.linspace(path[0],path[-1],spline_order+1)
     if len(path) < num_control_points:
         num_control_points = len(path)
     tf = 1
