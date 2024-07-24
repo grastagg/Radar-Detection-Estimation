@@ -1071,7 +1071,7 @@ class HighPriorityPathPlannerDeterministic:
         
 def main():
     radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
-    dataIndex = 639
+    dataIndex = 539
     # dataIndex = 400
     radarParams = np.load("saved_data/currentData/estimated_params/"+str(dataIndex)+".npy")
     print("radarParams", radarParams)
