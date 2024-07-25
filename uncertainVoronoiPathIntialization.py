@@ -4,6 +4,8 @@ from statistics import NormalDist
 from time import time
 from jax import jit
 from scipy.constants import k as boltzman
+import scipy.integrate
+import scipy.interpolate
 from scipy.spatial import Voronoi, voronoi_plot_2d
 import scipy
 
@@ -362,12 +364,12 @@ def fit_spline_to_path(path, num_control_points, spline_order,vertex1,vertex2):
     qs = np.linspace(0, 1, n_interior_knots + 2)[1:-1]
     knots = np.quantile(t, qs)
 
-    tck_x = splrep(t,path[:,0],k=spline_order,t=knots,s=1)
+    tck_x = splrep(t,path[:,0],k=spline_order,t=knots,s=0)
     control_points_x = tck_x[1]
     control_points_x = control_points_x[control_points_x != 0]
     
 
-    tck_y = splrep(t,path[:,1],k=spline_order,t=knots,s=1)
+    tck_y = splrep(t,path[:,1],k=spline_order,t=knots,s=0)
     control_points_y = tck_y[1]
     control_points_y = control_points_y[control_points_y != 0]
     combined_control_points = np.hstack((control_points_x.reshape((len(control_points_x),1)), control_points_y.reshape((len(control_points_y),1))))
@@ -380,6 +382,36 @@ def fit_spline_to_path(path, num_control_points, spline_order,vertex1,vertex2):
     combined_knot_points = create_unclamped_knot_points(0,tf,num_control_points,spline_order)
     return combined_control_points,combined_knot_points
 
+def get_cumulative_distances(points):
+    # Calculate the distance between each consecutive point
+    distances = np.sqrt(np.sum(np.diff(points, axis=0)**2, axis=1))
+    # Calculate the cumulative distance
+    cumulative_distances = np.cumsum(distances)
+    # Add a zero at the beginning to represent the start point
+    cumulative_distances = np.insert(cumulative_distances, 0, 0)
+    return cumulative_distances
+
+def resample_points(points, spacing):
+    # Get the cumulative distances
+    cumulative_distances = get_cumulative_distances(points)
+
+    num_points = int(np.ceil(cumulative_distances[-1] / spacing))
+    
+    # Create an interpolation function for each dimension
+    interp_func_x = scipy.interpolate.interp1d(cumulative_distances, points[:, 0], kind='linear')
+    interp_func_y = scipy.interpolate.interp1d(cumulative_distances, points[:, 1], kind='linear')
+    
+    # Generate evenly spaced cumulative distances
+    even_cumulative_distances = np.linspace(0, cumulative_distances[-1], num_points)
+    
+    # Interpolate to get the new points
+    resampled_points_x = interp_func_x(even_cumulative_distances)
+    resampled_points_y = interp_func_y(even_cumulative_distances)
+    
+    # Combine the x and y coordinates
+    resampled_points = np.vstack((resampled_points_x, resampled_points_y)).T
+    
+    return resampled_points
 
 def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams,radarParamsCovDeterminants):
 
@@ -395,6 +427,7 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
     
 
     contour,_ = cv2.findContours(cellAssignment.astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
     pixelDist = params.bounds[0]/params.numTestPoints
     points = contour[0].squeeze()*pixelDist
     for i in range(1,len(contour)):
@@ -411,6 +444,9 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
     pointsInRange = np.append(pointsInRange, vertex2).reshape(-1,2)
     pointsInRange = sort_points(pointsInRange, radarPositioni)
 
+    pointsInRange = resample_points(pointsInRange, 100)
+
+
     splineControlPoints,splineKnotPoints = fit_spline_to_path(pointsInRange, 10, 3,vertex1,vertex2)
     return splineControlPoints,splineKnotPoints,pointsInRange 
 
@@ -419,10 +455,10 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
 def plot_spline(spline,ax,c='g'):
     controlPoints = spline.c
     tf = spline.t[-1-spline.k]
-    t = np.linspace(0, tf, 1000)
+    t = np.linspace(0, tf, 20)
     pos = spline(t)
+    # ax.plot(pos[:,0], pos[:,1],c=c,marker='o')
     ax.plot(pos[:,0], pos[:,1],c=c)
-    # ax.scatter(controlPoints[:,0],controlPoints[:,1],color='r')
 
 def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsCov,ax = None):
     radarParamsCovDeterminants = [np.linalg.det(cov) for cov in radarParamsCov]
@@ -434,6 +470,15 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
                 commonNeighbors = np.intersect1d(verticies[i]['neighbors'],verticies[j]['neighbors'])
                 if len(commonNeighbors) == 2:
                     ridgeLineControlPoints,ridgeLineKnotPoints,points = find_ridge_line(prob_list,commonNeighbors,verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants)
+                    #############
+                    # fig,ax = plt.subplots()
+                    # ax.scatter(points[:,0],points[:,1])
+                    # ax.scatter(verticies[i]['point'][0],verticies[i]['point'][1],marker='*',color='r')
+                    # ax.scatter(verticies[j]['point'][0],verticies[j]['point'][1],marker='*',color='r')
+                    # spline = interpolate.BSpline(ridgeLineKnotPoints,ridgeLineControlPoints,3)
+                    # plot_spline(spline,ax)
+                    # plt.show()
+                    ################
                     t = np.linspace(0,1,1000)
                     splinePoints = scipy.interpolate.BSpline(ridgeLineKnotPoints,ridgeLineControlPoints,3)(t)
                     probPDLessThanThreshold = highPriorityHelperFunctions.get_prob_pd_less_than_threshold(splinePoints, radarParams, radarParamsCov, params.probabilityOfDetectionThreshold, params.radarRecieveGain,0,params.radarWavelength, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance,params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)

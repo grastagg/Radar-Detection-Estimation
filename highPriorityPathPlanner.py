@@ -380,13 +380,14 @@ class HighPriorityPathPlanner:
         qs = np.linspace(0, 1, n_interior_knots + 2)[1:-1]
         knots = np.quantile(t, qs)
 
-        tck_x = splrep(t,path[:,0],k=params.splineOrder,t=knots,s=1)
+        s = 0
+        tck_x = splrep(t,path[:,0],k=params.splineOrder,t=knots,s=s)
         control_points_x = tck_x[1]
         control_points_x = control_points_x[control_points_x != 0]
         control_points_x[0] = params.highPriorityStart[0]
         control_points_x[-1] = params.highPriorityEnd[0]
 
-        tck_y = splrep(t,path[:,1],k=params.splineOrder,t=knots,s=1)
+        tck_y = splrep(t,path[:,1],k=params.splineOrder,t=knots,s=s)
         control_points_y = tck_y[1]
         control_points_y = control_points_y[control_points_y != 0]
         control_points_y[0] = params.highPriorityStart[1]
@@ -960,7 +961,7 @@ class HighPriorityPathPlanner:
                 path = compute_path_weighted_voronoi(radarList,plot,ax)
             else:
                 startTime = time.time()
-                path = uncertainVoronoiPathIntialization.find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing=50,ax=ax)
+                path = uncertainVoronoiPathIntialization.find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing=500,ax=ax)
                 print("Time to find initial trajectory", time.time()-startTime)
         
         
@@ -988,24 +989,11 @@ class HighPriorityPathPlanner:
 
         if plot:
             tmpSpline = self.spline_seg(controlPoints, knotPoints)
+            # ax.scatter(path[:,0], path[:,1], c='r')
+            ax.plot(path[:,0], path[:,1], c='r')
             self.plot_spline(tmpSpline,ax)
-            # self.plot_spline_from_control_points(controlPoints, knotPoints,ax)
 
-            # ax.plot(path[:,0], path[:,1])
-            # for key in nodes.keys():
-            #     ax.scatter(nodes[key][0], nodes[key][1], c='b',zorder=1000000)
-            #     ax.text(nodes[key][0], nodes[key][1], str(key),c='c',zorder=1000000)
-
-
-            # g.vs["label"] = [str(key) for key in nodes.keys()]
-            # coords = np.array([nodes[key] for key in nodes.keys()])
-            # layout = ig.Layout(coords=coords)
-
-            # fig,ax2 = plt.subplots()
-            # ig.plot(g,layout= layout,target=ax2)
-            # self.plot_constraints(spline, tuple(radarList))
             self.plot_constraints(spline, tuple(radarList),radarParams,radarParamsCov)
-            # plt.show()
         
         return controlPoints,tf
         
@@ -1065,7 +1053,6 @@ def main():
     dataIndex = 639
     # dataIndex = 400
     radarParams = np.load("saved_data/currentData/estimated_params/"+str(dataIndex)+".npy")
-    print("radarParams", radarParams)
     radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/"+str(dataIndex)+".npy")
     hpp = HighPriorityPathPlanner(tuple(radarList))
     pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList))
@@ -1079,6 +1066,7 @@ def main():
     hpp.plan_uncertain_path(tuple(radarList),radarParams,radarParamsCov,plot=True,ax=ax)
     # hpp.plan_deterministic_path(tuple(radarList),plot=True,ax=ax)
     print("path planning time", time.time()-startTime)
+    print("path length", hpp.spline.t[-1])
 
 
     # _,_ = hpp.get_initial_guess_voronoi(radarList,params.bounds,radarParams,radarParamsCov,plot=True,ax=ax)
