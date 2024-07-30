@@ -31,7 +31,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.inlier_mask = None
         self.group_lists = []
 
-        self.mahalonobis_distance_inlier_threshold = 3.5
+        self.mahalonobis_distance_inlier_threshold = 4
+        self.ransacResidualThreshold = 4
         # self.mahalonobis_distance_inlier_threshold = 2.5
         self.mal_dist_opt_point = None
         
@@ -49,7 +50,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.minDistBetweenModels = np.average([params.minInterRadarDistList])
 
         
-        self.saveRadarData = True
+        self.saveRadarData = params.saveDataToFile 
         self.fileCounter = 0
     
     def delete_lowest_probability_model(self):
@@ -108,7 +109,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                 return np.array([self.mahalonobis_distance(y, X[i], mean, cov) for i,y in enumerate(y_true)])
             regressionModel = NonlinearEstimator(self.measurement_cov, self.radar_measurement_coeff)
             # ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = 'squared_error')#,residual_threshold=.09)
-            ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = loss, residual_threshold=2)#,residual_threshold=.09)
+            ransacRegressor = RANSACRegressor(regressionModel, min_samples=2,random_state=0,loss = loss, residual_threshold=self.ransacResidualThreshold)#,residual_threshold=.09)
             ransacRegressor.fit(np.array(measurement_locations), np.array(measurements))
             closestModelDist = self.get_min_dist_to_other_models(ransacRegressor.estimator_.get_estimate_emmitor_params())
             if closestModelDist > self.minDistBetweenModels:
@@ -331,8 +332,10 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         print()
         if self.saveRadarData:
             self.fileCounter += 1
-            np.save("./saved_data/estimated_params/"+str(self.fileCounter), self.estimated_emmiter_params)
-            np.save("./saved_data/estimated_params_cov/"+str(self.fileCounter), self.estimated_emmiter_params_covariances)
+            np.save(params.dataFile+"/estimated_params/"+str(self.fileCounter), self.estimated_emmiter_params)
+            np.save(params.dataFile+"/estimated_params_cov/"+str(self.fileCounter), self.estimated_emmiter_params_covariances)
+            # np.save("./saved_data/estimated_params/"+str(self.fileCounter), self.estimated_emmiter_params)
+            # np.save("./saved_data/estimated_params_cov/"+str(self.fileCounter), self.estimated_emmiter_params_covariances)
 
         # else:
         #     # self.outlier_indicies = np.append(self.outlier_indicies, 0)

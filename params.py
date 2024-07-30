@@ -4,11 +4,13 @@ import jax.numpy as jnp
 import jax
 # from scipy.constants import boltzman
 from scipy.constants import k as boltzman
+import os
 
 # np.random.seed(1241)
 
 # np.random.seed(91231)
-np.random.seed(1102042)
+randomSeed = 1102042
+np.random.seed(randomSeed)
 
         
 def db_to_amplitude(db):
@@ -313,3 +315,26 @@ print(c)
 erp = radarOutputPower*radarTransmitGain
 print(erp)
 print(np.log(radarProbabilityOfFalseAlarm))
+
+
+def create_data_file(filepath):
+    if not os.path.exists(filepath):
+        os.mkdir(filepath)
+        os.mkdir(filepath+"estimated_params/")
+        os.mkdir(filepath+"estimated_params_cov/")
+    else:
+        print("Directory already exists")
+        cont = input("overwrite? y/n")
+        if cont == "y":
+            return
+        else:
+            exit()
+            
+    
+    
+saveDataToFile = True
+dataFile = "/home/ggs24/repos/magiccvs/radar_detection_estimation/saved_data/"+str(randomSeed)+"/"
+create_data_file(dataFile)
+
+
+

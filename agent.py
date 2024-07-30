@@ -6,7 +6,7 @@ import params
 
 
 class Agent:
-    def __init__(self, initialPosition, numRadar, sensingRange, powerMeasurementStdDev, angleMeasurementStdDev, elintAntenneaGain, elintSystemLoss, emittorWavelength, radarCrossSection):
+    def __init__(self, initialPosition, numRadar, sensingRange, powerMeasurementStdDev, angleMeasurementStdDev, elintAntenneaGain, elintSystemLoss, emittorWavelength, radarCrossSection,agentId):
         self.position = initialPosition #x,y,heading
         self.sensingRange = sensingRange
         self.measurementPowerValues = []
@@ -15,6 +15,7 @@ class Agent:
         self.powerMeasurementStdDev = powerMeasurementStdDev
         self.angelMeasurementStdDev = angleMeasurementStdDev
         self.radarCrossSection = radarCrossSection
+        self.agentId = agentId
 
         self.truthEmitterCorrespondence = [[] for i in range(numRadar)]
         
@@ -34,7 +35,10 @@ class Agent:
         self.pathHistory = []
         self.timeSinceLastPathUpdate = params.agentPathHistorydt+1
         self.pathHistorydt = params.agentPathHistorydt
-        
+
+        self.savePathHistoryToFile = True
+        # self.pathHistoryFileName = "saved_data/agent"+str(self.agentId)+"PathHistory.txt"
+        self.pathHistoryFileName = params.dataFile + "/agent"+str(self.agentId)+"PathHistory.txt"
         
         
         
@@ -48,6 +52,10 @@ class Agent:
         if self.timeSinceLastPathUpdate > self.pathHistorydt:
             self.pathHistory.append(self.position[0:2])
             self.timeSinceLastPathUpdate = 0
+            if self.savePathHistoryToFile:
+                file = open(self.pathHistoryFileName, "a")
+                file.write(str(self.position[0]) + "," + str(self.position[1]) + "\n")
+                file.close()
         
         
 
