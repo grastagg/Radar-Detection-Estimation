@@ -458,7 +458,7 @@ def plot_spline(spline,ax,c='g'):
     t = np.linspace(0, tf, 20)
     pos = spline(t)
     # ax.plot(pos[:,0], pos[:,1],c=c,marker='o')
-    ax.plot(pos[:,0], pos[:,1],c=c)
+    ax.plot(pos[:,0], pos[:,1],c=c,linewidth=3)
 
 def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsCov,ax = None):
     radarParamsCovDeterminants = [np.linalg.det(cov) for cov in radarParamsCov]
@@ -683,9 +683,9 @@ def plot_generalized_voronoi(verticies,ridges,boundarySegments,ax):
         spline = interpolate.BSpline(knotPoints,controlPoints,3)
         plot_spline(spline,ax,c)
     for vertex in verticies:
-        ax.scatter(verticies[vertex]["point"][0],verticies[vertex]["point"][1],marker='*',color=c)
+        ax.scatter(verticies[vertex]["point"][0],verticies[vertex]["point"][1],marker='*',color=c,s=100)
     for segment in boundarySegments:
-        ax.plot(boundarySegments[segment][:,0],boundarySegments[segment][:,1],c=c)
+        ax.plot(boundarySegments[segment][:,0],boundarySegments[segment][:,1],c=c,linewidth=3)
 
 def integrate_spline(spline):
     numPoints = 100

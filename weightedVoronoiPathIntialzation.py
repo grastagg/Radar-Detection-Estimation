@@ -663,7 +663,7 @@ def compute_path_weighted_voronoi(radarList,plot =False,ax=None):
         plot_weighted_voronoi_arcs(arcs,[],ax)
 
     if plot:
-        ax.plot(path[:,0],path[:,1],c = 'r')
+        ax.plot(path[:,0],path[:,1],c = 'r', linewidth=3)
     
     
     return path

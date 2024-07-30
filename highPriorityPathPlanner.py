@@ -74,7 +74,7 @@ class HighPriorityPathPlanner:
         print("Time to compile jax functions", time.time()-start)
 
         self.useWeightedVoronoi = True
-        self.uncertainRadar = False
+        self.uncertainRadar = False 
 
         
     
@@ -990,7 +990,7 @@ class HighPriorityPathPlanner:
         if plot:
             tmpSpline = self.spline_seg(controlPoints, knotPoints)
             # ax.scatter(path[:,0], path[:,1], c='r')
-            ax.plot(path[:,0], path[:,1], c='r')
+            ax.plot(path[:,0], path[:,1], c='r',linewidth=3)
             self.plot_spline(tmpSpline,ax)
 
             self.plot_constraints(spline, tuple(radarList),radarParams,radarParamsCov)
@@ -1010,12 +1010,12 @@ class HighPriorityPathPlanner:
 
         
     
-    def plot_spline(self, spline,ax):
+    def plot_spline(self, spline,ax,c = 'blue'):
         controlPoints = spline.c
         tf = spline.t[-params.splineOrder-1]
         t = np.linspace(0, tf, 1000)
         pos = spline(t)
-        ax.plot(pos[:,0], pos[:,1])
+        ax.plot(pos[:,0], pos[:,1],linewidth=3,c=c)
         # ax.plot(controlPoints[:,0], controlPoints[:,1], 'k--',marker='o',alpha=.5)
 
     def plot_spline_from_control_points(self, controlPoints, knotPoints,ax):
@@ -1057,11 +1057,13 @@ def main():
     hpp = HighPriorityPathPlanner(tuple(radarList))
     pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList))
     fig,ax = plt.subplots()
+    ax.set_aspect('equal')
     if hpp.uncertainRadar:
         Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGain,0, params.radarWavelength,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperature,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarm,params.radarProbabilityOfFalseAlarmPriorVariance) 
+        ax.set_title("Likelihood True PD < Threshold")
     else:
         Z = pdMap.groundTruthpdMap
-    c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints))
+    c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints),alpha=1)
     startTime = time.time()
     # hpp.plan_uncertain_path(tuple(radarList),radarParams,radarParamsCov,plot=True,ax=ax)
     hpp.plan_deterministic_path(tuple(radarList),plot=True,ax=ax)
@@ -1078,7 +1080,7 @@ def main():
         fig = ax.get_figure()
     # c = pdMap.plot_mean(ax,plotGroundTruth=True)
     fig.colorbar(c, ax=ax)
-    hpp.plot_spline(hpp.spline,ax)
+    hpp.plot_spline(hpp.spline,ax,c='magenta')
     hpp.plot_constraints(hpp.spline, tuple(radarList),radarParams,radarParamsCov)
     plt.show()
     
