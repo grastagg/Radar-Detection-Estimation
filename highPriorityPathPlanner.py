@@ -74,7 +74,7 @@ class HighPriorityPathPlanner:
         print("Time to compile jax functions", time.time()-start)
 
         self.useWeightedVoronoi = True
-        self.uncertainRadar = False 
+        self.uncertainRadar = True
 
         
     
@@ -1065,8 +1065,8 @@ def main():
         Z = pdMap.groundTruthpdMap
     c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints),alpha=1)
     startTime = time.time()
-    # hpp.plan_uncertain_path(tuple(radarList),radarParams,radarParamsCov,plot=True,ax=ax)
-    hpp.plan_deterministic_path(tuple(radarList),plot=True,ax=ax)
+    hpp.plan_uncertain_path(tuple(radarList),radarParams,radarParamsCov,plot=True,ax=ax)
+    # hpp.plan_deterministic_path(tuple(radarList),plot=True,ax=ax)
     print("path planning time", time.time()-startTime)
     print("path length", hpp.spline.t[-1])
 
