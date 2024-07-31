@@ -41,7 +41,7 @@ highPriorityStraitLineA = highPriorityStart[1] - highPriorityEnd[1]
 highPriorityStraitLineB = highPriorityEnd[0] - highPriorityStart[0]
 highPriorityStraitLineC = highPriorityStart[0]*highPriorityEnd[1] - highPriorityEnd[0] * highPriorityStart[1]
 probabilityOfDetectionThreshold = 0.15
-thresholdConfidence = 0.7
+thresholdConfidence = 0.6
 highPriorityAgentRadarCrossSection = .1
 
 #radar parameters
@@ -249,7 +249,7 @@ nextCovarianceScale = 1e20
 nextCovarianceWeight = .5
 # nextCovarianceWeight = 0
 
-pathOptTime = 30
+pathOptTime = 50
 lengthScale = 300
 
 
@@ -334,7 +334,6 @@ def create_data_file(filepath):
     
 saveDataToFile = True
 dataFile = "/home/ggs24/repos/magiccvs/radar_detection_estimation/saved_data/"+str(randomSeed)+"/"
-create_data_file(dataFile)
 
 
 

@@ -231,20 +231,62 @@ def xy_to_index(x,y):
     indy = y//indexToXYConversion
     return int(indx*params.numTestPoints + indy)
 
+def find_contour_points(cellAssignment,index):
+    cellI = np.where(cellAssignment == index,1,0)
+
+    contours,_ = cv2.findContours(cellI.reshape(params.numTestPoints,params.numTestPoints).astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    pixelDist = params.bounds[0]/params.numTestPoints
+    points = contours[0].squeeze()*pixelDist
+    for i in range(1,len(contours)):
+        points = np.append(points,contours[i].squeeze()*pixelDist,axis=0)
+    
+    return points
+
 def find_generalized_voronoi_verticies(prob_list,closetNeighborTriples):
 
     verticies = {}
     for index,neighbors in enumerate(closetNeighborTriples):
         i,j,k = neighbors 
+        print(i,j,k)
         i = int(i)
         j = int(j)
         k = int(k)
+        cellAssignment = np.argmin(prob_list,axis=0)
+
+
+
+        pointsI = find_contour_points(cellAssignment,i)
+        pointsJ = find_contour_points(cellAssignment,j)
+        pointsK = find_contour_points(cellAssignment,k)
+        
+
+        
+        
+        
+        
         diffij = np.abs(prob_list[i] - prob_list[j])
         diffik = np.abs(prob_list[i] - prob_list[k])
         diffjk = np.abs(prob_list[j] - prob_list[k])
         sumDiff = diffij + diffik + diffjk
         ind = np.argmin(sumDiff)
+
+        
+        #################
         x,y = indecies_to_xy(ind)
+        fig,ax = plt.subplots()
+        c = ax.contourf(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),np.argmin(prob_list,axis=0).reshape(params.numTestPoints,params.numTestPoints),levels=[-1,0,1,2,3,4,5,6,7,8,9,10,11,12])
+
+        fig.colorbar(c,ax=ax)
+        # ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),diffij.reshape(params.numTestPoints,params.numTestPoints))
+        ax.scatter(x,y)
+        ax.plot(pointsI[:,0],pointsI[:,1])
+        ax.plot(pointsJ[:,0],pointsJ[:,1])
+        ax.plot(pointsK[:,0],pointsK[:,1])
+        plt.show()
+        #################
+        
+        
+        
         verticies[index] = {"neighbors":neighbors,"point":np.array([x,y]),"edge":False}
                 
     return verticies
@@ -766,6 +808,16 @@ def find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing,a
     adjecencyMatrix = create_adjacency_matrix_from_ridges_and_boundary(ridges,boundarySegments,verticies)
     path = create_graph_and_find_shortest_path(adjecencyMatrix,startVertexIndex,endVertexIndex)
 
+    
+    #test code
+    vor = Voronoi(radarParams[:,0:2])
+    
+    fig,ax1 = plt.subplots()
+    voronoi_plot_2d(vor,ax=ax1)
+    plot_generalized_voronoi(verticies,ridges,boundarySegments,ax1)
+    plt.show()
+
+
     pathPoints = path_to_points(path,ridges,boundarySegments,verticies,spacing)
 
     if ax is not None:
@@ -786,10 +838,13 @@ def main():
 
 
 
-    dataIndex = 639
+    dataIndex = 1000
     # dataIndex = 200
-    radarParams = np.load("saved_data/currentData/estimated_params/"+str(dataIndex)+".npy")
-    radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/"+str(dataIndex)+".npy")
+    dataFilePath = "saved_data/1102042/"
+    radarParams = np.load(dataFilePath+"estimated_params/"+str(dataIndex)+".npy")
+    radarParamsCov = np.load(dataFilePath+"estimated_params_cov/"+str(dataIndex)+".npy")
+    # radarParams = np.load("saved_data/currentData/estimated_params/"+str(dataIndex)+".npy")
+    # radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/"+str(dataIndex)+".npy")
 
     Z = safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold,params.thresholdConfidence,radarParams,radarParamsCov, params.radarRecieveGain,params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean,params.radarProbabilityOfFalseAlarmPriorVariance)
     Z = Z > params.thresholdConfidence

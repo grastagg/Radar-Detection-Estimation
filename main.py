@@ -133,6 +133,7 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
 
 
 def main():
+    params.create_data_file(params.dataFile)
     bounds = params.bounds 
     numTestPoints = params.numTestPoints
     X_test = params.create_test_points(numTestPoints, bounds)
