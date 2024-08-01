@@ -242,54 +242,133 @@ def find_contour_points(cellAssignment,index):
     
     return points
 
-def find_generalized_voronoi_verticies(prob_list,closetNeighborTriples):
+def find_closest_common_point_within_threshold(array1, array2, array3, threshold):
+    min_distance = np.inf
+    closest_points = ()
+
+    # Calculate distances between points in array1 and array2
+    dist12 = np.linalg.norm(array1[:, np.newaxis] - array2, axis=2)
+    
+    # Find pairs within the threshold distance
+    close_pairs_12 = np.argwhere(dist12 < threshold)
+    
+    # Check if these pairs have a common point with array3
+    for i, j in close_pairs_12:
+        point1 = array1[i]
+        point2 = array2[j]
+        dist13 = np.linalg.norm(array3 - point1, axis=1)
+        dist23 = np.linalg.norm(array3 - point2, axis=1)
+        
+        # Find common points in array3 within the threshold
+        close_points_3 = np.argwhere((dist13 < threshold) & (dist23 < threshold))
+        
+        for k in close_points_3:
+            k = k[0]
+            point3 = array3[k]
+            # Calculate the total distance
+            total_distance = dist12[i, j] + dist13[k] + dist23[k]
+            
+            if total_distance < min_distance:
+                min_distance = total_distance
+                closest_points = (point1, point2, point3)
+    
+    if closest_points:
+        mean_point = np.mean(closest_points, axis=0)
+        return True, mean_point
+    else:
+        return False, ()
+
+def find_generalized_voronoi_verticies(prob_list):
 
     verticies = {}
-    for index,neighbors in enumerate(closetNeighborTriples):
-        i,j,k = neighbors 
-        print(i,j,k)
-        i = int(i)
-        j = int(j)
-        k = int(k)
-        cellAssignment = np.argmin(prob_list,axis=0)
 
-
-
-        pointsI = find_contour_points(cellAssignment,i)
-        pointsJ = find_contour_points(cellAssignment,j)
-        pointsK = find_contour_points(cellAssignment,k)
-        
-
-        
-        
-        
-        
-        diffij = np.abs(prob_list[i] - prob_list[j])
-        diffik = np.abs(prob_list[i] - prob_list[k])
-        diffjk = np.abs(prob_list[j] - prob_list[k])
-        sumDiff = diffij + diffik + diffjk
-        ind = np.argmin(sumDiff)
-
-        
-        #################
-        x,y = indecies_to_xy(ind)
-        fig,ax = plt.subplots()
-        c = ax.contourf(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),np.argmin(prob_list,axis=0).reshape(params.numTestPoints,params.numTestPoints),levels=[-1,0,1,2,3,4,5,6,7,8,9,10,11,12])
-
-        fig.colorbar(c,ax=ax)
-        # ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),diffij.reshape(params.numTestPoints,params.numTestPoints))
-        ax.scatter(x,y)
-        ax.plot(pointsI[:,0],pointsI[:,1])
-        ax.plot(pointsJ[:,0],pointsJ[:,1])
-        ax.plot(pointsK[:,0],pointsK[:,1])
-        plt.show()
-        #################
-        
-        
-        
-        verticies[index] = {"neighbors":neighbors,"point":np.array([x,y]),"edge":False}
+    contourPoints = []
+    cellAssignment = np.argmin(prob_list,axis=0)
+    
+    for i in range(len(prob_list)):
+        contourPoints.append(find_contour_points(cellAssignment,i))
+    
+    index = 0
+    for i in range(len(prob_list)):
+        for j in range(i+1,len(prob_list)):
+            for k in range(j+1,len(prob_list)):
+                pointsI = contourPoints[i]
+                pointsJ = contourPoints[j]
+                pointsK = contourPoints[k]
                 
-    return verticies
+
+                commonPointExists,commonPoint = find_closest_common_point_within_threshold(pointsI,pointsJ,pointsK,2*params.bounds[0]/params.numTestPoints+100)
+                if commonPointExists:
+                    verticies[index] = {"neighbors":(i,j,k),"point":commonPoint,"edge":False}
+                    index += 1
+                if i == 2 and j == 3 and k == 4:
+                    fig,ax = plt.subplots()
+                    # c = ax.contourf(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),np.argmin(prob_list,axis=0).reshape(params.numTestPoints,params.numTestPoints),levels=[-1,0,1,2,3,4,5,6,7,8,9,10,11,12],cmap = 'gist_ncar')
+
+                    # fig.colorbar(c,ax=ax)
+                    # ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),diffij.reshape(params.numTestPoints,params.numTestPoints))
+                    ax.plot(pointsI[:,0],pointsI[:,1])
+                    ax.plot(pointsJ[:,0],pointsJ[:,1])
+                    ax.plot(pointsK[:,0],pointsK[:,1])
+                    if commonPointExists:
+                        ax.scatter(commonPoint[0],commonPoint[1],marker='*',color='r')
+                    plt.show()
+                
+
+        
+    # for index,neighbors in enumerate(closetNeighborTriples):
+    #     i,j,k = neighbors 
+    #     print(i,j,k)
+    #     i = int(i)
+    #     j = int(j)
+    #     k = int(k)
+    #     cellAssignment = np.argmin(prob_list,axis=0)
+
+
+
+    #     pointsI = find_contour_points(cellAssignment,i)
+    #     pointsJ = find_contour_points(cellAssignment,j)
+    #     pointsK = find_contour_points(cellAssignment,k)
+        
+    #     pixelDist = params.bounds[0]/params.numTestPoints
+    #     print("pixelDist",pixelDist)
+        
+    #     commonPointExists,commonPoint = find_closest_common_point_within_threshold(pointsI,pointsJ,pointsK,2*pixelDist)
+    #     print("Common Points",commonPoint)
+        
+
+        
+        
+        
+        
+    #     diffij = np.abs(prob_list[i] - prob_list[j])
+    #     diffik = np.abs(prob_list[i] - prob_list[k])
+    #     diffjk = np.abs(prob_list[j] - prob_list[k])
+    #     sumDiff = diffij + diffik + diffjk
+    #     ind = np.argmin(sumDiff)
+
+        
+    #     #################
+    #     x,y = indecies_to_xy(ind)
+    #     fig,ax = plt.subplots()
+    #     c = ax.contourf(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),np.argmin(prob_list,axis=0).reshape(params.numTestPoints,params.numTestPoints),levels=[-1,0,1,2,3,4,5,6,7,8,9,10,11,12])
+
+    #     fig.colorbar(c,ax=ax)
+    #     # ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),diffij.reshape(params.numTestPoints,params.numTestPoints))
+    #     ax.scatter(x,y)
+    #     ax.plot(pointsI[:,0],pointsI[:,1])
+    #     ax.plot(pointsJ[:,0],pointsJ[:,1])
+    #     ax.plot(pointsK[:,0],pointsK[:,1])
+    #     ax.scatter(commonPoint[0],commonPoint[1],marker='*',color='r')
+    #     plt.show()
+    #     #################
+        
+        
+        
+        # verticies[index] = {"neighbors":neighbors,"point":np.array([x,y]),"edge":False}
+                
+    return verticies,contourPoints,cellAssignment
+
 import numpy as np
 
 def filter_points_by_vertices(contour, vertex1, vertex2, reference_point):
@@ -339,6 +418,16 @@ def filter_points_by_vertices(contour, vertex1, vertex2, reference_point):
 
     # Filter points based on the mask
     points_in_range = contour[mask]
+
+
+    # if len(points_in_range) == 0:
+    #     fig,ax = plt.subplots()
+    #     ax.set_xlim(0,params.bounds[0])
+    #     ax.set_ylim(0,params.bounds[1])
+    #     ax.scatter(contour[:,0],contour[:,1])
+    #     ax.scatter(vertex1[0],vertex1[1],marker='*',color='r')
+    #     ax.scatter(vertex2[0],vertex2[1],marker='*',color='r')
+    #     plt.show()
 
     return points_in_range
 
@@ -438,6 +527,8 @@ def resample_points(points, spacing):
     cumulative_distances = get_cumulative_distances(points)
 
     num_points = int(np.ceil(cumulative_distances[-1] / spacing))
+    if num_points < 3:
+        return points
     
     # Create an interpolation function for each dimension
     interp_func_x = scipy.interpolate.interp1d(cumulative_distances, points[:, 0], kind='linear')
@@ -488,6 +579,11 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
 
     pointsInRange = resample_points(pointsInRange, 100)
 
+    if np.allclose(vertex1,vertex2):
+        print("TESt")
+
+    
+
 
     splineControlPoints,splineKnotPoints = fit_spline_to_path(pointsInRange, 10, 3,vertex1,vertex2)
     return splineControlPoints,splineKnotPoints,pointsInRange 
@@ -495,6 +591,7 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
     
     
 def plot_spline(spline,ax,c='g'):
+    
     controlPoints = spline.c
     tf = spline.t[-1-spline.k]
     t = np.linspace(0, tf, 20)
@@ -533,14 +630,25 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
                         plot_spline(spline,ax)
     return ridges
 
-def find_exterior_points(vor):
+def find_exterior_points(contourList):
     exteriorPoints = []
-
-    for point_idx, region_idx in enumerate(vor.point_region):
-        region = vor.regions[region_idx]
+    for i,points in enumerate(contourList):
+        tolerance = 50  # Adjust the tolerance as needed
+        if (np.any(np.isclose(points[:, 0], 0, atol=tolerance)) or
+            np.any(np.isclose(points[:, 0], params.bounds[0], atol=tolerance)) or
+            np.any(np.isclose(points[:, 1], 0, atol=tolerance)) or
+            np.any(np.isclose(points[:, 1], params.bounds[1], atol=tolerance))):
+        # if np.any(points[:,0] == 0) or np.any(points[:,0] == params.bounds[0]) or np.any(points[:,1] == 0) or np.any(points[:,1] == params.bounds[1]):
+            exteriorPoints.append(i)
+    
         
-        if -1 in region:
-            exteriorPoints.append(point_idx)
+    # exteriorPoints = []
+
+    # for point_idx, region_idx in enumerate(vor.point_region):
+    #     region = vor.regions[region_idx]
+        
+    #     if -1 in region:
+    #         exteriorPoints.append(point_idx)
     
     return exteriorPoints
 
@@ -582,9 +690,9 @@ def find_possible_edge_vertex(prob_list,i,j):
     upperBound = np.max(points)
     lowerBound = np.min(points)
     corners = np.array([[lowerBound,lowerBound],[lowerBound,upperBound],[upperBound,upperBound],[upperBound,lowerBound]])
-    mask = np.all(points[:,None]!=corners,axis=2).all(axis=1)
-    mask = ~np.any((points[:, None] == corners).all(axis=2), axis=1)
-    points = points[mask]
+    # mask = np.all(points[:,None]!=corners,axis=2).all(axis=1)
+    # mask = ~np.any((points[:, None] == corners).all(axis=2), axis=1)
+    # points = points[mask]
     
 
     edgePoints = points[(points[:, 0] == lowerBound) | (points[:, 0] == upperBound) |
@@ -703,17 +811,16 @@ def find_generalized_voronoi(radarParams, radarParamsCov):
     prob_list = create_probability_of_detection_below_threshold_grid_list(params.X_test,radarParams,radarParamsCov)
     # Z = weighted_voronoi_uncertain_radar_grid_method(params.X_test,prob_list,radarParams,radarParamsCov,useUpperBound=False,ax=ax)
 
-    closestNeighborTriples = get_closest_neighbor_triplets(vor)
+    # closestNeighborTriples = get_closest_neighbor_triplets(vor)
 
-    verticies = find_generalized_voronoi_verticies(prob_list,closestNeighborTriples)
-    exteriorPoints = find_exterior_points(vor)
-    # print("Exterior Points",exteriorPoints)
+    verticies,contourPoints,cellAssignments = find_generalized_voronoi_verticies(prob_list)
+    exteriorPoints = find_exterior_points(contourPoints)
+    print("Exterior Points",exteriorPoints)
     verticies = find_generalized_voronoi_edge_verticies(prob_list, exteriorPoints, verticies,points)
-    # print("Verticies",verticies)
     ridges = find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsCov,ax=None)
     boundarySegments,startVertexIndex,endVertexIndex = find_boundary_segments(verticies,radarParams,radarParamsCov)
 
-    return verticies,ridges,boundarySegments,startVertexIndex,endVertexIndex
+    return verticies,ridges,boundarySegments,startVertexIndex,endVertexIndex,cellAssignments
     
     
     
@@ -788,7 +895,6 @@ def path_to_points(path,ridges,boundarySegments,verticies,spacing):
         if previousPointIndex != 0:
             points = np.flip(points,axis=0)
         previousPoint = points[-1]
-        # print("Points",points)
 
         # fig, ax = plt.subplots()
         # ax.plot(points[:,0],points[:,1])
@@ -802,27 +908,34 @@ def path_to_points(path,ridges,boundarySegments,verticies,spacing):
 
 def find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing,ax=None):
     start = time()
-    verticies,ridges,boundarySegments,startVertexIndex,endVertexIndex = find_generalized_voronoi(radarParams,radarParamsCov)
+    verticies,ridges,boundarySegments,startVertexIndex,endVertexIndex,cellAssinments = find_generalized_voronoi(radarParams,radarParamsCov)
     print("Time",time()-start)
 
     adjecencyMatrix = create_adjacency_matrix_from_ridges_and_boundary(ridges,boundarySegments,verticies)
     path = create_graph_and_find_shortest_path(adjecencyMatrix,startVertexIndex,endVertexIndex)
+    print("Path",path)
 
     
     #test code
     vor = Voronoi(radarParams[:,0:2])
     
-    fig,ax1 = plt.subplots()
-    voronoi_plot_2d(vor,ax=ax1)
-    plot_generalized_voronoi(verticies,ridges,boundarySegments,ax1)
+    # fig,ax1 = plt.subplots()
+    # voronoi_plot_2d(vor,ax=ax1)
+    ax.contourf(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),cellAssinments.reshape(params.numTestPoints,params.numTestPoints))
+    plot_generalized_voronoi(verticies,ridges,boundarySegments,ax)
     plt.show()
 
+
+    if len(path) == 0:
+        return None
 
     pathPoints = path_to_points(path,ridges,boundarySegments,verticies,spacing)
 
     if ax is not None:
         plot_generalized_voronoi(verticies,ridges,boundarySegments,ax)
-        ax.plot(pathPoints[:,0],pathPoints[:,1],color='r')
+        if pathPoints is not None:
+            ax.plot(pathPoints[:,0],pathPoints[:,1],color='r')
+        # ax.plot(pathPoints[:,0],pathPoints[:,1],color='r')
     
 
     return pathPoints
@@ -838,8 +951,10 @@ def main():
 
 
 
-    dataIndex = 1000
+    dataIndex = 639
+    # dataIndex = 1800
     # dataIndex = 200
+    # dataFilePath = "saved_data/seed_1102042/"
     dataFilePath = "saved_data/1102042/"
     radarParams = np.load(dataFilePath+"estimated_params/"+str(dataIndex)+".npy")
     radarParamsCov = np.load(dataFilePath+"estimated_params_cov/"+str(dataIndex)+".npy")
@@ -847,7 +962,7 @@ def main():
     # radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/"+str(dataIndex)+".npy")
 
     Z = safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold,params.thresholdConfidence,radarParams,radarParamsCov, params.radarRecieveGain,params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean,params.radarProbabilityOfFalseAlarmPriorVariance)
-    Z = Z > params.thresholdConfidence
+    # Z = Z > params.thresholdConfidence
 
 
     
