@@ -1050,20 +1050,22 @@ class HighPriorityPathPlanner:
         
 def main():
     radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
-    dataIndex = 639
+    # dataIndex = 639
     # dataFilePath = "saved_data/seed_1102042/"
 
-    # dataIndex = 1800 
+    dataIndex = 1700 
     dataFilePath = "saved_data/1102042/"
     radarParams = np.load(dataFilePath+"estimated_params/"+str(dataIndex)+".npy")
     radarParamsCov = np.load(dataFilePath+"estimated_params_cov/"+str(dataIndex)+".npy")
     hpp = HighPriorityPathPlanner(tuple(radarList))
     pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList))
     fig,ax = plt.subplots()
+    plt.xticks(fontsize=26)
+    plt.yticks(fontsize=26)
     ax.set_aspect('equal')
     if hpp.uncertainRadar:
         Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGain,0, params.radarWavelength,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperature,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarm,params.radarProbabilityOfFalseAlarmPriorVariance) 
-        ax.set_title("Likelihood True PD < Threshold")
+        ax.set_title("Likelihood True PD < Threshold",fontsize=34)
     else:
         Z = pdMap.groundTruthpdMap
     c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints),alpha=1)
@@ -1082,7 +1084,8 @@ def main():
     else:
         fig = ax.get_figure()
     # c = pdMap.plot_mean(ax,plotGroundTruth=True)
-    fig.colorbar(c, ax=ax)
+    cbar = fig.colorbar(c, ax=ax)
+    cbar.ax.tick_params(labelsize=26)
     hpp.plot_spline(hpp.spline,ax,c='magenta')
     hpp.plot_constraints(hpp.spline, tuple(radarList),radarParams,radarParamsCov)
     plt.show()
