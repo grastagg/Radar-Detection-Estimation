@@ -436,7 +436,7 @@ def filter_points_by_vertices(contour, vertex1, vertex2, reference_point,secondR
     diff = np.abs(angle_vertex1 - angle_vertex2)
     singularity = False
     if diff > np.pi:
-        singularity = True
+        singularity = False
     
     
         
@@ -668,6 +668,8 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
     points = contour[0].squeeze()*pixelDist
     for i in range(1,len(contour)):
         points = np.append(points,contour[i].squeeze()*pixelDist,axis=0)
+    
+    # referencePoint = np.mean(points,axis=0)
 
 
     points = points[points[:,0]!=0]
@@ -1199,11 +1201,11 @@ def main():
 
 
 
-    # dataIndex = 639
-    dataIndex = 1800
-    # dataIndex = 200
-    # dataFilePath = "saved_data/seed_1102042/"
-    dataFilePath = "saved_data/1102042/"
+    # dataIndex = 300
+    # dataIndex = 1800
+    dataIndex = 200
+    dataFilePath = "saved_data/seed_1102042/"
+    # dataFilePath = "saved_data/1102042/"
     radarParams = np.load(dataFilePath+"estimated_params/"+str(dataIndex)+".npy")
     radarParamsCov = np.load(dataFilePath+"estimated_params_cov/"+str(dataIndex)+".npy")
     # radarParams = np.load("saved_data/currentData/estimated_params/"+str(dataIndex)+".npy")
