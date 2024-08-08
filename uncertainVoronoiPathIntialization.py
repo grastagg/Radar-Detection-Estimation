@@ -461,31 +461,46 @@ def filter_points_by_vertices(contour, vertex1, vertex2, reference_point,secondR
     # if cross1*cross2 > 0:
     #     mask = ~mask
     
-    straightLine = np.linspace(contour[mask][0],contour[mask][-1],len(contour[mask]))
-    distanceDiff = np.linalg.norm(straightLine - contour[mask],axis=1)
+    # straightLine = np.linspace(contour[mask][0],contour[mask][-1],len(contour[mask]))
+    # straightLine = np.linspace(vertex1,vertex2,len(contour[mask]))
+    points_in_range = contour[mask]
+    points_in_range,_ = sort_points(points_in_range,reference_point)
+
+    if np.linalg.norm(vertex1 - points_in_range[0]) > np.linalg.norm(vertex1 - points_in_range[-1]):
+        # points_in_range = np.append(vertex2, points_in_range,axis=0)
+        points_in_range = np.insert(points_in_range, 0,vertex2.reshape((1,2)),axis=0)
+        points_in_range = np.append(points_in_range, vertex1.reshape((1,2)),axis=0)
+        # points_in_range = np.append(points_in_range,vertex1,axis=0)
+        straightLine = np.linspace(vertex2,vertex1,len(points_in_range))
+    else:
+        points_in_range = np.insert(points_in_range, 0,vertex1.reshape((1,2)),axis=0)
+        points_in_range = np.append(points_in_range, vertex2.reshape((1,2)),axis=0)
+        # points_in_range = np.append(vertex1, points_in_range,axis=0)
+        # points_in_range = np.append(points_in_range,vertex2,axis=0)
+        straightLine = np.linspace(vertex1,vertex2,len(points_in_range))
+    
+    # distanceDiff = np.linalg.norm(straightLine - contour[mask],axis=1)
+    distanceDiff = np.linalg.norm(straightLine - points_in_range,axis=1)
     diffMean = np.mean(distanceDiff)
-    if diffMean > 1500:
+    if diffMean > 1600:
         mask = ~mask
-    # distances = np.linalg.norm(straightLine[:, np.newaxis, :] - contour[mask][np.newaxis, :, :], axis=2)
-    # minDistance = np.min(distances)
-    # print("minDistance: ",minDistance)
-    # if minDistance > 1000:
-    #     mask = ~mask
+    points_in_range = contour[mask]
+    points_in_range,_ = sort_points(points_in_range,reference_point)
     
     # Filter points based on the mask
-    points_in_range = contour[mask]
+    # points_in_range = contour[mask]
 
 
     # fig,ax = plt.subplots()
     # ax.set_xlim(0,params.bounds[0])
     # ax.set_ylim(0,params.bounds[1])
-    # ax.scatter(contour[:,0],contour[:,1])
-    # ax.scatter(points_in_range[:,0],points_in_range[:,1])
+    # # ax.scatter(contour[:,0],contour[:,1])
+    # ax.plot(points_in_range[:,0],points_in_range[:,1])
     # # # ax.scatter(reference_point[0],reference_point[1],marker='*',color='r')
     # # # ax.scatter(secondReferencePoint[0],secondReferencePoint[1],marker='*',color='r')
     # ax.scatter(vertex1[0],vertex1[1],marker='*',color='r')
     # ax.scatter(vertex2[0],vertex2[1],marker='*',color='r')
-    # # # ax.scatter(straightLine[:,0],straightLine[:,1],c='g')
+    # ax.plot(straightLine[:,0],straightLine[:,1],c='g')
     # # # # ax.plot(straightLine[:,0],straightLine[:,1],c='g')
     # plt.show()
 
@@ -633,8 +648,6 @@ def resample_points(points, spacing):
     return resampled_points
 
 def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams,radarParamsCovDeterminants):
-    print("vertex1: ",vertex1)
-    print("vertex2: ",vertex2)
 
     i,j = ridgeNeighborIndecies
     if radarParamsCovDeterminants[i] > radarParamsCovDeterminants[j]:
@@ -673,17 +686,17 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
         pointsInRange = np.append(pointsInRange, vertex1).reshape(-1,2)
     # pointsInRange = np.append(pointsInRange, vertex1).reshape(-1,2)
     # pointsInRange = np.append(pointsInRange, vertex2).reshape(-1,2)
-    pointsInRange,_ = sort_points(pointsInRange, referencePoint)
+    # pointsInRange,_ = sort_points(pointsInRange, referencePoint)
 
     pointsInRange = resample_points(pointsInRange, 100)
 
-    fig,ax = plt.subplots()
-    ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),np.argmin(prob_list,axis=0).reshape(params.numTestPoints,params.numTestPoints))
-    # ax.plot(points[:,0],points[:,1])
-    ax.plot(pointsInRange[:,0],pointsInRange[:,1])
-    ax.scatter(vertex1[0],vertex1[1],marker='*',color='r')
-    ax.scatter(vertex2[0],vertex2[1],marker='*',color='r')
-    plt.show()
+    # fig,ax = plt.subplots()
+    # ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),np.argmin(prob_list,axis=0).reshape(params.numTestPoints,params.numTestPoints))
+    # # ax.plot(points[:,0],points[:,1])
+    # ax.plot(pointsInRange[:,0],pointsInRange[:,1])
+    # ax.scatter(vertex1[0],vertex1[1],marker='*',color='r')
+    # ax.scatter(vertex2[0],vertex2[1],marker='*',color='r')
+    # plt.show()
     
 
 
@@ -720,12 +733,9 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
                     if j not in potentialRidges[commonNeighbors]:
                         potentialRidges[commonNeighbors].append(j)
 
-    print("potentialRidges: ",potentialRidges)
     ignore = []
     for neighbors in potentialRidges.keys():
         if len(potentialRidges[neighbors]) > 2:
-            print("neighbors: ",neighbors)
-            print("potentialRidges[neighbors]: ",potentialRidges[neighbors])
             point1 = verticies[potentialRidges[neighbors][0]]['point']
             point2 = verticies[potentialRidges[neighbors][1]]['point']
             point3 = verticies[potentialRidges[neighbors][2]]['point']
@@ -876,14 +886,10 @@ def find_edge_vertex(cellAssignment,i,j,verticies,vertexIndex):
                 minDistance = dist
                 closestPointI = point1
                 closestPointJ = point2
-    print("minDistance: ",minDistance)
 
     if minDistance > 100:
         return None
     else:
-        print("i: ",i)
-        print("j: ",j)
-        print("closestPoint exists")
         return (closestPointI+closestPointJ)/2
         
     # distances = np.linalg.norm(edgePoints - verticies[vertexIndex]['point'],axis=1)
@@ -938,7 +944,6 @@ def find_generalized_voronoi_edge_verticies(cellAssignments, exteriorPoints,vert
                     interoirRidges.append(commonNeighbors)
 
     center = np.mean(points,axis=0)
-    print("exteriorPoints: ",exteriorPoints)
     for i in range(len(exteriorPoints)):
         for j in range(i+1,len(exteriorPoints)):
             vertex = find_edge_vertex(cellAssignments,exteriorPoints[i],exteriorPoints[j],verticies,currentVertex)
@@ -961,10 +966,6 @@ def find_generalized_voronoi_edge_verticies(cellAssignments, exteriorPoints,vert
     #                 for ridge in interoirRidges:
     #                     if len(np.intersect1d(ridge,[intersection[k],intersection[l]])) > 2:
                             
-    #                         # print("k",k)
-    #                         # print("l",l)
-    #                         # print("ridge",ridge)
-    #                         # print("intersection",intersection)
     #                         tangent = points[intersection[k]] - points[intersection[l]]
     #                         tangent = tangent/np.linalg.norm(tangent)
     #                         normal = np.array([-tangent[1],tangent[0]])
@@ -1050,20 +1051,18 @@ def find_generalized_voronoi(radarParams, radarParamsCov):
     # closestNeighborTriples = get_closest_neighbor_triplets(vor)
 
     verticies,contourPoints,cellAssignments = find_generalized_voronoi_verticies(prob_list)
-    print("Verticies",verticies)
          
     exteriorPoints = find_exterior_points(contourPoints)
     # verticies = find_generalized_voronoi_edge_verticies(prob_list, exteriorPoints, verticies,points)
     verticies = find_generalized_voronoi_edge_verticies(cellAssignments, exteriorPoints, verticies,points)
-    print("Verticies",verticies)
     boundarySegments,startVertexIndex,endVertexIndex = find_boundary_segments(verticies,radarParams,radarParamsCov)
 
-    fig,ax = plt.subplots()
-    ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),np.argmin(prob_list,axis=0).reshape(params.numTestPoints,params.numTestPoints))
-    for vertex in verticies:
-        ax.scatter(verticies[vertex]["point"][0],verticies[vertex]["point"][1],marker='*',color='r')
-        ax.text(verticies[vertex]["point"][0],verticies[vertex]["point"][1],str(vertex))
-    plt.show()
+    # fig,ax = plt.subplots()
+    # ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),np.argmin(prob_list,axis=0).reshape(params.numTestPoints,params.numTestPoints))
+    # for vertex in verticies:
+    #     ax.scatter(verticies[vertex]["point"][0],verticies[vertex]["point"][1],marker='*',color='r')
+    #     ax.text(verticies[vertex]["point"][0],verticies[vertex]["point"][1],str(vertex))
+    # plt.show()
     
     
     
