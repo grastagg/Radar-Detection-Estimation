@@ -408,7 +408,7 @@ def find_generalized_voronoi_verticies(prob_list):
 
 import numpy as np
 
-def filter_points_by_vertices(contour, vertex1, vertex2, reference_point,secondReferencePoint):
+def filter_points_by_vertices(contour, vertex1, vertex2, reference_point,secondReferencePoint,allVertices,vertex1Index,vertex2Index):
     """
     Filters points in the contour that lie between the two vertices.
 
@@ -421,6 +421,16 @@ def filter_points_by_vertices(contour, vertex1, vertex2, reference_point,secondR
     Returns:
     np.ndarray: Array of points that lie between the two vertices.
     """
+
+    midpoint = (vertex1 + vertex2) / 2
+    # Calculate the reference point
+    normal = np.array([reference_point[0] - midpoint[0], reference_point[1] - midpoint[1]])
+    normal = normal / np.linalg.norm(normal)
+    print("reference_point",reference_point)
+    reference_point = midpoint + 1500 * normal
+    print("reference_point",reference_point)
+
+    # reference_point = np.mean(contour,axis=0)
     
     # Calculate angles for each point in the contour relative to the reference point
     angles = np.arctan2(contour[:, 1] - reference_point[1], contour[:, 0] - reference_point[0])
@@ -430,13 +440,20 @@ def filter_points_by_vertices(contour, vertex1, vertex2, reference_point,secondR
     angle_vertex2 = np.arctan2(vertex2[1] - reference_point[1], vertex2[0] - reference_point[0])
 
     # Normalize angles to the range [0, 2*pi]
-    angles = np.mod(angles + 2 * np.pi, 2 * np.pi)
-    angle_vertex1 = np.mod(angle_vertex1 + 2 * np.pi, 2 * np.pi)
-    angle_vertex2 = np.mod(angle_vertex2 + 2 * np.pi, 2 * np.pi)
+    # angles = np.mod(angles + 2 * np.pi, 2 * np.pi)
+    # angle_vertex1 = np.mod(angle_vertex1 + 2 * np.pi, 2 * np.pi)
+    # angle_vertex2 = np.mod(angle_vertex2 + 2 * np.pi, 2 * np.pi)
+    print()
+    print("TEST")
+    print("angle_vertex1",angle_vertex1)
+    print("angle_vertex2",angle_vertex2)
+    
     diff = np.abs(angle_vertex1 - angle_vertex2)
     singularity = False
     if diff > np.pi:
-        singularity = False
+        print("Singularity")
+        print("diff",diff)
+        singularity =True 
     
     
         
@@ -463,8 +480,24 @@ def filter_points_by_vertices(contour, vertex1, vertex2, reference_point,secondR
     
     # straightLine = np.linspace(contour[mask][0],contour[mask][-1],len(contour[mask]))
     # straightLine = np.linspace(vertex1,vertex2,len(contour[mask]))
+    allOtherVertices = []
+    for vertexIndex in allVertices.keys():
+        if vertexIndex == vertex1Index or vertexIndex == vertex2Index:
+            continue
+        allOtherVertices.append(allVertices[vertexIndex]["point"])
+    allOtherVertices = np.array(allOtherVertices)
+        
+    
+    
     points_in_range = contour[mask]
     points_in_range,_ = sort_points(points_in_range,reference_point)
+
+    distanceMatrix = np.linalg.norm(allOtherVertices - points_in_range[:,np.newaxis],axis=2)
+    if np.min(distanceMatrix) < 50:
+        mask = ~mask
+        points_in_range = contour[mask]
+        points_in_range,_ = sort_points(points_in_range,reference_point)
+    print("distanceMatrix",np.min(distanceMatrix))
 
     if np.linalg.norm(vertex1 - points_in_range[0]) > np.linalg.norm(vertex1 - points_in_range[-1]):
         # points_in_range = np.append(vertex2, points_in_range,axis=0)
@@ -480,12 +513,12 @@ def filter_points_by_vertices(contour, vertex1, vertex2, reference_point,secondR
         straightLine = np.linspace(vertex1,vertex2,len(points_in_range))
     
     # distanceDiff = np.linalg.norm(straightLine - contour[mask],axis=1)
-    distanceDiff = np.linalg.norm(straightLine - points_in_range,axis=1)
-    diffMean = np.mean(distanceDiff)
-    if diffMean > 1600:
-        mask = ~mask
-    points_in_range = contour[mask]
-    points_in_range,_ = sort_points(points_in_range,reference_point)
+    # distanceDiff = np.linalg.norm(straightLine - points_in_range,axis=1)
+    # diffMean = np.mean(distanceDiff)
+    # if diffMean > 1600:
+    #     mask = ~mask
+    # points_in_range = contour[mask]
+    # points_in_range,_ = sort_points(points_in_range,reference_point)
     
     # Filter points based on the mask
     # points_in_range = contour[mask]
@@ -494,14 +527,20 @@ def filter_points_by_vertices(contour, vertex1, vertex2, reference_point,secondR
     # fig,ax = plt.subplots()
     # ax.set_xlim(0,params.bounds[0])
     # ax.set_ylim(0,params.bounds[1])
-    # # ax.scatter(contour[:,0],contour[:,1])
-    # ax.plot(points_in_range[:,0],points_in_range[:,1])
-    # # # ax.scatter(reference_point[0],reference_point[1],marker='*',color='r')
+    # ax.scatter(contour[:,0],contour[:,1])
+    # ax.scatter(points_in_range[:,0],points_in_range[:,1])
+    # ax.scatter(reference_point[0],reference_point[1],color='r')
+    # ax.scatter(secondReferencePoint[0],secondReferencePoint[1],marker='*',color='g')
+    # ax.plot([reference_point[0],secondReferencePoint[0]],[reference_point[1],secondReferencePoint[1]],c='g')
+    # ax.plot([vertex1[0],vertex2[0]],[vertex1[1],vertex2[1]],c='r')
+    # ax.plot([reference_point[0],reference_point[0]+1000000*np.cos(angle_vertex1)],[reference_point[1],reference_point[1]+1000000*np.sin(angle_vertex1)],c='r')
+    # ax.plot([reference_point[0],reference_point[0]+1000000*np.cos(angle_vertex2)],[reference_point[1],reference_point[1]+1000000*np.sin(angle_vertex2)],c='r')
     # # # ax.scatter(secondReferencePoint[0],secondReferencePoint[1],marker='*',color='r')
-    # ax.scatter(vertex1[0],vertex1[1],marker='*',color='r')
+    # ax.scatter(vertex1[0],vertex1[1],marker='*',color='g')
     # ax.scatter(vertex2[0],vertex2[1],marker='*',color='r')
-    # ax.plot(straightLine[:,0],straightLine[:,1],c='g')
+    # # ax.plot(straightLine[:,0],straightLine[:,1],c='g')
     # # # # ax.plot(straightLine[:,0],straightLine[:,1],c='g')
+    # ax.scatter(allOtherVertices[:,0],allOtherVertices[:,1])
     # plt.show()
 
     return points_in_range
@@ -647,24 +686,49 @@ def resample_points(points, spacing):
     
     return resampled_points
 
-def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams,radarParamsCovDeterminants):
+def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParams,radarParamsCovDeterminants,allVertecies,vertex1Index,vertex2Index):
 
     i,j = ridgeNeighborIndecies
-    if radarParamsCovDeterminants[i] > radarParamsCovDeterminants[j]:
-        referencePoint = radarParams[j,0:2]
-        otherePoint = radarParams[i,0:2]
-    else:
-        referencePoint = radarParams[i,0:2]
-        otherePoint = radarParams[j,0:2]
-    celliprob = prob_list[i]
-    celljprob = prob_list[j]
+    # celliprob = prob_list[i]
+    # celljprob = prob_list[j]
 
-    cellAssignment = np.where(celliprob < celljprob,0,1).reshape(params.numTestPoints,params.numTestPoints)
+    # if radarParamsCovDeterminants[i] > radarParamsCovDeterminants[j]:
+    # print("radarParamsCovDeterminants[i]",radarParamsCovDeterminants[i])
+    # print("radarParamsCovDeterminants[j]",radarParamsCovDeterminants[j])
+    # print("radarParams[i]",radarParams[i])
+    # print("radarParams[j]",radarParams[j])
+    otherPoint = [0,0]
+    # if radarParams[j][2] > radarParams[i][2]:
+    #     referencePoint = radarParams[j,0:2]
+    #     otherePoint = radarParams[i,0:2]
+    #     cellAssignment = np.where(celliprob < celljprob,0,1).reshape(params.numTestPoints,params.numTestPoints)
+    # else:
+    #     referencePoint = radarParams[i,0:2]
+    #     otherePoint = radarParams[j,0:2]
+    #     cellAssignment = np.where(celliprob < celljprob,1,0).reshape(params.numTestPoints,params.numTestPoints)
+
+    # cellAssignment = np.where(celliprob < celljprob,0,1).reshape(params.numTestPoints,params.numTestPoints)
+    cellAssignment = np.where(cellAssign == i ,1,0).reshape(params.numTestPoints,params.numTestPoints)
+    # nonZeroCount = np.count_nonzero(cellAssignment)
+    # print("nonZeroCount",nonZeroCount)
+    # zerosCount = params.numTestPoints**2 - nonZeroCount
+    # print("zerosCount",zerosCount)
+    # if nonZeroCount > zerosCount:
+    #     cellAssignment = np.logical_not(cellAssignment).astype(int)
     
+    pixelDist = params.bounds[0]/params.numTestPoints
 
     contour,_ = cv2.findContours(cellAssignment.astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    pixelDist = params.bounds[0]/params.numTestPoints
+    centroid = None
+    for c in contour:
+        M = cv2.moments(c)
+        cX = int(M["m10"] / M["m00"])*pixelDist
+        cY = int(M["m01"] / M["m00"])*pixelDist
+        centroid = np.array([cX,cY])
+        print("cX",cX)
+        print("cY",cY)
+
     points = contour[0].squeeze()*pixelDist
     for i in range(1,len(contour)):
         points = np.append(points,contour[i].squeeze()*pixelDist,axis=0)
@@ -677,7 +741,7 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
     points = points[~np.isclose(points[:,0],params.bounds[0],atol=50)]
     points = points[~np.isclose(points[:,1],params.bounds[1],atol=50)]
 
-    pointsInRange = filter_points_by_vertices(points, vertex1, vertex2, referencePoint,otherePoint)
+    pointsInRange = filter_points_by_vertices(points, vertex1, vertex2, centroid,otherPoint,allVertecies,vertex1Index,vertex2Index)
     distVertex1ToFirstPoint = np.linalg.norm(pointsInRange[0] - vertex1)
     distVertex1ToLastPoint = np.linalg.norm(pointsInRange[-1] - vertex1)
     if distVertex1ToFirstPoint < distVertex1ToLastPoint:
@@ -693,8 +757,8 @@ def find_ridge_line(prob_list, ridgeNeighborIndecies,vertex1,vertex2,radarParams
     pointsInRange = resample_points(pointsInRange, 100)
 
     # fig,ax = plt.subplots()
-    # ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),np.argmin(prob_list,axis=0).reshape(params.numTestPoints,params.numTestPoints))
-    # # ax.plot(points[:,0],points[:,1])
+    # ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),cellAssignment.reshape(params.numTestPoints,params.numTestPoints))
+    # ax.plot(points[:,0],points[:,1])
     # ax.plot(pointsInRange[:,0],pointsInRange[:,1])
     # ax.scatter(vertex1[0],vertex1[1],marker='*',color='r')
     # ax.scatter(vertex2[0],vertex2[1],marker='*',color='r')
@@ -737,7 +801,19 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
 
     ignore = []
     for neighbors in potentialRidges.keys():
-        if len(potentialRidges[neighbors]) > 2:
+        # if len(potentialRidges[neighbors]) > 2:
+        if len(potentialRidges[neighbors]) == 4:
+            # points = []
+            # for k in range(len(potentialRidges[neighbors])):
+            #     point = verticies[potentialRidges[neighbors][k]]['point']
+            #     points.append(point)
+            # points = np.array(points)
+            # _,indecies = sort_points(points,[params.bounds[0]/2,params.bounds[1]/2])
+            # 
+            
+            
+
+            print("len", len(potentialRidges[neighbors]))
             point1 = verticies[potentialRidges[neighbors][0]]['point']
             point2 = verticies[potentialRidges[neighbors][1]]['point']
             point3 = verticies[potentialRidges[neighbors][2]]['point']
@@ -756,13 +832,13 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
             commonNeighbors = np.intersect1d(verticies[i]['neighbors'],verticies[j]['neighbors'])
             if len(commonNeighbors) == 3:
                 #need to add two ridges between these verticies
-                ridgeLineControlPoints1,ridgeLineKnotPoints1,points1 = find_ridge_line(prob_list,commonNeighbors[0:2],verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants)
+                ridgeLineControlPoints1,ridgeLineKnotPoints1,points1 = find_ridge_line(prob_list,commonNeighbors[0:2],verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants,verticies,i,j)
                 t = np.linspace(0,1,1000)
                 splinePoints1 = scipy.interpolate.BSpline(ridgeLineKnotPoints1,ridgeLineControlPoints1,3)(t)
                 probPDLessThanThreshold1 = highPriorityHelperFunctions.get_prob_pd_less_than_threshold(splinePoints1, radarParams, radarParamsCov, params.probabilityOfDetectionThreshold, params.radarRecieveGain,0,params.radarWavelength, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance,params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
                 minProb1 = np.min(probPDLessThanThreshold1)
                 
-                ridgeLineControlPoints2,ridgeLineKnotPoints2,points2 = find_ridge_line(prob_list,commonNeighbors[1:],verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants)
+                ridgeLineControlPoints2,ridgeLineKnotPoints2,points2 = find_ridge_line(prob_list,commonNeighbors[1:],verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants,verticies,i,j)
                 splinePoints2 = scipy.interpolate.BSpline(ridgeLineKnotPoints2,ridgeLineControlPoints2,3)(t)
                 probPDLessThanThreshold2 = highPriorityHelperFunctions.get_prob_pd_less_than_threshold(splinePoints2, radarParams, radarParamsCov, params.probabilityOfDetectionThreshold, params.radarRecieveGain,0,params.radarWavelength, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance,params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
                 minProb2 = np.min(probPDLessThanThreshold2)
@@ -783,7 +859,7 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
                 if (i,j) in ignore or (j,i) in ignore:
                     continue
                 else:
-                    ridgeLineControlPoints,ridgeLineKnotPoints,points = find_ridge_line(prob_list,commonNeighbors,verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants)
+                    ridgeLineControlPoints,ridgeLineKnotPoints,points = find_ridge_line(prob_list,commonNeighbors,verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants,verticies,i,j)
                     #############
                     # fig,ax = plt.subplots()
                     # ax.scatter(points[:,0],points[:,1])
@@ -1068,7 +1144,7 @@ def find_generalized_voronoi(radarParams, radarParamsCov):
     
     
     
-    ridges = find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsCov,ax=None)
+    ridges = find_generalized_voronoi_ridges(cellAssignments,verticies,radarParams,radarParamsCov,ax=None)
 
     return verticies,ridges,boundarySegments,startVertexIndex,endVertexIndex,cellAssignments
     
@@ -1202,10 +1278,10 @@ def main():
 
 
     # dataIndex = 300
-    # dataIndex = 1800
-    dataIndex = 209
-    dataFilePath = "saved_data/seed_1102042/"
-    # dataFilePath = "saved_data/1102042/"
+    dataIndex = 700
+    # dataIndex = 209
+    # dataFilePath = "saved_data/seed_1102042/"
+    dataFilePath = "saved_data/1102042/"
     radarParams = np.load(dataFilePath+"estimated_params/"+str(dataIndex)+".npy")
     radarParamsCov = np.load(dataFilePath+"estimated_params_cov/"+str(dataIndex)+".npy")
     # radarParams = np.load("saved_data/currentData/estimated_params/"+str(dataIndex)+".npy")
