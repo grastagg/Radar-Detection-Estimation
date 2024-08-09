@@ -408,6 +408,58 @@ def find_generalized_voronoi_verticies(prob_list):
 
 import numpy as np
 
+def new_filter_points_by_vertices(contour, vertex1, vertex2, reference_point,secondReferencePoint,allVertices,vertex1Index,vertex2Index):
+    
+    distanceToVertex1 = np.linalg.norm(contour - vertex1,axis=1)
+    distanceToVertex2 = np.linalg.norm(contour - vertex2,axis=1)
+    
+    closestPointToVertex1Index = np.argmin(distanceToVertex1)
+    closestPointToVertex2Index = np.argmin(distanceToVertex2)
+
+    mask = np.zeros(len(contour),dtype=bool)
+
+    if closestPointToVertex1Index < closestPointToVertex2Index:
+        # points_in_range = contour[closestPointToVertex1Index:closestPointToVertex2Index]
+        mask[closestPointToVertex1Index:closestPointToVertex2Index] = True
+    else:
+        # points_in_range = contour[closestPointToVertex2Index:closestPointToVertex1Index]
+        mask[closestPointToVertex2Index:closestPointToVertex1Index] = True
+    
+    allOtherVertices = []
+    for vertexIndex in allVertices.keys():
+        if vertexIndex == vertex1Index or vertexIndex == vertex2Index:
+            continue
+        allOtherVertices.append(allVertices[vertexIndex]["point"])
+    
+    allOtherVertices = np.array(allOtherVertices)
+
+    points_in_range = contour[mask]
+    if len(points_in_range) == 0:
+        return np.array([vertex1,vertex2])
+    
+    distanceMatrix = np.linalg.norm(allOtherVertices - points_in_range[:,np.newaxis],axis=2)
+    # print()
+    # print("min distance",np.min(distanceMatrix))
+    if np.min(distanceMatrix) < 100:
+        # print("TEST")
+        mask = ~mask
+        points_in_range = contour[mask]
+    # print(mask)
+    
+    # fig,ax = plt.subplots()
+    # ax.set_xlim(0,params.bounds[0])
+    # ax.set_ylim(0,params.bounds[1])
+    # ax.scatter(contour[:,0],contour[:,1])
+    # ax.plot(points_in_range[:,0],points_in_range[:,1],c = 'r')
+    # ax.scatter(vertex1[0],vertex1[1],marker='*',color='g')
+    # ax.scatter(vertex2[0],vertex2[1],marker='*',color='r')
+    # plt.show()
+    
+    
+    return points_in_range
+        
+    
+
 def filter_points_by_vertices(contour, vertex1, vertex2, reference_point,secondReferencePoint,allVertices,vertex1Index,vertex2Index):
     """
     Filters points in the contour that lie between the two vertices.
@@ -424,11 +476,10 @@ def filter_points_by_vertices(contour, vertex1, vertex2, reference_point,secondR
 
     midpoint = (vertex1 + vertex2) / 2
     # Calculate the reference point
+    centroid = reference_point.copy()
     normal = np.array([reference_point[0] - midpoint[0], reference_point[1] - midpoint[1]])
     normal = normal / np.linalg.norm(normal)
-    print("reference_point",reference_point)
-    reference_point = midpoint + 1500 * normal
-    print("reference_point",reference_point)
+    reference_point = midpoint + 2500 * normal
 
     # reference_point = np.mean(contour,axis=0)
     
@@ -443,16 +494,10 @@ def filter_points_by_vertices(contour, vertex1, vertex2, reference_point,secondR
     # angles = np.mod(angles + 2 * np.pi, 2 * np.pi)
     # angle_vertex1 = np.mod(angle_vertex1 + 2 * np.pi, 2 * np.pi)
     # angle_vertex2 = np.mod(angle_vertex2 + 2 * np.pi, 2 * np.pi)
-    print()
-    print("TEST")
-    print("angle_vertex1",angle_vertex1)
-    print("angle_vertex2",angle_vertex2)
     
     diff = np.abs(angle_vertex1 - angle_vertex2)
     singularity = False
     if diff > np.pi:
-        print("Singularity")
-        print("diff",diff)
         singularity =True 
     
     
@@ -490,14 +535,35 @@ def filter_points_by_vertices(contour, vertex1, vertex2, reference_point,secondR
     
     
     points_in_range = contour[mask]
-    points_in_range,_ = sort_points(points_in_range,reference_point)
+    # points_in_range,_ = sort_points(points_in_range,reference_point)
+
+    ###########################
+    # fig,ax = plt.subplots()
+    # ax.set_xlim(0,params.bounds[0])
+    # ax.set_ylim(0,params.bounds[1])
+    # ax.scatter(contour[:,0],contour[:,1])
+    # ax.scatter(points_in_range[:,0],points_in_range[:,1])
+    # ax.scatter(reference_point[0],reference_point[1],color='r')
+    # ax.scatter(centroid[0],centroid[1],color='r')
+    # # ax.scatter(secondReferencePoint[0],secondReferencePoint[1],marker='*',color='g')
+    # # ax.plot([reference_point[0],secondReferencePoint[0]],[reference_point[1],secondReferencePoint[1]],c='g')
+    # # ax.plot([vertex1[0],vertex2[0]],[vertex1[1],vertex2[1]],c='r')
+    # ax.plot([reference_point[0],reference_point[0]+1000000*np.cos(angle_vertex1)],[reference_point[1],reference_point[1]+1000000*np.sin(angle_vertex1)],c='r')
+    # ax.plot([reference_point[0],reference_point[0]+1000000*np.cos(angle_vertex2)],[reference_point[1],reference_point[1]+1000000*np.sin(angle_vertex2)],c='r')
+    # # # # ax.scatter(secondReferencePoint[0],secondReferencePoint[1],marker='*',color='r')
+    # ax.scatter(vertex1[0],vertex1[1],marker='*',color='g')
+    # ax.scatter(vertex2[0],vertex2[1],marker='*',color='r')
+    # # # ax.plot(straightLine[:,0],straightLine[:,1],c='g')
+    # # # # # ax.plot(straightLine[:,0],straightLine[:,1],c='g')
+    # ax.scatter(allOtherVertices[:,0],allOtherVertices[:,1])
+    # plt.show()
+    ###########################
 
     distanceMatrix = np.linalg.norm(allOtherVertices - points_in_range[:,np.newaxis],axis=2)
-    if np.min(distanceMatrix) < 50:
+    if np.min(distanceMatrix) < 100:
         mask = ~mask
         points_in_range = contour[mask]
-        points_in_range,_ = sort_points(points_in_range,reference_point)
-    print("distanceMatrix",np.min(distanceMatrix))
+        # points_in_range,_ = sort_points(points_in_range,reference_point)
 
     if np.linalg.norm(vertex1 - points_in_range[0]) > np.linalg.norm(vertex1 - points_in_range[-1]):
         # points_in_range = np.append(vertex2, points_in_range,axis=0)
@@ -693,10 +759,6 @@ def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParam
     # celljprob = prob_list[j]
 
     # if radarParamsCovDeterminants[i] > radarParamsCovDeterminants[j]:
-    # print("radarParamsCovDeterminants[i]",radarParamsCovDeterminants[i])
-    # print("radarParamsCovDeterminants[j]",radarParamsCovDeterminants[j])
-    # print("radarParams[i]",radarParams[i])
-    # print("radarParams[j]",radarParams[j])
     otherPoint = [0,0]
     # if radarParams[j][2] > radarParams[i][2]:
     #     referencePoint = radarParams[j,0:2]
@@ -726,8 +788,6 @@ def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParam
         cX = int(M["m10"] / M["m00"])*pixelDist
         cY = int(M["m01"] / M["m00"])*pixelDist
         centroid = np.array([cX,cY])
-        print("cX",cX)
-        print("cY",cY)
 
     points = contour[0].squeeze()*pixelDist
     for i in range(1,len(contour)):
@@ -741,7 +801,7 @@ def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParam
     points = points[~np.isclose(points[:,0],params.bounds[0],atol=50)]
     points = points[~np.isclose(points[:,1],params.bounds[1],atol=50)]
 
-    pointsInRange = filter_points_by_vertices(points, vertex1, vertex2, centroid,otherPoint,allVertecies,vertex1Index,vertex2Index)
+    pointsInRange = new_filter_points_by_vertices(points, vertex1, vertex2, centroid,otherPoint,allVertecies,vertex1Index,vertex2Index)
     distVertex1ToFirstPoint = np.linalg.norm(pointsInRange[0] - vertex1)
     distVertex1ToLastPoint = np.linalg.norm(pointsInRange[-1] - vertex1)
     if distVertex1ToFirstPoint < distVertex1ToLastPoint:
@@ -752,7 +812,7 @@ def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParam
         pointsInRange = np.append(pointsInRange, vertex1).reshape(-1,2)
     # pointsInRange = np.append(pointsInRange, vertex1).reshape(-1,2)
     # pointsInRange = np.append(pointsInRange, vertex2).reshape(-1,2)
-    # pointsInRange,_ = sort_points(pointsInRange, referencePoint)
+    pointsInRange,_ = sort_points(pointsInRange, centroid)
 
     pointsInRange = resample_points(pointsInRange, 100)
 
@@ -1278,7 +1338,7 @@ def main():
 
 
     # dataIndex = 300
-    dataIndex = 700
+    dataIndex = 1300
     # dataIndex = 209
     # dataFilePath = "saved_data/seed_1102042/"
     dataFilePath = "saved_data/1102042/"
