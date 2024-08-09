@@ -1203,7 +1203,7 @@ def main():
 
     # dataIndex = 300
     # dataIndex = 1800
-    dataIndex = 200
+    dataIndex = 209
     dataFilePath = "saved_data/seed_1102042/"
     # dataFilePath = "saved_data/1102042/"
     radarParams = np.load(dataFilePath+"estimated_params/"+str(dataIndex)+".npy")
