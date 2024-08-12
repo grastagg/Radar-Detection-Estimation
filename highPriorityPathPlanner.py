@@ -1050,11 +1050,11 @@ class HighPriorityPathPlanner:
         
 def main():
     radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
-    # dataIndex = 639
-    # dataFilePath = "saved_data/seed_1102042/"
+    dataIndex = 639
+    dataFilePath = "saved_data/seed_1102042/"
 
-    dataIndex = 1700 
-    dataFilePath = "saved_data/1102042/"
+    # dataIndex = 1700 
+    # dataFilePath = "saved_data/1102042/"
     radarParams = np.load(dataFilePath+"estimated_params/"+str(dataIndex)+".npy")
     radarParamsCov = np.load(dataFilePath+"estimated_params_cov/"+str(dataIndex)+".npy")
     hpp = HighPriorityPathPlanner(tuple(radarList))

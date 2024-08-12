@@ -406,7 +406,6 @@ def find_generalized_voronoi_verticies(prob_list):
                 
     return verticies,contourPoints,cellAssignment
 
-import numpy as np
 
 def new_filter_points_by_vertices(contour, vertex1, vertex2, reference_point,secondReferencePoint,allVertices,vertex1Index,vertex2Index):
     
@@ -438,13 +437,28 @@ def new_filter_points_by_vertices(contour, vertex1, vertex2, reference_point,sec
         return np.array([vertex1,vertex2])
     
     distanceMatrix = np.linalg.norm(allOtherVertices - points_in_range[:,np.newaxis],axis=2)
+    otherDistanceMatrix = np.linalg.norm(allOtherVertices - contour[~mask][:,np.newaxis],axis=2)
     # print()
     # print("min distance",np.min(distanceMatrix))
-    if np.min(distanceMatrix) < 100:
+    if np.min(distanceMatrix) < np.min(otherDistanceMatrix):
         # print("TEST")
         mask = ~mask
         points_in_range = contour[mask]
     # print(mask)
+    # print("min distance",np.min(distanceMatrix))
+    # print("min other distance",np.min(otherDistanceMatrix))
+
+    #sort points
+    if mask[0] == True and mask[-1] == True:
+        rollNumber = 0
+        for i in range(len(mask)-1,0,-1):
+            if mask[i] == False:
+                rollNumber = len(mask)-i-1
+                break
+        points_in_range = np.roll(points_in_range,rollNumber,axis=0)
+        # print(mask)
+
+    
     
     # fig,ax = plt.subplots()
     # ax.set_xlim(0,params.bounds[0])
@@ -453,6 +467,7 @@ def new_filter_points_by_vertices(contour, vertex1, vertex2, reference_point,sec
     # ax.plot(points_in_range[:,0],points_in_range[:,1],c = 'r')
     # ax.scatter(vertex1[0],vertex1[1],marker='*',color='g')
     # ax.scatter(vertex2[0],vertex2[1],marker='*',color='r')
+    # ax.scatter(allOtherVertices[:,0],allOtherVertices[:,1])
     # plt.show()
     
     
@@ -812,7 +827,7 @@ def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParam
         pointsInRange = np.append(pointsInRange, vertex1).reshape(-1,2)
     # pointsInRange = np.append(pointsInRange, vertex1).reshape(-1,2)
     # pointsInRange = np.append(pointsInRange, vertex2).reshape(-1,2)
-    pointsInRange,_ = sort_points(pointsInRange, centroid)
+    # pointsInRange,_ = sort_points(pointsInRange, centroid)
 
     pointsInRange = resample_points(pointsInRange, 100)
 
@@ -1338,10 +1353,10 @@ def main():
 
 
     # dataIndex = 300
-    dataIndex = 1300
-    # dataIndex = 209
-    # dataFilePath = "saved_data/seed_1102042/"
-    dataFilePath = "saved_data/1102042/"
+    # dataIndex = 200
+    dataIndex = 639
+    dataFilePath = "saved_data/seed_1102042/"
+    # dataFilePath = "saved_data/1102042/"
     radarParams = np.load(dataFilePath+"estimated_params/"+str(dataIndex)+".npy")
     radarParamsCov = np.load(dataFilePath+"estimated_params_cov/"+str(dataIndex)+".npy")
     # radarParams = np.load("saved_data/currentData/estimated_params/"+str(dataIndex)+".npy")
