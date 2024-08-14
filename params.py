@@ -41,7 +41,7 @@ highPriorityStraitLineA = highPriorityStart[1] - highPriorityEnd[1]
 highPriorityStraitLineB = highPriorityEnd[0] - highPriorityStart[0]
 highPriorityStraitLineC = highPriorityStart[0]*highPriorityEnd[1] - highPriorityEnd[0] * highPriorityStart[1]
 probabilityOfDetectionThreshold = 0.15
-thresholdConfidence = 0.7
+thresholdConfidence = 0.5
 highPriorityAgentRadarCrossSection = .1
 
 #radar parameters
@@ -179,7 +179,7 @@ numAgents = len(agentInitialStates)
 agentSensingRange = 5000
 agentPowerMeasurementStdDev = .001
 agentAngleMeasurementStdDev = (3*np.pi/180)
-agentELINTAnteneaGaindb = 18
+agentELINTAnteneaGaindb = 1
 agentELINTAnteneaGain = db_to_amplitude(agentELINTAnteneaGaindb)
 agentELINTSystemLoss = 1
 radarMeasurementCoeff = (agentELINTAnteneaGain * radarWavelength**2)/((4*np.pi)**2 * agentELINTSystemLoss)

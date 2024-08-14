@@ -26,6 +26,7 @@ def compute_probability_of_detection_vectorized(position, radarParams, radarRece
     radarXY = radarParams[:2]
     distance = jnp.linalg.norm(radarXY - position, axis=1)
     snr = signal_to_noise_ratio(radarParams[2], radarReceiveGain, radarWavelength, agentRadarCrossSection, radarPulseWidth, distance, radarSystemTemperature)
+    # jax.debug.print("snr: {x}",x=snr[0])
     return probability_of_detection(radarProbabilityOfFalseAlarm, snr)
 
 @partial(jit, static_argnums=(1,))

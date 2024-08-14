@@ -3,13 +3,17 @@ from functools import partial
 from jax import jit
 import numpy as np
 from time import time
+from scipy.constants import k
 
 from bspline.matrix_evaluation import matrix_bspline_derivative_evaluation_for_dataset, matrix_bspline_evaluation_for_dataset
 
 from main_helper import create_radar_list
 from probabilityOfDetectionJax import ground_truth_probability_of_detection,compute_probability_of_detection_at_points_multiple_radar
 import jax
+from jax import vmap
+import matplotlib.pyplot as plt
 
+import params
 
 
 
@@ -157,21 +161,130 @@ def get_prob_along_spline(controlpoints, tf, estimatedRadarParams, estimatedRada
     prob = get_prob_pd_less_than_threshold(pos, estimatedRadarParams, estimatedRadarParamsCov, pdThreshold, radarReceiveGain,radarReceiveGainVar, radarwavelengthpriormean,radarwavelengthvar, agentradarcrosssection, radarpulsewidth,radarpulsewidthvar, radarsystemtemperaturepriormean,radarsystemtemperaturepriorvar, radarprobabilityoffalsealarmpriormean,radarprobabilityoffalsealarmpriorvar)
     # prob = get_prob_pd_less_than_threshold(pos, estimatedRadarParamsList, estimatedRadarParamsCovList, pdThreshold, radarrecievegainpriormean,radarrecievegainpriorvar, radarwavelengthpriormean,radarwavelengthpriormeanvar, agentradarcrosssection, radarpulsewidth,radarpulsewidthVar, radarsystemtemperaturepriormean,radarsystemtemperaturepriorvar, radarprobabilityoffalsealarmpriormean,radarprobabilityoffalsealarmpriorvar):
     return prob
+
+@jit
+def radar_intercept_snr(radarPos, agentPos, radarTransmitGain, radarTransmitPower, agentRecieveGain, radarWavelength, systemTemp,radarPulseWidth):
+    R = jnp.linalg.norm(radarPos-agentPos)
+    SNR = (radarTransmitPower*radarTransmitGain*agentRecieveGain*radarWavelength**2*radarPulseWidth) / ((4*jnp.pi)**2*R**2*systemTemp*k * 100000000)
+    return SNR
+
+@jit
+def radar_probability_of_intercept(radarPos, agentPos, radarTransmitGain, radarTransmitPower, agentRecieveGain, radarWavelength, systemTemp, interceptProbabilityOfFalseAlarm,radarPulseWidth):
+    SNR = radar_intercept_snr(radarPos, agentPos, radarTransmitGain, radarTransmitPower, agentRecieveGain, radarWavelength, systemTemp,radarPulseWidth)
+    probabilityOfIntercept = jnp.exp((jnp.log(interceptProbabilityOfFalseAlarm))/(1+SNR))
+    return probabilityOfIntercept
+
+@jit
+def probability_radar_at_point_given_path_history(point, pathHistory, radarTransmitGain, radarTransmitPower, agentRecieveGain, radarWavelength, systemTemp, interceptProbabilityOfFalseAlarm, radarPulseWidth):
+    # Define a vectorized version of the radar_probability_of_intercept function
+    vectorized_intercept_prob = vmap(
+        radar_probability_of_intercept,
+        in_axes=(0, None, None, None, None, None, None, None, None)  # pathPoint is mapped, others are broadcasted
+    )
+    
+    # Calculate the intercept probabilities for all points in the path history
+    interceptProbabilities = vectorized_intercept_prob(
+        pathHistory, point, radarTransmitGain, radarTransmitPower, 
+        agentRecieveGain, radarWavelength, systemTemp, 
+        interceptProbabilityOfFalseAlarm, radarPulseWidth
+    )
+    
+    # Compute the overall probability of avoiding detection
+    radarAvoidanceProb = jnp.prod(1 - interceptProbabilities)
+    
+    # Return the overall probability of being detected
+    return radarAvoidanceProb
+# @jit
+# def probability_radar_at_point_given_path_history(point, pathHistory, radarTransmitGain, radarTransmitPower, agentRecieveGain, radarWavelength, systemTemp, interceptProbabilityOfFalseAlarm, radarPulseWidth):
+#     # Compute the probability of intercept for each radar in the path history
+
+#     radarAtXProb = 1.0
+#     for pathPoint in pathHistory:
+#         # Compute the distance between the path point and the current point
+#         distance = jnp.linalg.norm(pathPoint - point)
+#         # Compute the probability of intercept for the radar at the path point
+#         interceptProbability = radar_probability_of_intercept(pathPoint, point, radarTransmitGain, radarTransmitPower, agentRecieveGain, radarWavelength, systemTemp, interceptProbabilityOfFalseAlarm,radarPulseWidth)
+#         radarAtXProb *= (1-interceptProbability)
+
+#     return radarAtXProb
+
+@jit
+def path_safety_prob(allAgentPathHistory, potentialPathPoints, radarTransmitGain, radarTransmitPower, agentRecieveGain, radarWavelength, systemTemp, interceptProbabilityOfFalseAlarm,radarPulseWidth):
+    # Vectorize the probability_radar_at_point_given_path_history function across potentialPathPoints
+    vectorized_prob_radar = vmap(
+        probability_radar_at_point_given_path_history,
+        in_axes=(0, None, None, None, None, None, None, None,None)  # Vectorize across potentialPathPoints
+    )
+    
+    # Compute the probability of intercept for each radar at each potential path point
+    radarAtXProbs = vectorized_prob_radar(
+        potentialPathPoints, allAgentPathHistory, radarTransmitGain, radarTransmitPower, 
+        agentRecieveGain, radarWavelength, systemTemp, interceptProbabilityOfFalseAlarm,radarPulseWidth
+    )
+    
+    return radarAtXProbs
+# def path_safety_prob(allAgentPahtHistory, potentialPathPoints, radarTransmitGain, radarTransmitPower, agentRecieveGain, radarWavelength, systemTemp, interceptProbabilityOfFalseAlarm):
+#     # Compute the probability of intercept for each radar at each potential path point
+#     radarAtXProbs = jnp.array([probability_radar_at_point_given_path_history(point, allAgentPahtHistory, radarTransmitGain, radarTransmitPower, agentRecieveGain, radarWavelength, systemTemp, interceptProbabilityOfFalseAlarm) for point in potentialPathPoints])
+#     return radarAtXProbs
+
+def test_radar_probability_of_interecept(allAgentPathHistory):
+    points = params.X_test
+    probIntercept = np.zeros(len(points))
+
+
+    for i,point in enumerate(points):
+        probIntercept[i] = probability_radar_at_point_given_path_history(point, allAgentPathHistory, params.radarTransmitGain, params.radarOutputPower, params.agentELINTAnteneaGain, params.radarWavelength, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm,params.radarPulseWidth)
+        
+    fig,ax = plt.subplots()
+    c = ax.pcolormesh(points[:,0].reshape(params.numTestPoints,params.numTestPoints),points[:,1].reshape(params.numTestPoints,params.numTestPoints),probIntercept.reshape(params.numTestPoints,params.numTestPoints))
+    ax.scatter(allAgentPathHistory[:,0],allAgentPathHistory[:,1],c='r')
+    fig.colorbar(c, ax=ax)
+    plt.show()
+    
+
+    # for point in points
+
+
+
+@jit
+def path_safety(allAgentPathHistory, next_measurements, lengthScale):
+    # Compute the pairwise distances between all paths in history and all next measurements
+    distances = jnp.linalg.norm(
+        allAgentPathHistory[:, None, :] - next_measurements[None, :, :], axis=2
+    )
+    # return jnp.min(distances, axis=0)
+    
+    # Apply the kernel function
+    kernel_values = jnp.exp(-distances / 5000)
+    
+    # Return the negative sum of the kernel values for each measurement
+    return jnp.sum(kernel_values, axis=0)
     
 
 
 
 if __name__ == '__main__':
+    dataFilePath = "saved_data/1102042/"
+    dataIndex = 500
+    numFiles = 1904
+    agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
+    numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
+    pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
+    combinedPathHistory = []
+    for pathHistory in pathHistoryList:
+        combinedPathHistory.extend(pathHistory)
+    combinedPathHistory = np.array(combinedPathHistory)
+    test_radar_probability_of_interecept(combinedPathHistory)
 
-    p1 = jnp.array([0.0,0.0])
-    p2 = jnp.array([1.0,1.0])
-    points = jnp.array([[0.0,1.0],[1.0,0.0]])
-    start = time()
-    print(dist_of_points_to_line_segment(p1,p2,points)) 
-    print("time to complie", time()-start)
-    start  = time()
-    time_to_run = 0
-    for i in range(1000):
-        dist_of_points_to_line_segment(p1,p2,points)
-    print("average time to run", (time()-start)/1000)
     
+    dataIndex = 600
+    numFiles = 1904
+    agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
+    numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
+    pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
+    combinedPathHistory = []
+    for pathHistory in pathHistoryList:
+        combinedPathHistory.extend(pathHistory)
+    combinedPathHistory = np.array(combinedPathHistory)
+    test_radar_probability_of_interecept(combinedPathHistory)

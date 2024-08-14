@@ -1328,7 +1328,7 @@ def find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing,a
 
 
     if len(path) == 0:
-        return None
+        return path
 
     pathPoints = path_to_points(path,ridges,boundarySegments,verticies,spacing)
 

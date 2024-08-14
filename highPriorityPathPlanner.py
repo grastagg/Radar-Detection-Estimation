@@ -36,7 +36,7 @@ from bspline.matrix_evaluation import matrix_bspline_evaluation,derivative_matri
 
 # from bspline.matrix_evaluation import matrix_bspline_evaluation_for_dataset_jax, matrix_bspline_evaluation_jax
 
-from highPriorityHelperFunctions import create_unclamped_knot_points, get_spline_velocity, get_pd_along_spline, get_spline_turn_rate, dist_of_points_to_line_segment,get_prob_pd_less_than_threshold,get_prob_along_spline
+from highPriorityHelperFunctions import create_unclamped_knot_points, get_spline_velocity, get_pd_along_spline, get_spline_turn_rate, dist_of_points_to_line_segment,get_prob_pd_less_than_threshold,get_prob_along_spline,path_safety,path_safety_prob
 
 
 from weightedVoronoiPathIntialzation import compute_path_weighted_voronoi
@@ -270,6 +270,9 @@ class HighPriorityPathPlanner:
         startTimer = time.time()
         # initialControlPoints, tfIntial,ax = self.find_initial_guess_rrt_star(radarList,plot=plot)
         initialControlPoints, tfIntial = self.get_initial_guess_voronoi(radarList,params.bounds,estimateRadarParams, estimatedRadarParamsCov,plot=plot,ax=ax)
+        if initialControlPoints is None:
+            return
+    
         print("Time to find initial guess", time.time()-startTimer)
 
         pd,u,v,pos = self.spline_constraints_uncertain_radar(estimateRadarParams,estimatedRadarParamsCov, initialControlPoints, create_unclamped_knot_points(0, tfIntial, params.numControlPoints,params.splineOrder),params.numConstraintSamples)
@@ -966,6 +969,9 @@ class HighPriorityPathPlanner:
         
         
         
+        if len(path) == 0:
+            print("No path found")
+            return None,None
         
 
         startTime = time.time()
@@ -1046,14 +1052,40 @@ class HighPriorityPathPlanner:
         c = ax.scatter(pos[:,0], pos[:,1], c=pd)
         fig.colorbar(c, ax=ax)
         # c = ax.scatter(pos[:,0], pos[:,1],s=5)
+    
+    def evaluate_path_sefety(self, spline, pathHistoryList, radarList = None):
+        combinedPathHistory = []
+        for pathHistory in pathHistoryList:
+            combinedPathHistory.extend(pathHistory)
+        combinedPathHistory = np.array(combinedPathHistory)
+        
+        path = self.evaluate_spline(np.linspace(0, spline.t[-1], 1000), spline.c, spline.t, spline.k)
+        # pathSafety = path_safety(combinedPathHistory, path, params.lengthScale)
+        pathSafety = path_safety_prob(combinedPathHistory,path,params.radarTransmitGain,params.radarOutputPower, params.agentELINTAnteneaGain, params.radarWavelength, params.radarSystemTemperature,params.radarProbabilityOfFalseAlarm, params.radarPulseWidth)
+
+        figm,axm = plt.subplots()
+        axm.scatter(combinedPathHistory[:,0], combinedPathHistory[:,1],c='r',marker='x',s = 1)
+
+        if radarList is not None:
+            truePd = self.spline_constraints(tuple(radarList), spline.c, spline.t,1000)[0]
+            c = axm.scatter(path[:,0], path[:,1],c=truePd)
+            figm.colorbar(c, ax=axm)
+        else:
+            c = axm.scatter(path[:,0], path[:,1],c = pathSafety)
+            plt.colorbar(c)
+            
+
+        # plt.show()
+        
+        
 
         
 def main():
     radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
-    dataIndex = 639
-    dataFilePath = "saved_data/seed_1102042/"
+    dataIndex = 1104
+    dataFilePath = "saved_data/1102042/"
 
-    # dataIndex = 1700 
+    # dataIndex = 1700 specialized allez
     # dataFilePath = "saved_data/1102042/"
     radarParams = np.load(dataFilePath+"estimated_params/"+str(dataIndex)+".npy")
     radarParamsCov = np.load(dataFilePath+"estimated_params_cov/"+str(dataIndex)+".npy")
@@ -1071,9 +1103,21 @@ def main():
     c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints),alpha=1)
     startTime = time.time()
     hpp.plan_uncertain_path(tuple(radarList),radarParams,radarParamsCov,plot=True,ax=ax)
+    ax.scatter(radarParams[:,0],radarParams[:,1],c='r',marker='x',s=100)
+    radarPositions = np.array([radar.position for radar in radarList])
+    ax.scatter(radarPositions[:,0],radarPositions[:,1],c='b',marker='o',s=100)
     # hpp.plan_deterministic_path(tuple(radarList),plot=True,ax=ax)
     print("path planning time", time.time()-startTime)
     print("path length", hpp.spline.t[-1])
+
+    
+    numFiles = 1904
+    agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
+    numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
+    print(numPathHistory)
+    print(len(agent1PathHistory))
+    pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
+    hpp.evaluate_path_sefety(hpp.spline,pathHistoryList)
 
 
     # _,_ = hpp.get_initial_guess_voronoi(radarList,params.bounds,radarParams,radarParamsCov,plot=True,ax=ax)
