@@ -74,7 +74,7 @@ class HighPriorityPathPlanner:
         print("Time to compile jax functions", time.time()-start)
 
         self.useWeightedVoronoi = True
-        self.uncertainRadar = True
+        self.uncertainRadar =True 
 
         
     
@@ -1062,6 +1062,7 @@ class HighPriorityPathPlanner:
         path = self.evaluate_spline(np.linspace(0, spline.t[-1], 1000), spline.c, spline.t, spline.k)
         # pathSafety = path_safety(combinedPathHistory, path, params.lengthScale)
         pathSafety = path_safety_prob(combinedPathHistory,path,params.radarTransmitGain,params.radarOutputPower, params.agentELINTAnteneaGain, params.radarWavelength, params.radarSystemTemperature,params.radarProbabilityOfFalseAlarm, params.radarPulseWidth)
+        print("max path safety", np.max(pathSafety))
 
         figm,axm = plt.subplots()
         axm.scatter(combinedPathHistory[:,0], combinedPathHistory[:,1],c='r',marker='x',s = 1)
@@ -1082,7 +1083,7 @@ class HighPriorityPathPlanner:
         
 def main():
     radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
-    dataIndex = 1104
+    dataIndex = 1800
     dataFilePath = "saved_data/1102042/"
 
     # dataIndex = 1700 specialized allez

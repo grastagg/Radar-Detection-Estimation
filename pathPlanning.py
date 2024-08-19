@@ -20,6 +20,8 @@ import timeit
 from angleUnwrapper import AngleUnwrapper
 # from casadi import *
 
+from highPriorityHelperFunctions import probability_radar_at_point_given_path_history
+
 
 @jax.jit
 def next_measurement_covariance(pos, estimatedRadarParams, estimatedRadarCovariance):
@@ -356,6 +358,8 @@ class SplinePathPlanningLowPriority():
         kernelSeperationObj = 0
         allAgentPathHistory_temp = allAgentPathHistory.copy()
 
+        probRadarAtLocationObjective = 0
+
         for k in range(len(headings)):
             next_measurement = np.array(agentList[agentOrder[k]].position[0:2]) + velocity * pathTime * np.array([np.cos(headings[agentOrder[k]]), np.sin(headings[agentOrder[k]])])
             if len(estimatedRadarParams)>0:
@@ -367,8 +371,9 @@ class SplinePathPlanningLowPriority():
             x0 = next_measurement[0]
             y0 = next_measurement[1]
             distanceFromStraitLinePathObj += distance_from_line(x0,y0,x1,y1,x2,y2)/params.distFromStraitScale
-            # kernelSeperationObj += -np.sum(np.exp(-np.linalg.norm(allAgentPathHistory-next_measurement, axis=1)/lengthScale))/params.seperationScale
             kernelSeperationObj += kernel_seperation(allAgentPathHistory_temp, next_measurement)
+            # probRadarAtLocationObjective += probability_radar_at_point_given_path_history(next_measurement, allAgentPathHistory_temp, params.radarTransmitGain, params.radarOutputPower, params.agentELINTAnteneaGain, params.radarWavelength, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm,params.radarPulseWidth)
+            
             # kernelSeperationObj += -np.sum(np.exp(-np.linalg.norm(allAgentPathHistory-next_measurement, axis=1)/params.lengthScale))
             futurePath = self.get_agent_future_path(headings[agentOrder[k]], agentList[agentOrder[k]], pathTime)
             allAgentPathHistory_temp = np.vstack((allAgentPathHistory_temp, futurePath))
@@ -386,6 +391,7 @@ class SplinePathPlanningLowPriority():
         # print(obj_cov._value)
         # return -params.nextCovarianceWeight * obj_cov/params.nextCovarianceScale + params.seperationWeight*kernelSeperationObj/params.seperationScale + params.distFromStraitWeight * distanceFromStraitLinePathObj/params.distFromStraitScale
         return params.nextCovarianceWeight * obj_cov/params.nextCovarianceScale - params.seperationWeight*kernelSeperationObj/params.seperationScale + params.distFromStraitWeight * distanceFromStraitLinePathObj/params.distFromStraitScale
+        # return params.nextCovarianceWeight * obj_cov/params.nextCovarianceScale + params.seperationWeight*probRadarAtLocationObjective/params.seperationScale + params.distFromStraitWeight * distanceFromStraitLinePathObj/params.distFromStraitScale
     
     def waypoint_position_constraint(self,heading, allAgentCurrentPos, velocity, pathTime):
         # print("heading",heading)

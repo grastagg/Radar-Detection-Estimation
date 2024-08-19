@@ -190,10 +190,13 @@ def probability_radar_at_point_given_path_history(point, pathHistory, radarTrans
     )
     
     # Compute the overall probability of avoiding detection
-    radarAvoidanceProb = jnp.prod(1 - interceptProbabilities)
+    radarNoInterceptProbGivenRadarAtx = jnp.prod(1 - interceptProbabilities)
+    radarNoIntereceptProbGivenNoRadarAtx = (1-interceptProbabilityOfFalseAlarm)**len(pathHistory)
+    probNoIntercept = radarNoInterceptProbGivenRadarAtx*.5 + radarNoIntereceptProbGivenNoRadarAtx*.5
+    
     
     # Return the overall probability of being detected
-    return radarAvoidanceProb
+    return radarNoInterceptProbGivenRadarAtx * .5 / probNoIntercept
 # @jit
 # def probability_radar_at_point_given_path_history(point, pathHistory, radarTransmitGain, radarTransmitPower, agentRecieveGain, radarWavelength, systemTemp, interceptProbabilityOfFalseAlarm, radarPulseWidth):
 #     # Compute the probability of intercept for each radar in the path history
@@ -223,6 +226,7 @@ def path_safety_prob(allAgentPathHistory, potentialPathPoints, radarTransmitGain
     )
     
     return radarAtXProbs
+
 # def path_safety_prob(allAgentPahtHistory, potentialPathPoints, radarTransmitGain, radarTransmitPower, agentRecieveGain, radarWavelength, systemTemp, interceptProbabilityOfFalseAlarm):
 #     # Compute the probability of intercept for each radar at each potential path point
 #     radarAtXProbs = jnp.array([probability_radar_at_point_given_path_history(point, allAgentPahtHistory, radarTransmitGain, radarTransmitPower, agentRecieveGain, radarWavelength, systemTemp, interceptProbabilityOfFalseAlarm) for point in potentialPathPoints])
@@ -230,14 +234,20 @@ def path_safety_prob(allAgentPathHistory, potentialPathPoints, radarTransmitGain
 
 def test_radar_probability_of_interecept(allAgentPathHistory):
     points = params.X_test
-    probIntercept = np.zeros(len(points))
+    # probIntercept = np.zeros(len(points))
 
 
-    for i,point in enumerate(points):
-        probIntercept[i] = probability_radar_at_point_given_path_history(point, allAgentPathHistory, params.radarTransmitGain, params.radarOutputPower, params.agentELINTAnteneaGain, params.radarWavelength, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm,params.radarPulseWidth)
+    # for i,point in enumerate(points):
+    #     probIntercept[i] = probability_radar_at_point_given_path_history(point, allAgentPathHistory, params.radarTransmitGain, params.radarOutputPower, params.agentELINTAnteneaGain, params.radarWavelength, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm,params.radarPulseWidth)
+
+    probIntercept = path_safety_prob(allAgentPathHistory, points, params.radarTransmitGain, params.radarOutputPower, params.agentELINTAnteneaGain, params.radarWavelength, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm,params.radarPulseWidth)
+    print("max prob",np.max(probIntercept))
+
+    
         
     fig,ax = plt.subplots()
-    c = ax.pcolormesh(points[:,0].reshape(params.numTestPoints,params.numTestPoints),points[:,1].reshape(params.numTestPoints,params.numTestPoints),probIntercept.reshape(params.numTestPoints,params.numTestPoints))
+    c = ax.pcolormesh(points[:,0].reshape(params.numTestPoints,params.numTestPoints),points[:,1].reshape(params.numTestPoints,params.numTestPoints),probIntercept.reshape(params.numTestPoints,params.numTestPoints),vmin=0,vmax=.5)
+    # c = ax.contourf(points[:,0].reshape(params.numTestPoints,params.numTestPoints),points[:,1].reshape(params.numTestPoints,params.numTestPoints),probIntercept.reshape(params.numTestPoints,params.numTestPoints),levels = [0,.1,.2,.3,.4,.5])
     ax.scatter(allAgentPathHistory[:,0],allAgentPathHistory[:,1],c='r')
     fig.colorbar(c, ax=ax)
     plt.show()
@@ -266,7 +276,7 @@ def path_safety(allAgentPathHistory, next_measurements, lengthScale):
 
 if __name__ == '__main__':
     dataFilePath = "saved_data/1102042/"
-    dataIndex = 500
+    dataIndex = 10
     numFiles = 1904
     agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
     numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
@@ -278,7 +288,7 @@ if __name__ == '__main__':
     test_radar_probability_of_interecept(combinedPathHistory)
 
     
-    dataIndex = 600
+    dataIndex = 1000
     numFiles = 1904
     agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
     numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))

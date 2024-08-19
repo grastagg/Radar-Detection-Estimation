@@ -9,6 +9,7 @@ import os
 # np.random.seed(1241)
 
 # np.random.seed(91231)
+# randomSeed = 11024122
 randomSeed = 1102042
 np.random.seed(randomSeed)
 
@@ -41,7 +42,7 @@ highPriorityStraitLineA = highPriorityStart[1] - highPriorityEnd[1]
 highPriorityStraitLineB = highPriorityEnd[0] - highPriorityStart[0]
 highPriorityStraitLineC = highPriorityStart[0]*highPriorityEnd[1] - highPriorityEnd[0] * highPriorityStart[1]
 probabilityOfDetectionThreshold = 0.15
-thresholdConfidence = 0.5
+thresholdConfidence = 0.7
 highPriorityAgentRadarCrossSection = .1
 
 #radar parameters
