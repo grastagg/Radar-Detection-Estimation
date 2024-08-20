@@ -1083,8 +1083,9 @@ class HighPriorityPathPlanner:
         
 def main():
     radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
-    dataIndex = 1800
-    dataFilePath = "saved_data/1102042/"
+    dataIndex = 1000
+    # dataFilePath = "saved_data/1102042/"
+    dataFilePath = "saved_data/11024122/"
 
     # dataIndex = 1700 specialized allez
     # dataFilePath = "saved_data/1102042/"
@@ -1112,7 +1113,7 @@ def main():
     print("path length", hpp.spline.t[-1])
 
     
-    numFiles = 1904
+    numFiles = 1100
     agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
     numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
     print(numPathHistory)

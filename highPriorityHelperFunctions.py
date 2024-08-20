@@ -165,7 +165,7 @@ def get_prob_along_spline(controlpoints, tf, estimatedRadarParams, estimatedRada
 @jit
 def radar_intercept_snr(radarPos, agentPos, radarTransmitGain, radarTransmitPower, agentRecieveGain, radarWavelength, systemTemp,radarPulseWidth):
     R = jnp.linalg.norm(radarPos-agentPos)
-    SNR = (radarTransmitPower*radarTransmitGain*agentRecieveGain*radarWavelength**2*radarPulseWidth) / ((4*jnp.pi)**2*R**2*systemTemp*k * 100000000)
+    SNR = (radarTransmitPower*radarTransmitGain*agentRecieveGain*radarWavelength**2*radarPulseWidth) / ((4*jnp.pi)**2*R**2*systemTemp*k * 200000000)
     return SNR
 
 @jit
@@ -249,6 +249,7 @@ def test_radar_probability_of_interecept(allAgentPathHistory):
     c = ax.pcolormesh(points[:,0].reshape(params.numTestPoints,params.numTestPoints),points[:,1].reshape(params.numTestPoints,params.numTestPoints),probIntercept.reshape(params.numTestPoints,params.numTestPoints),vmin=0,vmax=.5)
     # c = ax.contourf(points[:,0].reshape(params.numTestPoints,params.numTestPoints),points[:,1].reshape(params.numTestPoints,params.numTestPoints),probIntercept.reshape(params.numTestPoints,params.numTestPoints),levels = [0,.1,.2,.3,.4,.5])
     ax.scatter(allAgentPathHistory[:,0],allAgentPathHistory[:,1],c='r')
+    ax.set_aspect('equal')
     fig.colorbar(c, ax=ax)
     plt.show()
     

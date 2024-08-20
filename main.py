@@ -82,7 +82,17 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
             cb = plt.colorbar(c)
             
         plt.title(numMeasurements-1)
+        scatterPlotList = None
+        if lowPriorityPathPlanner.bestMeasurementLocList is not None:
+            scatterPlotList = []
+            for point in lowPriorityPathPlanner.bestMeasurementLocList:
+                s = ax.scatter(point[0],point[1],c='r')
+                scatterPlotList.append(s)
+
         fig.savefig('images/pd_mean/'+str(plotIndex)+'.png')
+        if scatterPlotList is not None:
+            for s in scatterPlotList:
+                s.remove()
         if c is not None:
             cb.remove()
             c.remove()

@@ -230,13 +230,13 @@ class SplinePathPlanningLowPriority():
         if self.bestMeasurementLocList is not None:
             distances = self.get_distance_agent_to_waypoints(agentList, self.bestMeasurementLocList)
             if numpy.any(distances < 10):
-                # self.bestMeasurementLocList = self.optimize_next_best_measurement_waypoint(agentList, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations, allAgentesCurrentPos)
-                self.bestMeasurementLocList = self.optimize_next_best_measurement_distance_constrained(agentList, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations, allAgentesCurrentPos)
+                self.bestMeasurementLocList = self.optimize_next_best_measurement_waypoint(agentList, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations, allAgentesCurrentPos)
+                # self.bestMeasurementLocList = self.optimize_next_best_measurement_distance_constrained(agentList, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations, allAgentesCurrentPos)
         else:
             if len(estimatedRadarParamsList)>0:
                 # self.bestMeasurementLocList = [[agent.position[0]-1000,agent.position[1]] for agent in agentList]
-                self.bestMeasurementLocList = self.optimize_next_best_measurement_distance_constrained(agentList, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations, allAgentesCurrentPos)
-                # self.bestMeasurementLocList = self.optimize_next_best_measurement_waypoint(agentList, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations, allAgentesCurrentPos)
+                # self.bestMeasurementLocList = self.optimize_next_best_measurement_distance_constrained(agentList, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations, allAgentesCurrentPos)
+                self.bestMeasurementLocList = self.optimize_next_best_measurement_waypoint(agentList, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations, allAgentesCurrentPos)
         # else:
         #     self.bestMeasurementLocList = self.optimize_next_best_measurement_distance_constrained(agentList, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations, allAgentesCurrentPos)
             # self.bestMeasurementLocList = self.optimize_next_best_measurement_waypoint(agentList, estimatedRadarParamsList, estimatedRadarParamsCovList, probabilityOfDetectionMap, measurementLocations, allAgentesCurrentPos)
@@ -377,27 +377,13 @@ class SplinePathPlanningLowPriority():
             # kernelSeperationObj += -np.sum(np.exp(-np.linalg.norm(allAgentPathHistory-next_measurement, axis=1)/params.lengthScale))
             futurePath = self.get_agent_future_path(headings[agentOrder[k]], agentList[agentOrder[k]], pathTime)
             allAgentPathHistory_temp = np.vstack((allAgentPathHistory_temp, futurePath))
-            
-
-            
-        
         obj_cov = 0
         for i in range(len(estimatedRadarParams)):
             obj_cov += np.linalg.det(estimatedRadarParamsCov_temp[i])
-            # fim = np.linalg.inv(estimatedRadarParamsCov_temp[i])
-            # print("fim",fim)
-            # obj_cov += np.linalg.det(fim)
-        # obj_cov = 1/(obj_cov*params.nextCovarianceScale)
-        # print(obj_cov._value)
-        # return -params.nextCovarianceWeight * obj_cov/params.nextCovarianceScale + params.seperationWeight*kernelSeperationObj/params.seperationScale + params.distFromStraitWeight * distanceFromStraitLinePathObj/params.distFromStraitScale
         return params.nextCovarianceWeight * obj_cov/params.nextCovarianceScale - params.seperationWeight*kernelSeperationObj/params.seperationScale + params.distFromStraitWeight * distanceFromStraitLinePathObj/params.distFromStraitScale
         # return params.nextCovarianceWeight * obj_cov/params.nextCovarianceScale + params.seperationWeight*probRadarAtLocationObjective/params.seperationScale + params.distFromStraitWeight * distanceFromStraitLinePathObj/params.distFromStraitScale
     
     def waypoint_position_constraint(self,heading, allAgentCurrentPos, velocity, pathTime):
-        # print("heading",heading)
-        # print("velocity",velocity)
-        # print("pathTime",pathTime)
-        # print("allAgentCurrentPos",allAgentCurrentPos)
         return (np.hstack((np.cos(heading).reshape((len(heading),1)),np.sin(heading).reshape((len(heading),1))))*velocity*pathTime + allAgentCurrentPos).reshape((2*len(heading),))
     
     def waypoint_position_constraint_jac(self, heading, allAgentCurrentPos, velocity, pathTime):
@@ -409,11 +395,8 @@ class SplinePathPlanningLowPriority():
             for k in range(i,heading.shape[0]-1):
                 col = numpy.hstack((col,numpy.zeros((2,))))
             col = col.reshape((2*len(heading),1))
-                
-            # out = np.hstack((out,np.hstack((np.array([-np.sin(heading[0]),np.cos(heading[0])])*velocity*pathTime,np.zeros((2*(len(heading)-1),)))).reshape((2*len(heading),1))))
             out = numpy.hstack((out,col))
             
-        # return np.hstack((-np.sin(heading).reshape((len(heading),1)),np.cos(heading).reshape((len(heading),1))))*velocity*pathTime
         return out
 
     def get_agent_future_path_waypoint(self,waypoint, agent):
@@ -424,6 +407,10 @@ class SplinePathPlanningLowPriority():
         points = np.linspace(pos, waypoint, num_future_points.astype(int))
         # print("points",points)
         return points
+    
+    def find_closest_emitter(self, pos, estimatedRadarParams):
+        closetEmittorIndex = np.argmin(np.linalg.norm(np.array(estimatedRadarParams)[:,0:2]-np.array(pos), axis=1))
+        return closetEmittorIndex
 
     def objective_function_for_best_measurement_waypoints(self, waypoints, agentList, estimatedRadarParams, estimatedRadarParamsCov, allAgentPathHistory, velocity, pathTime,agentOrder):
         x1 = params.highPriorityStart[0]
@@ -449,6 +436,8 @@ class SplinePathPlanningLowPriority():
             distanceFromStraitLinePathObj += distance_from_line(x0,y0,x1,y1,x2,y2)/params.distFromStraitScale
             # kernelSeperationObj += -np.sum(np.exp(-np.linalg.norm(allAgentPathHistory-next_measurement, axis=1)/lengthScale))/params.seperationScale
             kernelSeperationObj += kernel_seperation(allAgentPathHistory_temp, next_measurement)
+            explorationObj = probability_radar_at_point_given_path_history(next_measurement, allAgentPathHistory_temp, params.radarTransmitGain, params.radarOutputPower, params.agentELINTAnteneaGain, params.radarWavelength, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm,params.radarPulseWidth)
+            
             # kernelSeperationObj += -np.sum(np.exp(-np.linalg.norm(allAgentPathHistory-next_measurement, axis=1)/params.lengthScale))
             futurePath = self.get_agent_future_path_waypoint(next_measurement, agentList[index])
             allAgentPathHistory_temp = np.vstack((allAgentPathHistory_temp, futurePath))
@@ -459,14 +448,10 @@ class SplinePathPlanningLowPriority():
         obj_cov = 0
         for i in range(len(estimatedRadarParams)):
             obj_cov += np.linalg.det(estimatedRadarParamsCov_temp[i])
-            # fim = np.linalg.inv(estimatedRadarParamsCov_temp[i])
-            # print("fim",fim)
-            # obj_cov += np.linalg.det(fim)
-        # obj_cov = 1/(obj_cov*params.nextCovarianceScale)
-        # print(obj_cov._value)
-        # return -params.nextCovarianceWeight * obj_cov/params.nextCovarianceScale + params.seperationWeight*kernelSeperationObj/params.seperationScale + params.distFromStraitWeight * distanceFromStraitLinePathObj/params.distFromStraitScale
-        return params.nextCovarianceWeight * obj_cov/params.nextCovarianceScale - params.seperationWeight*kernelSeperationObj/params.seperationScale + params.distFromStraitWeight * distanceFromStraitLinePathObj/params.distFromStraitScale
+        # return params.nextCovarianceWeight * obj_cov/params.nextCovarianceScale - params.seperationWeight*kernelSeperationObj/params.seperationScale + params.distFromStraitWeight * distanceFromStraitLinePathObj/params.distFromStraitScale
+        return params.nextCovarianceWeight * obj_cov/params.nextCovarianceScale - params.seperationWeight*kernelSeperationObj/.5 + params.distFromStraitWeight * distanceFromStraitLinePathObj/params.distFromStraitScale
     
+
     def find_initial_headings(self, agentList, estimatedParams_list):
         initialHeadings = numpy.linspace(0,2*np.pi,len(agentList))
         for i in range(len(agentList)):
@@ -475,6 +460,9 @@ class SplinePathPlanningLowPriority():
         return initialHeadings
 
 ######TEST waypoint optimization#######
+    def distance_constraint(self,waypoints, allAgentCurrentPos):
+        waypoints = waypoints.reshape((len(allAgentCurrentPos),2))
+        return np.array(np.linalg.norm(waypoints-allAgentCurrentPos)).reshape((len(allAgentCurrentPos),1))
         
     def find_initial_waypoints(self, agentList, estimatedParams_list):
         initialWaypoints = numpy.zeros((len(agentList)*2,))
@@ -527,11 +515,13 @@ class SplinePathPlanningLowPriority():
             waypoints = xdict['waypoints']
             funcs = {}
             funcs['obj'] = self.objective_function_for_best_measurement_waypoints(waypoints, agentList, estimatedParams_list, estimatedRadarCovariance_list, allAgentPathHistory, params.agentSpeed, params.pathOptTime, agentOrder)/tempObjectiveFuncScale
+            funcs['distances'] = self.distance_constraint(waypoints, allAgentesCurrentPos)
             return funcs, False
         def sens(xDict, funcs):
             waypoints = xDict['waypoints']
             funcsSens = {}
             funcsSens['obj'] = {"waypoints" : grad(self.objective_function_for_best_measurement_waypoints)(waypoints, agentList, estimatedParams_list, estimatedRadarCovariance_list, allAgentPathHistory, params.agentSpeed, params.pathOptTime,agentOrder)/tempObjectiveFuncScale}
+            funcsSens['distances'] = {"waypoints" : jacfwd(self.distance_constraint,argnums=0)(waypoints, allAgentesCurrentPos).reshape((len(agentList),len(agentList)*2))}
             return funcsSens, False
 
 
@@ -570,16 +560,17 @@ class SplinePathPlanningLowPriority():
     def run_optimization_waypoints(self,objective_function, sens, agentList, initialWaypoints):
         optProb = Optimization("find best measurement location", objective_function)
         optProb.addVarGroup(name = "waypoints", nVars = 2*len(agentList), varType = 'c', value = initialWaypoints, lower =0, upper = params.bounds[1])
+        optProb.addConGroup("distances", len(agentList), lower = 0, upper = params.agentSpeed*params.pathOptTime)
         optProb.addObj("obj")
         opt = OPT("ipopt")
         # opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['linear_solver'] = 'ma97'
-        opt.options['print_level'] = 0
+        opt.options['print_level'] = 5
             
-        # opt.options['derivative_test'] = 'first-order'
+        opt.options['derivative_test'] = 'first-order'
         # opt.options['derivative_test_perturbation'] = 1e-5
-        opt.options['max_iter'] = 60
+        opt.options['max_iter'] = 200
         opt.options['tol'] = 1e-5
         sol = opt(optProb, sens = sens)
         # sol = opt(optProb, sens = 'fd')

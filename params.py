@@ -9,8 +9,8 @@ import os
 # np.random.seed(1241)
 
 # np.random.seed(91231)
-# randomSeed = 11024122
-randomSeed = 1102042
+randomSeed = 11024122
+# randomSeed = 1102042
 np.random.seed(randomSeed)
 
         
@@ -172,9 +172,9 @@ for i in range(numRadar):
 safePdDists = np.array(safePdDists)
 
 #agent parameters
-# agentInitialStates = [[100,100,np.pi/4]]
+agentInitialStates = [[100,100,np.pi/4]]
 # agentInitialStates = [[100,100,np.pi/4],[200,200,np.pi/3]]
-agentInitialStates = [[100,100,np.pi/4],[200,200,np.pi/3],[150,150,np.pi/5]]
+# agentInitialStates = [[100,100,np.pi/4],[200,200,np.pi/3],[150,150,np.pi/5]]
 numAgents = len(agentInitialStates)
 # agentSensingRange = 10000
 agentSensingRange = 5000
@@ -325,11 +325,12 @@ def create_data_file(filepath):
         os.mkdir(filepath+"estimated_params_cov/")
     else:
         print("Directory already exists")
-        cont = input("overwrite? y/n")
-        if cont == "y":
-            return
-        else:
-            exit()
+        return
+        # cont = input("overwrite? y/n")
+        # if cont == "y":
+        #     return
+        # else:
+        #     exit()
             
     
     
