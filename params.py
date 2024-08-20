@@ -42,7 +42,7 @@ highPriorityStraitLineA = highPriorityStart[1] - highPriorityEnd[1]
 highPriorityStraitLineB = highPriorityEnd[0] - highPriorityStart[0]
 highPriorityStraitLineC = highPriorityStart[0]*highPriorityEnd[1] - highPriorityEnd[0] * highPriorityStart[1]
 probabilityOfDetectionThreshold = 0.15
-thresholdConfidence = 0.7
+thresholdConfidence = 0.5
 highPriorityAgentRadarCrossSection = .1
 
 #radar parameters
@@ -172,9 +172,9 @@ for i in range(numRadar):
 safePdDists = np.array(safePdDists)
 
 #agent parameters
-agentInitialStates = [[100,100,np.pi/4]]
+# agentInitialStates = [[100,100,np.pi/4]]
 # agentInitialStates = [[100,100,np.pi/4],[200,200,np.pi/3]]
-# agentInitialStates = [[100,100,np.pi/4],[200,200,np.pi/3],[150,150,np.pi/5]]
+agentInitialStates = [[100,100,np.pi/4],[200,200,np.pi/3],[150,150,np.pi/5]]
 numAgents = len(agentInitialStates)
 # agentSensingRange = 10000
 agentSensingRange = 5000

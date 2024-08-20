@@ -191,7 +191,6 @@ def main():
         # radar_time = time.time()
         for radar in radarList:
             radar.update(dt)
-        # print("radar time", time.time()-radar_time)
         
         # estimator_total_time = 0
         # update_agent_time = 0
