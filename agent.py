@@ -6,7 +6,8 @@ import params
 
 
 class Agent:
-    def __init__(self, initialPosition, numRadar, sensingRange, powerMeasurementStdDev, angleMeasurementStdDev, elintAntenneaGain, elintSystemLoss, emittorWavelength, radarCrossSection,agentId):
+    def __init__(self, initialPosition, numRadar, sensingRange, powerMeasurementStdDev, angleMeasurementStdDev, elintAntenneaGain, elintSystemLoss, emittorWavelength, radarCrossSection,agentId,plotColor):
+
         self.position = initialPosition #x,y,heading
         self.sensingRange = sensingRange
         self.measurementPowerValues = []
@@ -24,12 +25,17 @@ class Agent:
         self.elsintSystemLoss = elintSystemLoss
         self.emittor_signal_wavelength = emittorWavelength
         self.radarMeasurementCoeff = (self.elintAntenneaGain * self.emittor_signal_wavelength**2)/((4*np.pi)**2 * self.elsintSystemLoss)
-        self.plotCircle = Circle((self.position[0],self.position[1]),radius = 200,fill = True, color = 'b', zorder = 100000000)
+
+
+
+
+        
+        self.plotCircle = Circle((self.position[0],self.position[1]),radius = 200,fill = True, color = plotColor, zorder = 100000000)
         h = self.position[2]
         self.lineLength = 500
         x_end = self.position[0] + self.lineLength * np.cos(h)
         y_end = self.position[1] + self.lineLength * np.sin(h)
-        self.plotLine = Line2D(xdata=[self.position[0],x_end],ydata=[self.position[1],y_end],linewidth=3, color = 'b',zorder = 100000000)
+        self.plotLine = Line2D(xdata=[self.position[0],x_end],ydata=[self.position[1],y_end],linewidth=3, color = plotColor,zorder = 100000000)
         self.firstPlot = True
         
         self.pathHistory = []

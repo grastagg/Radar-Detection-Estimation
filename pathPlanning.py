@@ -1,4 +1,5 @@
 # import numpy as np
+import getpass
 from time import time
 import numpy
 from scipy.special import erfinv
@@ -564,7 +565,8 @@ class SplinePathPlanningLowPriority():
         optProb.addObj("obj")
         opt = OPT("ipopt")
         # opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
-        opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+        username = getpass.getuser()
+        opt.options['hsllib'] = '/home/' + username+ '/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['linear_solver'] = 'ma97'
         opt.options['print_level'] = 5
             
@@ -702,7 +704,9 @@ class SplinePathPlanningLowPriority():
         optProb.addObj("obj")
         opt = OPT("ipopt")
         # opt.options['hsllib'] = '/home/grant/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
-        opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+        username = getpass.getuser()
+        opt.options['hsllib'] = '/home/' + username+ '/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
+        # opt.options['hsllib'] = '/home/ggs24/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['linear_solver'] = 'ma97'
         opt.options['print_level'] = 5
             

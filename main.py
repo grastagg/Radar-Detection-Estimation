@@ -32,7 +32,7 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
 
 
     # numMeasurements = 0
-    for agent in agentList:
+    for i,agent in enumerate(agentList):
         agent.plot_agent(ax)
         # numMeasurements += len(agent.measurementPowerValues)
 
@@ -85,8 +85,8 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
         scatterPlotList = None
         if lowPriorityPathPlanner.bestMeasurementLocList is not None:
             scatterPlotList = []
-            for point in lowPriorityPathPlanner.bestMeasurementLocList:
-                s = ax.scatter(point[0],point[1],c='r')
+            for i,point in enumerate(lowPriorityPathPlanner.bestMeasurementLocList):
+                s = ax.scatter(point[0],point[1],c=params.agentColors[i])
                 scatterPlotList.append(s)
 
         fig.savefig('images/pd_mean/'+str(plotIndex)+'.png')
@@ -150,7 +150,7 @@ def main():
     
 
     radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
-    agentList = create_agent_list(params.agentInitialStates, len(radarList), params.agentSensingRange, params.agentPowerMeasurementStdDev, params.agentAngleMeasurementStdDev, params.agentELINTAnteneaGain, params.agentELINTSystemLoss, params.radarWavelength, params.agentRadarCrossSection)
+    agentList = create_agent_list(params.agentInitialStates, len(radarList), params.agentSensingRange, params.agentPowerMeasurementStdDev, params.agentAngleMeasurementStdDev, params.agentELINTAnteneaGain, params.agentELINTSystemLoss, params.radarWavelength, params.agentRadarCrossSection,params.agentColors)
 
     # radarList = params.radarList
     # agentList = params.agentList

@@ -5,6 +5,7 @@ import jax
 # from scipy.constants import boltzman
 from scipy.constants import k as boltzman
 import os
+import getpass
 
 # np.random.seed(1241)
 
@@ -325,17 +326,20 @@ def create_data_file(filepath):
         os.mkdir(filepath+"estimated_params_cov/")
     else:
         print("Directory already exists")
-        return
-        # cont = input("overwrite? y/n")
-        # if cont == "y":
-        #     return
-        # else:
-        #     exit()
+        # return
+        cont = input("overwrite? y/n")
+        if cont == "y":
+            return
+        else:
+            exit()
             
     
     
 saveDataToFile = True
-dataFile = "/home/ggs24/repos/magiccvs/radar_detection_estimation/saved_data/"+str(randomSeed)+"/"
+
+username = getpass.getuser()
+dataFile = "/home/"+ username+"/repos/magiccvs/radar_detection_estimation/saved_data/"+str(randomSeed)+"/"
+agentColors = ['b','g','c','m','y','k']
 
 
 

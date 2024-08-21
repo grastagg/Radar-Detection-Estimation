@@ -276,9 +276,9 @@ def path_safety(allAgentPathHistory, next_measurements, lengthScale):
 
 
 if __name__ == '__main__':
-    dataFilePath = "saved_data/1102042/"
+    dataFilePath = "saved_data/11024122/"
     dataIndex = 10
-    numFiles = 1904
+    numFiles = 5758
     agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
     numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
     pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
@@ -290,7 +290,7 @@ if __name__ == '__main__':
 
     
     dataIndex = 1000
-    numFiles = 1904
+    numFiles = 5758
     agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
     numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
     pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
