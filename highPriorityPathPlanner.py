@@ -1080,20 +1080,37 @@ class HighPriorityPathPlanner:
         
         
 
+def load_estimated_params(dataFilePath,dataIndex,numRadar):
+    radarParamsAll = []
+    radarParamsCovAll = []
+    for i in range(numRadar):
+        radarParams = np.load(dataFilePath+"/radar_"+str(i)+"/estimated_params/"+str(dataIndex)+".npy")
+        radarParamsCov = np.load(dataFilePath+"/radar_"+str(i)+"/estimated_params_cov/"+str(dataIndex)+".npy")
+        if len(radarParams) != 0:
+            radarParamsAll.append(radarParams)
+            radarParamsCovAll.append(radarParamsCov)
+    
+    return np.array(radarParamsAll),np.array(radarParamsCovAll)
+    
         
 def main():
     radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
     dataFilePath = "saved_data/11024122/"
-    dataIndex = 10
-    numFiles = 5758
-    dataIndex = 700
+    numFiles = 320 
+    dataIndex = 320 
+
+    radarParams, radarParamsCov = load_estimated_params(dataFilePath,dataIndex,len(radarList))
+    print("radarParams", radarParams)
+    print("radarParamsCov", radarParamsCov)
+
+
     # dataFilePath = "saved_data/1102042/"
     # dataFilePath = "saved_data/11024122/"
 
     # dataIndex = 1700 specialized allez
-    # dataFilePath = "saved_data/1102042/"
-    radarParams = np.load(dataFilePath+"estimated_params/"+str(dataIndex)+".npy")
-    radarParamsCov = np.load(dataFilePath+"estimated_params_cov/"+str(dataIndex)+".npy")
+    # # dataFilePath = "saved_data/1102042/"
+    # radarParams = np.load(dataFilePath+"estimated_params/"+str(dataIndex)+".npy")
+    # radarParamsCov = np.load(dataFilePath+"estimated_params_cov/"+str(dataIndex)+".npy")
     hpp = HighPriorityPathPlanner(tuple(radarList))
     pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList))
     fig,ax = plt.subplots()

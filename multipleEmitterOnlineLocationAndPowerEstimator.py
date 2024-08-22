@@ -13,6 +13,10 @@ import matplotlib.pyplot as plt
 
 class MultipleEmitterOnlineLocationAndPowerEstimator:
     def __init__(self, sensing_range, angle_measurement_std_dev, measurement_cov, X_test, radar_measurement_coeff):
+
+        
+        
+        
         self.ekf_list = []
         self.sensing_range = sensing_range
         self.angle_measurement_std_dev = angle_measurement_std_dev
@@ -29,7 +33,9 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.measurement_values = []
 
         self.inlier_mask = None
-        self.group_lists = []
+        self.group_lists = [[] for i in range(params.numRadar)]
+        self.estimated_emmiter_params = [[] for i in range(params.numRadar)] 
+        self.estimated_emmiter_params_covariances = [[] for i in range(params.numRadar)] 
 
         self.mahalonobis_distance_inlier_threshold = 4
         self.ransacResidualThreshold = 4
@@ -41,6 +47,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
 
         self.best_measurement_location_map = None
         self.plot_alpha = .5
+        self.sigmaPlotList = []
         
         #these will be used to make sure aoa are different enough before starting estimate
         self.min_aoa_measurement = None
@@ -256,6 +263,81 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                 if measurement[0] > self.max_aoa_measurement:
                     self.max_aoa_measurement = measurement[0]
 
+
+
+##########################code for known data association############################################
+
+    
+    def measurement_residual(self, emitter_params, measurements, measurement_locations):
+        return np.array([params.measurement_model(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1]) for loc in measurement_locations]).reshape((-1,)) - np.array(measurements).reshape((-1,))
+
+    def batch_estimation(self,measurement_locations, measurement_values, measurement_cov):
+        x0 = [params.bounds[0]/2,params.bounds[1]/2,params.erp]
+        # sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(measurement_values,measurement_locations))
+        sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(measurement_values,measurement_locations), bounds=([0,0,10],[params.bounds[0],params.bounds[1],np.inf]))
+        # print("sol",sol)
+        estimated_emmiter_params = sol.x
+        jacobians = self.stack_measurement_jacobian(estimated_emmiter_params, None, measurement_locations)
+        combined_measurment_cov = block_diag(*[measurement_cov for i in measurement_locations])
+        estimated_emmiter_params_cov = np.linalg.inv(jacobians.T@np.linalg.inv(combined_measurment_cov)@jacobians)
+        return estimated_emmiter_params, estimated_emmiter_params_cov
+
+    
+    def stack_measurement_jacobian(self, emitter_params, measurements, measurement_locations):
+        return np.array([params.measurement_jacobian(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1]) for loc in measurement_locations]).reshape((2*len(measurement_locations),3))
+
+    # def measurement_jacobian(self, xem, yem, pem, x, y):
+    #     d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
+    #     d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
+    #     d_h1_d_p_emmitter = 0
+
+    #     d_h2_d_x_emmitter = -(2*pem*(xem-x))/((xem-x)**2+(yem-y)**2)**2
+    #     d_h2_d_y_emmitter = -(2*pem*(yem-y))/((yem-y)**2+(xem-x)**2)**2
+    #     d_h2_d_p_emmitter = 1/((yem-y)**2+(xem-x)**2)
+
+    #     return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
+
+
+    def add_measurement_known_association(self, measurement_location, measurement_value, radarId):
+        radarId = int(radarId)
+        self.measurement_locations.append(measurement_location)
+        self.measurement_values.append(measurement_value)
+        self.group_lists[radarId].append(len(self.measurement_values)-1)
+        # self.group_lists[radarId] = np.append(self.group_lists[radarId],(len(self.measurement_values)-1),dtype=int)
+            
+
+        numMeasurementsNeeded = 10
+        if len(self.group_lists[radarId]) > numMeasurementsNeeded:
+            estimated_emmiter_param,  estimated_emmiter_params_covariances = self.ekf_update(measurement_location, measurement_value, self.measurement_cov, self.estimated_emmiter_params[radarId], self.estimated_emmiter_params_covariances[radarId])
+            if estimated_emmiter_param[2] < 0:
+                print("estimated power level too small")
+                updated_using_ekf = False
+            else:
+                self.estimated_emmiter_params[radarId] = estimated_emmiter_param
+                self.estimated_emmiter_params_covariances[radarId] = estimated_emmiter_params_covariances
+        elif len(self.group_lists[radarId]) == numMeasurementsNeeded:
+            estimated_emmiter_param,  estimated_emmiter_params_covariances = self.batch_estimation(np.array(self.measurement_locations)[self.group_lists[radarId]], np.array(self.measurement_values)[self.group_lists[radarId]], self.measurement_cov)
+            self.estimated_emmiter_params[radarId] = estimated_emmiter_param
+            self.estimated_emmiter_params_covariances[radarId] = estimated_emmiter_params_covariances
+
+
+                    
+        print("ransac prediction", self.estimated_emmiter_params)
+        print("covariance", self.estimated_emmiter_params_covariances)
+        print("group lists", self.group_lists)
+        print("outliers", self.outlier_indicies)
+        print()
+        if self.saveRadarData:
+            self.fileCounter += 1
+            for radarId in range(params.numRadar):
+                np.save(params.dataFile+'/radar_'+str(radarId)+'/estimated_params/'+str(self.fileCounter), self.estimated_emmiter_params[radarId])
+                np.save(params.dataFile+'/radar_'+str(radarId)+'/estimated_params_cov/'+str(self.fileCounter), self.estimated_emmiter_params_covariances[radarId])
+                
+            # np.save(params.dataFile+"/estimated_params/"+str(self.fileCounter), self.estimated_emmiter_params)
+            # np.save(params.dataFile+"/estimated_params_cov/"+str(self.fileCounter), self.estimated_emmiter_params_covariances)
+
+##########################code for known data association############################################
+
     def add_measurement(self, measurement_location, measurement_value):
         self.measurement_locations.append(measurement_location)
         self.measurement_values.append(measurement_value)
@@ -372,21 +454,30 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             if angle_indicies.size > 0:
                 line = self.plot_angle_of_arrival_measurements(ax, 'r', np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
                 all_lines += line
-        if len(self.estimated_emmiter_params) > 0:
+        # if len(self.estimated_emmiter_params) > 0:
+        if any(self.measurement_locations):
             for i,angle_indicies in enumerate(self.group_lists):
                 line = self.plot_angle_of_arrival_measurements(ax, color_list[i%len(color_list)], np.array(self.measurement_locations)[angle_indicies], np.array(self.measurement_values)[:,0][angle_indicies])
                 all_lines += line
             
 
             for i,estimated_emmiter_params in enumerate(self.estimated_emmiter_params):
-                scatter = ax.scatter(estimated_emmiter_params[0], estimated_emmiter_params[1], marker='x', c = 'g',zorder=100000)
-                all_scatter.append(scatter)
+                if len(estimated_emmiter_params) > 0:
+                    scatter = ax.scatter(estimated_emmiter_params[0], estimated_emmiter_params[1], marker='x', c = 'g',zorder=100000)
+                    all_scatter.append(scatter)
                 # c = self.plot_esimate_1_sigma_bounds(ax, estimated_emmiter_params, self.estimated_emmiter_params_covariances[i])
         # if self.mal_dist_opt_point is not None:
         #     ax.scatter(self.mal_dist_opt_point[0], self.mal_dist_opt_point[1])
         # c = self.plot_power(ax)
-        # if len(self.estimated_emmiter_params) > 0:
-        #     self.plot_esimate_1_sigma_bounds(ax, self.estimated_emmiter_params[0], self.estimated_emmiter_params_covariances[0])
+
+        for c in self.sigmaPlotList:
+            c.remove()
+        self.sigmaPlotList = []
+        if len(self.estimated_emmiter_params) > 0:
+            for i in range(len(self.estimated_emmiter_params)):
+                if len(self.estimated_emmiter_params[i]) > 0:
+                    c = self.plot_esimate_1_sigma_bounds(ax, self.estimated_emmiter_params[i], self.estimated_emmiter_params_covariances[i])
+                    self.sigmaPlotList.append(c)
 
 
         return all_lines,all_scatter

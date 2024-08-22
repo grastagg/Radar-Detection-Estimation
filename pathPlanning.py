@@ -138,7 +138,7 @@ class SplinePathPlanningLowPriority():
         self.useSpline = False
         # self.bestMeasurementLoc = None
         self.bestMeasurementLocList = None
-        self.kp = 2
+        self.kp = 1
 
         self.bestMeasurementLocPlotList = [] 
         self.firstPlot = True
@@ -175,17 +175,15 @@ class SplinePathPlanningLowPriority():
         lowerBound = -numpy.pi
         upperBound = numpy.pi
 
-        self.numOptStartLocations = 10
+        self.numOptStartLocations = 1
 
-        self.initialHeadingList = scale(LatinHypercube(params.numAgents).random(self.numOptStartLocations-2),lowerBound,upperBound)
-        self.initialHeadingList = numpy.append(self.initialHeadingList, numpy.zeros((1,params.numAgents)),axis=0)
+        # self.initialHeadingList = scale(LatinHypercube(params.numAgents).random(self.numOptStartLocations-2),lowerBound,upperBound)
+        # self.initialHeadingList = numpy.append(self.initialHeadingList, numpy.zeros((1,params.numAgents)),axis=0)
 
 
         
         self.initialWaypointList = scale(LatinHypercube(2*params.numAgents).random(self.numOptStartLocations),0,params.bounds[1])
         
-        for initialHeading in self.initialHeadingList:
-            print("initialHeading",initialHeading)
 
 
 
@@ -436,11 +434,38 @@ class SplinePathPlanningLowPriority():
         distanceFromStraitLinePathObj = 0
         allAgentPathHistory_temp = allAgentPathHistory.copy()
 
+        plot = True
+        if plot:
+            numTestPoints = 100
+            testX = numpy.linspace(0,params.bounds[0],numTestPoints)
+            testY = numpy.linspace(0,params.bounds[1],numTestPoints)
+            testX, testY = numpy.meshgrid(testX, testY)
+            objF = numpy.zeros((numTestPoints,numTestPoints))
+            
+            for i in range(numTestPoints):
+                print("i",i)
+                for j in range(numTestPoints):
+                    cov = next_measurement_covariance(np.array([testX[i,j], testY[i,j]]), estimatedRadarParams[0], estimatedRadarParamsCov_temp[0])
+                    dist = distance_from_line(testX[i,j],testY[i,j],x1,y1,x2,y2)/params.distFromStraitScale
+                    explore = probability_radar_at_point_given_path_history(np.array([testX[i,j],testY[i,j]]), allAgentPathHistory_temp, params.radarTransmitGain, params.radarOutputPower, params.agentELINTAnteneaGain, params.radarWavelength, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm,params.radarPulseWidth)
+                    obj = params.nextCovarianceWeight*np.linalg.det(cov)/params.nextCovarianceScale - params.seperationWeight*explore/.5 + params.distFromStraitWeight * dist/params.distFromStraitScale
+                    objF[i,j] = obj
+            
+            fig, ax = plt.subplots()
+            ax.pcolormesh(testX, testY, objF)
+            plt.show()
+            
+                    
+                    
+            
+
         for k in range(len(agentList)):
             index = agentOrder[k]
             next_measurement = waypoints[2*index:2*index+2]
             # if len(estimatedRadarParams)>0:
             closest_emitter_index = find_closest_emitter(np.array(next_measurement), np.array(estimatedRadarParams))
+            test= next_measurement_covariance(next_measurement, estimatedRadarParams[closest_emitter_index], estimatedRadarParamsCov_temp[closest_emitter_index])
+            estimatedRadarParamsCov_temp[closest_emitter_index]=test
             estimatedRadarParamsCov_temp[closest_emitter_index] = next_measurement_covariance(next_measurement, estimatedRadarParams[closest_emitter_index], estimatedRadarParamsCov_temp[closest_emitter_index])
 
             x0 = next_measurement[0]

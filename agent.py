@@ -13,6 +13,8 @@ class Agent:
         self.measurementPowerValues = []
         self.measurementAngleOfArrivalValues = []
         self.measurementLocations = []
+        self.radarMeasurementIdx = []
+        
         self.powerMeasurementStdDev = powerMeasurementStdDev
         self.angelMeasurementStdDev = angleMeasurementStdDev
         self.radarCrossSection = radarCrossSection
@@ -108,6 +110,7 @@ class Agent:
             self.measurementAngleOfArrivalValues.append(angle_of_arrivals[0])
             # self.truthEmitterCorrespondence[radar_indecies[0]].append(len(self.measurementLocations)-1)
             self.truthEmitterCorrespondence[radar_indecies[0]].append(measurementNumber)
+            self.radarMeasurementIdx.append(radar_indecies[0])
             # print("truth group lists",self.truthEmitterCorrespondence)
         elif len(angle_of_arrivals) > 1:
             closest_radar_index = radar_distances.index(min(radar_distances))
@@ -116,6 +119,7 @@ class Agent:
             self.measurementAngleOfArrivalValues.append(angle_of_arrivals[closest_radar_index])
             # self.truthEmitterCorrespondence[radar_indecies[closest_radar_index]].append(len(self.measurementLocations)-1)
             self.truthEmitterCorrespondence[radar_indecies[closest_radar_index]].append(measurementNumber)
+            self.radarMeasurementIdx.append(radar_indecies[closest_radar_index])
         
         
 

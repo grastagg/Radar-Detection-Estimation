@@ -142,6 +142,15 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
         loc.remove()
 
 
+# def convert_lists_to_arrays(paramsList):
+def remove_empty_lists(paramsList):
+    newParamsList = []
+    for i in range(len(paramsList)):
+        if len(paramsList[i]) > 0:
+            newParamsList.append(paramsList[i])
+    return newParamsList
+        
+
 def main():
     params.create_data_file(params.dataFile)
     bounds = params.bounds 
@@ -205,7 +214,8 @@ def main():
                 print("truth group lists",agent.truthEmitterCorrespondence)
                 currentNumberOfMeasurementsArray[i] += 1
                 # start_e = time.time()
-                multipleEmitterOnlineLocationAndPowerEstimator.add_measurement(agent.measurementLocations[-1], [agent.measurementAngleOfArrivalValues[-1], agent.measurementPowerValues[-1]])
+                # multipleEmitterOnlineLocationAndPowerEstimator.add_measurement(agent.measurementLocations[-1], [agent.measurementAngleOfArrivalValues[-1], agent.measurementPowerValues[-1]])
+                multipleEmitterOnlineLocationAndPowerEstimator.add_measurement_known_association(agent.measurementLocations[-1], [agent.measurementAngleOfArrivalValues[-1], agent.measurementPowerValues[-1]],agent.radarMeasurementIdx[-1])
                 # estimator_total_time += time.time()-start_e
                 currentNumberOfMeasurements += 1
                 # if len(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params) > 0:
@@ -214,7 +224,10 @@ def main():
                     # print("pd map time", time.time()-start_pd)
         
         allAgentCurrentPositions = np.array([agent.position[0:2] for agent in agentList])
-        lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList, currentNumberOfMeasurements,multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations ,dt,allAgentCurrentPositions)
+        
+        
+        # lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList, currentNumberOfMeasurements,multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations ,dt,allAgentCurrentPositions)
+        lowPriorityPathPlanner.update_path(remove_empty_lists(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params), remove_empty_lists(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances), probabilityOfDetectionMap, agentList, currentNumberOfMeasurements,multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations ,dt,allAgentCurrentPositions)
 
 
 

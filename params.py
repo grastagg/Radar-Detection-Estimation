@@ -298,6 +298,7 @@ def measurement_jacobian(xem, yem, erp, x, y):
     d_h2_d_p_emmitter = radarMeasurementCoeff/((yem-y)**2+(xem-x)**2)
 
     return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
+    
 @jax.jit
 def measurement_jacobian_jax(xem, yem, erp, x, y):
     d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
@@ -322,8 +323,12 @@ print(np.log(radarProbabilityOfFalseAlarm))
 def create_data_file(filepath):
     if not os.path.exists(filepath):
         os.mkdir(filepath)
-        os.mkdir(filepath+"estimated_params/")
-        os.mkdir(filepath+"estimated_params_cov/")
+        # os.mkdir(filepath+"estimated_params/")
+        # os.mkdir(filepath+"estimated_params_cov/")
+        for i in range(numRadar):
+            os.mkdir(filepath+"radar_"+str(i)+"/")
+            os.mkdir(filepath+"radar_"+str(i)+"/estimated_params/")
+            os.mkdir(filepath+"radar_"+str(i)+"/estimated_params_cov/")
     else:
         print("Directory already exists")
         # return
