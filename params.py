@@ -243,12 +243,12 @@ distFromStraitWeight = .3
 # distFromStraitWeight = 0
 
 seperationScale = 1
-seperationWeight = .2
+seperationWeight = .3
 # seperationWeight = 0
 
 # nextCovarianceScale = 1e19
 nextCovarianceScale = 1e20
-nextCovarianceWeight = .5
+nextCovarianceWeight = .3
 # nextCovarianceWeight = 0
 
 pathOptTime = 50
@@ -331,12 +331,12 @@ def create_data_file(filepath):
             os.mkdir(filepath+"radar_"+str(i)+"/estimated_params_cov/")
     else:
         print("Directory already exists")
-        # return
-        cont = input("overwrite? y/n")
-        if cont == "y":
-            return
-        else:
-            exit()
+        return
+        # cont = input("overwrite? y/n")
+        # if cont == "y":
+        #     return
+        # else:
+        #     exit()
             
     
     

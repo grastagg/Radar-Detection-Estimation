@@ -158,6 +158,7 @@ class SplinePathPlanningLowPriority():
         # self.distFromStraitScale = 5000
 
         self.bestMeasurementLocSeperation = 5000.0
+        self.plotTest = False
 
         
         self.numOptStartLocations = 2
@@ -175,7 +176,7 @@ class SplinePathPlanningLowPriority():
         lowerBound = -numpy.pi
         upperBound = numpy.pi
 
-        self.numOptStartLocations = 1
+        self.numOptStartLocations = 2
 
         # self.initialHeadingList = scale(LatinHypercube(params.numAgents).random(self.numOptStartLocations-2),lowerBound,upperBound)
         # self.initialHeadingList = numpy.append(self.initialHeadingList, numpy.zeros((1,params.numAgents)),axis=0)
@@ -210,16 +211,19 @@ class SplinePathPlanningLowPriority():
             self.currentVelocity = v
         else:
             if self.bestMeasurementLocList is not None:
-                u,v = self.get_turn_rate_and_velocity_waypoint(self.bestMeasurementLocList[low_priority_agent_index], currentPose)
+                u,v = self.get_turn_rate_and_velocity_waypoint(self.bestMeasurementLocList[low_priority_agent_index], currentPose,low_priority_agent_index)
                 
         return u,v
-    def get_turn_rate_and_velocity_waypoint(self, bestMeasurementLoc, currentPose):
+    def get_turn_rate_and_velocity_waypoint(self, bestMeasurementLoc, currentPose,lowPriorityAgentIndex):
         desiredHeading = numpy.arctan2(bestMeasurementLoc[1]-currentPose[1], bestMeasurementLoc[0]-currentPose[0])
         currentHeading = currentPose[2]
         self.angleUnwrapperDesiredAngle.add_angle(desiredHeading)
         self.angleUnwrapperCurrentAngle.add_angle(currentHeading)
         desiredHeading = self.angleUnwrapperDesiredAngle.unwrap_angles()[-1]
         currentHeading = self.angleUnwrapperCurrentAngle.unwrap_angles()[-1]
+        if lowPriorityAgentIndex == 0:
+            print("desiredHeading",desiredHeading)
+            print("currentHeading",currentHeading)
         v = (params.velocityBounds[0]+params.velocityBounds[1])/2
         # u = self.kp * (desiredHeading - currentPose[2])
         u = self.kp * (desiredHeading - currentHeading)
@@ -434,8 +438,7 @@ class SplinePathPlanningLowPriority():
         distanceFromStraitLinePathObj = 0
         allAgentPathHistory_temp = allAgentPathHistory.copy()
 
-        plot = True
-        if plot:
+        if self.plotTest:
             numTestPoints = 100
             testX = numpy.linspace(0,params.bounds[0],numTestPoints)
             testY = numpy.linspace(0,params.bounds[1],numTestPoints)
@@ -454,6 +457,7 @@ class SplinePathPlanningLowPriority():
             fig, ax = plt.subplots()
             ax.pcolormesh(testX, testY, objF)
             plt.show()
+        self.plotTest = False
             
                     
                     
@@ -525,6 +529,7 @@ class SplinePathPlanningLowPriority():
         # initialHeadingsList = []
         
         
+        self.plotTest =False 
         tempObjectiveFuncScale = np.abs(self.objective_function_for_best_measurement_waypoints(initialWaypoints, agentList, estimatedParams_list, estimatedRadarCovariance_list, allAgentPathHistory, params.agentSpeed, params.pathOptTime, agentOrder))
 
 
