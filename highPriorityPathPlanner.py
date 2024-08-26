@@ -1096,8 +1096,8 @@ def load_estimated_params(dataFilePath,dataIndex,numRadar):
 def main():
     radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
     dataFilePath = "saved_data/11024122/"
-    numFiles = 5457
-    dataIndex = 1000
+    numFiles = 871
+    dataIndex = 871
 
     radarParams, radarParamsCov = load_estimated_params(dataFilePath,dataIndex,len(radarList))
     print("radarParams", radarParams)

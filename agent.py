@@ -54,7 +54,8 @@ class Agent:
         self.measure_radar(radar_list, measurementNumber)
         self.position[0] +=  v * np.cos(self.position[2]) * dt
         self.position[1] +=  v * np.sin(self.position[2]) * dt
-        self.position[2] += u*dt
+        # self.position[2] += u*dt
+        self.position[2] = u
         self.timeSinceLastPathUpdate += dt
 
         if self.timeSinceLastPathUpdate > self.pathHistorydt:
