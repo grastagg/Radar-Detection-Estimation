@@ -161,7 +161,7 @@ class SplinePathPlanningLowPriority():
         self.plotTest = False
 
         
-        self.numOptStartLocations = 30 
+        self.numOptStartLocations = 5
         
         xStart = np.linspace(params.bounds[0]/(self.numOptStartLocations+1),params.bounds[0]-params.bounds[0]/(self.numOptStartLocations+1), self.numOptStartLocations)
         yStart = np.linspace(params.bounds[1]/(self.numOptStartLocations+1),params.bounds[1]-params.bounds[1]/(self.numOptStartLocations+1), self.numOptStartLocations)
