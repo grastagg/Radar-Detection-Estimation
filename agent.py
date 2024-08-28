@@ -3,6 +3,7 @@ from matplotlib.patches import Circle
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 import params
+import os
 
 
 class Agent:
@@ -47,6 +48,12 @@ class Agent:
         self.savePathHistoryToFile = True
         # self.pathHistoryFileName = "saved_data/agent"+str(self.agentId)+"PathHistory.txt"
         self.pathHistoryFileName = params.dataFile + "/agent"+str(self.agentId)+"PathHistory.txt"
+
+        if os.path.isfile(self.pathHistoryFileName):
+            print("agent path history file already exists, deleting")
+            os.remove(self.pathHistoryFileName)
+        else:
+            print("agent path history file does not exist, creating")
         
         
         

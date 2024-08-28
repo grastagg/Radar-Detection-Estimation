@@ -196,7 +196,7 @@ class SplinePathPlanningLowPriority():
 
         
         self.timeSinceLastOpt = params.pathOptTime+1
-        self.gridSearch = True
+        self.gridSearch =False
         
         
     
@@ -623,16 +623,16 @@ class SplinePathPlanningLowPriority():
 
 
         ##########TEST##########
-        self.plotTest =True 
-        tempOptLocations,optObjectiveFunctionVal = self.objective_function_for_best_measurement_waypoints(optWaypoints, agentList, estimatedParams_list, estimatedRadarCovariance_list, allAgentPathHistory, params.agentSpeed, params.pathOptTime, agentOrder)
-        self.plotTest = False
-        tempOptLocations = numpy.array(tempOptLocations).squeeze()
-        tempObjectiveFunctionVal = self.objective_function_for_best_measurement_waypoints(tempOptLocations, agentList, estimatedParams_list, estimatedRadarCovariance_list, allAgentPathHistory, params.agentSpeed, params.pathOptTime, agentOrder)
-        print("optimal waypoints",optWaypoints)
-        print("tempOptLocations",tempOptLocations)
-        print("optimal objective function value",optObjectiveFunctionVal)
-        print("tempObjectiveFunctionVal",tempObjectiveFunctionVal)
-        plt.show()
+        # self.plotTest =True 
+        # tempOptLocations,optObjectiveFunctionVal = self.objective_function_for_best_measurement_waypoints(optWaypoints, agentList, estimatedParams_list, estimatedRadarCovariance_list, allAgentPathHistory, params.agentSpeed, params.pathOptTime, agentOrder)
+        # self.plotTest = False
+        # tempOptLocations = numpy.array(tempOptLocations).squeeze()
+        # tempObjectiveFunctionVal = self.objective_function_for_best_measurement_waypoints(tempOptLocations, agentList, estimatedParams_list, estimatedRadarCovariance_list, allAgentPathHistory, params.agentSpeed, params.pathOptTime, agentOrder)
+        # print("optimal waypoints",optWaypoints)
+        # print("tempOptLocations",tempOptLocations)
+        # print("optimal objective function value",optObjectiveFunctionVal)
+        # print("tempObjectiveFunctionVal",tempObjectiveFunctionVal)
+        # plt.show()
 
         
         
@@ -661,8 +661,10 @@ class SplinePathPlanningLowPriority():
         testY = numpy.linspace(0,params.bounds[1],numTestPoints)
         testX, testY = numpy.meshgrid(testX, testY)
         tempOptLocations = []
+        
 
         for k in range(len(agentList)):
+            fig,ax = plt.subplots()
             objF = numpy.zeros((numTestPoints,numTestPoints))
             index = agentOrder[k]
             for i in range(numTestPoints):
@@ -685,12 +687,18 @@ class SplinePathPlanningLowPriority():
             tempOptLocations.append(testX.flat[tempOptIndex])
             tempOptLocations.append(testY.flat[tempOptIndex])
 
+            ax.pcolormesh(testX, testY, objF)
+            ax.set_aspect('equal')
+            ax.scatter(allAgentPathHistory_temp[:,0],allAgentPathHistory_temp[:,1])
+            ax.scatter(tempOptLocations[-2],tempOptLocations[-1],marker='x')
+
             futurePath = get_agent_future_path_waypoint(np.array([tempOptLocations[-2],tempOptLocations[-1]]), np.array(agentList[index].position[0:2]),params.agentSpeed, params.agentPathHistorydt)
 
             allAgentPathHistory_temp = np.vstack((allAgentPathHistory_temp, futurePath))
             
 
             
+        plt.show()
         
         return tempOptLocations 
 

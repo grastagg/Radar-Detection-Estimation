@@ -247,7 +247,7 @@ seperationWeight = .3
 # seperationWeight = 0
 
 # nextCovarianceScale = 1e19
-nextCovarianceScale = 1e23
+nextCovarianceScale = 1e22
 nextCovarianceWeight = .3
 # nextCovarianceWeight = 0
 
