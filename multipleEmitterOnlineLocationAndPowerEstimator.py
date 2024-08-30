@@ -52,7 +52,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         #these will be used to make sure aoa are different enough before starting estimate
         self.min_aoa_measurement = None
         self.max_aoa_measurement = None
-        self.min_aoa_diff_to_start = .2
+        self.min_aoa_diff_to_start = .3
         # self.minDistBetweenModels = params.minInterRadarDist
         self.minDistBetweenModels = np.average([params.minInterRadarDistList])
 
@@ -306,8 +306,10 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         # self.group_lists[radarId] = np.append(self.group_lists[radarId],(len(self.measurement_values)-1),dtype=int)
             
 
-        numMeasurementsNeeded = 10
-        if len(self.group_lists[radarId]) > numMeasurementsNeeded:
+        numMeasurementsNeeded = 5
+        # if len(self.group_lists[radarId]) > numMeasurementsNeeded:
+        aoaDiff = self.compute_inlier_aoa_diff(np.array(self.measurement_values)[self.group_lists[radarId]])
+        if len(self.estimated_emmiter_params[radarId]) > 0:
             estimated_emmiter_param,  estimated_emmiter_params_covariances = self.ekf_update(measurement_location, measurement_value, self.measurement_cov, self.estimated_emmiter_params[radarId], self.estimated_emmiter_params_covariances[radarId])
             if estimated_emmiter_param[2] < 0:
                 print("estimated power level too small")
@@ -315,7 +317,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             else:
                 self.estimated_emmiter_params[radarId] = estimated_emmiter_param
                 self.estimated_emmiter_params_covariances[radarId] = estimated_emmiter_params_covariances
-        elif len(self.group_lists[radarId]) == numMeasurementsNeeded:
+        elif len(self.group_lists[radarId]) >= numMeasurementsNeeded and aoaDiff > self.min_aoa_diff_to_start:
             estimated_emmiter_param,  estimated_emmiter_params_covariances = self.batch_estimation(np.array(self.measurement_locations)[self.group_lists[radarId]], np.array(self.measurement_values)[self.group_lists[radarId]], self.measurement_cov)
             self.estimated_emmiter_params[radarId] = estimated_emmiter_param
             self.estimated_emmiter_params_covariances[radarId] = estimated_emmiter_params_covariances

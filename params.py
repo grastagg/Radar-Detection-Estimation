@@ -188,7 +188,7 @@ radarMeasurementCoeff = (agentELINTAnteneaGain * radarWavelength**2)/((4*np.pi)*
 radarMeasurementCoeffDB = 10*np.log10(radarMeasurementCoeff)
 agentRadarCrossSection = .1
 
-agentPathHistorydt = 2
+agentPathHistorydt = 5
 
 measurementCov = np.array([[agentAngleMeasurementStdDev**2,0],[0,agentPowerMeasurementStdDev**2]])
 
@@ -239,15 +239,16 @@ splineOrder = 3
 
 distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)/2
 # distFromStraitWeight = 1
-distFromStraitWeight = .05
+distFromStraitWeight = .3
 # distFromStraitWeight = 0
 
 seperationScale = 1
 seperationWeight = .3
 # seperationWeight = 0
 
-# nextCovarianceScale = 1e19
-nextCovarianceScale = 1e22
+nextCovarianceScale = 1e20
+# nextCovarianceScale = 1e15
+# nextCovarianceScale = 1e22
 nextCovarianceWeight = .3
 # nextCovarianceWeight = 0
 

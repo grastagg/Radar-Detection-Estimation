@@ -277,8 +277,10 @@ def path_safety(allAgentPathHistory, next_measurements, lengthScale):
 
 if __name__ == '__main__':
     dataFilePath = "saved_data/11024122/"
-    dataIndex = 10
-    numFiles = 5758
+    # dataIndex = 10
+    # numFiles = 5758
+    numFiles = 8044
+    dataIndex = 100
     agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
     numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
     pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
@@ -289,8 +291,8 @@ if __name__ == '__main__':
     test_radar_probability_of_interecept(combinedPathHistory)
 
     
-    dataIndex = 1000
-    numFiles = 5758
+    numFiles = 8044
+    dataIndex =1000
     agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
     numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
     pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
