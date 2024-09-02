@@ -196,7 +196,7 @@ class SplinePathPlanningLowPriority():
 
         
         self.timeSinceLastOpt = params.pathOptTime+1
-        self.gridSearch =True
+        self.gridSearch = True
         
         
     
@@ -454,9 +454,18 @@ class SplinePathPlanningLowPriority():
             closest_emitter_index = find_closest_emitter(np.array(next_measurement), np.array(estimatedRadarParams))
             # test= next_measurement_covariance(next_measurement, estimatedRadarParams[closest_emitter_index], estimatedRadarParamsCov_temp[closest_emitter_index])
             # estimatedRadarParamsCov_temp[closest_emitter_index]=test
+            covDetSum = 0
+            countCov = 0
+            for q in range(len(estimatedRadarParams)):
+                if len(estimatedRadarParams[q])>0:
+                    nextMeasCov = next_measurement_covariance(next_measurement, estimatedRadarParams[q], estimatedRadarParamsCov_temp[q])
+                    covDetSum += np.linalg.det(nextMeasCov)
+                    countCov += 1
+
             estimatedRadarParamsCov_temp[closest_emitter_index] = next_measurement_covariance(next_measurement, estimatedRadarParams[closest_emitter_index], estimatedRadarParamsCov_temp[closest_emitter_index])
 
-            covObj += np.linalg.det(estimatedRadarParamsCov_temp[closest_emitter_index])
+            # covObj += np.linalg.det(estimatedRadarParamsCov_temp[closest_emitter_index])
+            covObj += covDetSum/countCov
 
             x0 = next_measurement[0]
             y0 = next_measurement[1]
@@ -660,9 +669,10 @@ class SplinePathPlanningLowPriority():
         estimatedRadarParamsCov_temp = estimatedRadarParamsCov.copy()
         allAgentPathHistory_temp = allAgentPathHistory.copy()
                     
+        showPlot = False 
                     
             
-        numTestPoints = 25
+        numTestPoints = 20
         testX = numpy.linspace(0,params.bounds[0],numTestPoints)
         testY = numpy.linspace(0,params.bounds[1],numTestPoints)
         testX, testY = numpy.meshgrid(testX, testY)
@@ -672,10 +682,6 @@ class SplinePathPlanningLowPriority():
 
             index = agentOrder[k]
 
-            numTestPoints = 20
-            testX = numpy.linspace(0,params.bounds[0],numTestPoints)
-            testY = numpy.linspace(0,params.bounds[1],numTestPoints)
-            testX, testY = numpy.meshgrid(testX, testY)
             objF = numpy.zeros((numTestPoints,numTestPoints))
             
             for i in range(numTestPoints):
@@ -715,25 +721,23 @@ class SplinePathPlanningLowPriority():
             estimatedRadarParamsCov_temp[closestEmittorOpt] = cov
 
 
-            # fig, ax = plt.subplots()
-            # ax.set_title("agent "+str(agentOrder[k]))
-            # c = ax.pcolormesh(testX, testY, objF)
-            # ax.set_aspect('equal')
-            # fig.colorbar(c, ax=ax)
+            if showPlot:
+                fig, ax = plt.subplots()
+                ax.set_title("agent "+str(agentOrder[k]))
+                c = ax.pcolormesh(testX, testY, objF)
+                ax.set_aspect('equal')
+                fig.colorbar(c, ax=ax)
 
-            # ax.scatter(allAgentPathHistory_tempPlot[:,0],allAgentPathHistory_tempPlot[:,1])
-            # ax.scatter(tempOptLocations[-2],tempOptLocations[-1],marker='x')
-
-
-
-            # futurePathTempPlot = get_agent_future_path_waypoint(np.array([testX.flat[tempOptIndex],testY.flat[tempOptIndex]]), np.array(agentList[index].position[0:2]),params.agentSpeed, params.agentPathHistorydt)
-            # allAgentPathHistory_tempPlot = numpy.vstack((allAgentPathHistory_tempPlot, futurePathTempPlot))
+                ax.scatter(allAgentPathHistory_temp[:,0],allAgentPathHistory_temp[:,1])
+                ax.scatter(tempOptLocations[-2],tempOptLocations[-1],marker='x')
 
 
-            # ax.pcolormesh(testX, testY, objF)
-            # ax.set_aspect('equal')
-            # ax.scatter(allAgentPathHistory_temp[:,0],allAgentPathHistory_temp[:,1])
-            # ax.scatter(tempOptLocations[-2],tempOptLocations[-1],marker='x')
+
+
+                ax.pcolormesh(testX, testY, objF)
+                ax.set_aspect('equal')
+                ax.scatter(allAgentPathHistory_temp[:,0],allAgentPathHistory_temp[:,1])
+                ax.scatter(tempOptLocations[-2],tempOptLocations[-1],marker='x')
 
             futurePath = get_agent_future_path_waypoint(np.array([testX.flat[tempOptIndex],testY.flat[tempOptIndex]]), np.array(agentList[index].position[0:2]),params.agentSpeed, params.agentPathHistorydt)
 
@@ -741,7 +745,8 @@ class SplinePathPlanningLowPriority():
             
 
             
-        # plt.show()
+        if showPlot:
+            plt.show()
         
         return tempOptLocations 
 

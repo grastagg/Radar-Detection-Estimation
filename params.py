@@ -43,7 +43,7 @@ highPriorityStraitLineA = highPriorityStart[1] - highPriorityEnd[1]
 highPriorityStraitLineB = highPriorityEnd[0] - highPriorityStart[0]
 highPriorityStraitLineC = highPriorityStart[0]*highPriorityEnd[1] - highPriorityEnd[0] * highPriorityStart[1]
 probabilityOfDetectionThreshold = 0.15
-thresholdConfidence = 0.5
+thresholdConfidence = 0.70
 highPriorityAgentRadarCrossSection = .1
 
 #radar parameters
@@ -179,8 +179,8 @@ agentInitialStates = [[100,100,np.pi/4],[200,200,np.pi/3],[150,150,np.pi/5]]
 numAgents = len(agentInitialStates)
 # agentSensingRange = 10000
 agentSensingRange = 5000
-agentPowerMeasurementStdDev = .001
-agentAngleMeasurementStdDev = (3*np.pi/180)
+agentPowerMeasurementStdDev = .0001
+agentAngleMeasurementStdDev = (2*np.pi/180)
 agentELINTAnteneaGaindb = 1
 agentELINTAnteneaGain = db_to_amplitude(agentELINTAnteneaGaindb)
 agentELINTSystemLoss = 1
@@ -195,7 +195,7 @@ measurementCov = np.array([[agentAngleMeasurementStdDev**2,0],[0,agentPowerMeasu
 
 
 #unknown parameters
-radarRecieveGain = radarRecieveGain
+radarRecieveGainPriorMean= radarRecieveGain
 radarRecieveGainPriorVariance = 0
 
 radarProbabilityOfFalseAlarmPriorMean = radarProbabilityOfFalseAlarm
@@ -239,14 +239,15 @@ splineOrder = 3
 
 distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)/2
 # distFromStraitWeight = 1
-distFromStraitWeight = .3
-# distFromStraitWeight = 0
+distFromStraitWeight = .1
+distFromStraitWeight = 0
 
 seperationScale = 1
 seperationWeight = .3
 # seperationWeight = 0
 
-nextCovarianceScale = 1e20
+# nextCovarianceScale = 1e16
+nextCovarianceScale = 1e14
 # nextCovarianceScale = 1e15
 # nextCovarianceScale = 1e22
 nextCovarianceWeight = .3

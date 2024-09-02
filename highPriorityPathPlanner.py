@@ -1096,8 +1096,8 @@ def load_estimated_params(dataFilePath,dataIndex,numRadar):
 def main():
     radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
     dataFilePath = "saved_data/11024122/"
-    numFiles = 8044
-    dataIndex = 500
+    numFiles = 2006
+    dataIndex =1350
 
     radarParams, radarParamsCov = load_estimated_params(dataFilePath,dataIndex,len(radarList))
     print("radarParams", radarParams)
@@ -1112,13 +1112,30 @@ def main():
     # radarParams = np.load(dataFilePath+"estimated_params/"+str(dataIndex)+".npy")
     # radarParamsCov = np.load(dataFilePath+"estimated_params_cov/"+str(dataIndex)+".npy")
     hpp = HighPriorityPathPlanner(tuple(radarList))
+
     pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList))
+    ######
+    # covImageSpacing = 10
+    # for i in range(1,numFiles//covImageSpacing):
+    #     radarParams, radarParamsCov = load_estimated_params(dataFilePath,i*covImageSpacing,len(radarList))
+    #     pdMap.compute_probability_of_detection_at_points_multiple_radar(params.X_test,radarParams,radarParamsCov)
+    #     fig,ax = plt.subplots()
+    #     Z = pdMap.pdCovMap
+    #     c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints),alpha=1)
+    #     ax.scatter(radarParams[:,0],radarParams[:,1],c='r',marker='x',s=100)
+    #     fig.colorbar(c, ax=ax)
+    #     file = "images/pd_cov/"+str(i*covImageSpacing)+".png"
+    #     plt.savefig(file)
+    #######
     fig,ax = plt.subplots()
     plt.xticks(fontsize=26)
     plt.yticks(fontsize=26)
     ax.set_aspect('equal')
     if hpp.uncertainRadar:
         Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGain,0, params.radarWavelength,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperature,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarm,params.radarProbabilityOfFalseAlarmPriorVariance) 
+        # pdMap.compute_probability_of_detection_at_points_multiple_radar(params.X_test,radarParams,radarParamsCov)
+        # Z = pdMap.pdCovMap
+
         ax.set_title("Likelihood True PD < Threshold",fontsize=34)
     else:
         Z = pdMap.groundTruthpdMap
@@ -1128,6 +1145,11 @@ def main():
     ax.scatter(radarParams[:,0],radarParams[:,1],c='r',marker='x',s=100)
     radarPositions = np.array([radar.position for radar in radarList])
     ax.scatter(radarPositions[:,0],radarPositions[:,1],c='b',marker='o',s=100)
+    for i,cov in enumerate(radarParamsCov):
+        print(i)
+        print("det",np.linalg.det(cov))
+    for i,radPos in enumerate(radarPositions):
+        ax.annotate(str(i),radPos,c='b',fontsize=20)
     # hpp.plan_deterministic_path(tuple(radarList),plot=True,ax=ax)
     print("path planning time", time.time()-startTime)
     print("path length", hpp.spline.t[-1])
@@ -1139,6 +1161,8 @@ def main():
     print(len(agent1PathHistory))
     pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
     hpp.evaluate_path_sefety(hpp.spline,pathHistoryList)
+    groundTruthPD = pdMap.ground_truth_probability_of_detection(hpp.spline(np.linspace(0,hpp.spline.t[-1],1000)),tuple(radarList))
+    print("max ground truth pd", np.max(groundTruthPD))
 
 
     # _,_ = hpp.get_initial_guess_voronoi(radarList,params.bounds,radarParams,radarParamsCov,plot=True,ax=ax)

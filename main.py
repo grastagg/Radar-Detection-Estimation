@@ -147,7 +147,7 @@ def remove_empty_lists(paramsList):
     newParamsList = []
     for i in range(len(paramsList)):
         if len(paramsList[i]) > 0:
-            newParamsList.append(paramsList[i])
+            newParamsList.append(paramsList[i].copy())
     return newParamsList
         
 
@@ -193,6 +193,9 @@ def main():
     while tCurrent < tEnd:
         start = time.time()
         if timeSinceLastPlot >= params.plotTimeStep:
+            # if len(remove_empty_lists(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params)) > 0:
+            #     probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, remove_empty_lists(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params), remove_empty_lists(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances))
+
             plot_scene(radarList, agentList, bounds, plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner,currentNumberOfMeasurements)
             timeSinceLastPlot = 0
             plotIndex += 1

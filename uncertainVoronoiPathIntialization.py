@@ -718,12 +718,13 @@ def fit_spline_to_path(path, num_control_points, spline_order,vertex1,vertex2):
 
     tck_x = splrep(t,path[:,0],k=spline_order,t=knots,s=0)
     control_points_x = tck_x[1]
-    control_points_x = control_points_x[control_points_x != 0]
+    mask = control_points_x != 0
+    control_points_x = control_points_x[mask]
     
 
     tck_y = splrep(t,path[:,1],k=spline_order,t=knots,s=0)
     control_points_y = tck_y[1]
-    control_points_y = control_points_y[control_points_y != 0]
+    control_points_y = control_points_y[mask]
     combined_control_points = np.hstack((control_points_x.reshape((len(control_points_x),1)), control_points_y.reshape((len(control_points_y),1))))
 
     
@@ -1344,6 +1345,17 @@ def find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing,a
 
         
     
+def load_estimated_params(dataFilePath,dataIndex,numRadar):
+    radarParamsAll = []
+    radarParamsCovAll = []
+    for i in range(numRadar):
+        radarParams = np.load(dataFilePath+"/radar_"+str(i)+"/estimated_params/"+str(dataIndex)+".npy")
+        radarParamsCov = np.load(dataFilePath+"/radar_"+str(i)+"/estimated_params_cov/"+str(dataIndex)+".npy")
+        if len(radarParams) != 0:
+            radarParamsAll.append(radarParams)
+            radarParamsCovAll.append(radarParamsCov)
+    
+    return np.array(radarParamsAll),np.array(radarParamsCovAll)
     
     
 
@@ -1351,16 +1363,14 @@ def main():
     radarList = tuple(create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm))
 
 
+    dataFilePath = "saved_data/11024122/"
+    numFiles = 6218
+    dataIndex = 5900
 
-    # dataIndex = 300
-    # dataIndex = 200
-    dataIndex = 639
-    dataFilePath = "saved_data/seed_1102042/"
-    # dataFilePath = "saved_data/1102042/"
-    radarParams = np.load(dataFilePath+"estimated_params/"+str(dataIndex)+".npy")
-    radarParamsCov = np.load(dataFilePath+"estimated_params_cov/"+str(dataIndex)+".npy")
-    # radarParams = np.load("saved_data/currentData/estimated_params/"+str(dataIndex)+".npy")
-    # radarParamsCov = np.load("saved_data/currentData/estimated_params_cov/"+str(dataIndex)+".npy")
+    radarParams, radarParamsCov = load_estimated_params(dataFilePath,dataIndex,len(radarList))
+    print("radarParams", radarParams)
+    print("radarParamsCov", radarParamsCov)
+
 
     Z = safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold,params.thresholdConfidence,radarParams,radarParamsCov, params.radarRecieveGain,params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean,params.radarProbabilityOfFalseAlarmPriorVariance)
     # Z = Z > params.thresholdConfidence
