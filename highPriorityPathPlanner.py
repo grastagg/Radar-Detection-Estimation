@@ -8,11 +8,13 @@ jax.config.update('jax_platform_name', 'cpu') # Sets the default device to CPU
 from scipy.constants import k as boltzman
 import matplotlib
 import getpass
+import os
+import re
+import importlib
 
 
 import matplotlib.pyplot as plt
-import params
-
+# import params
 from pyoptsparse import Optimization, OPT
 
 from scipy import interpolate
@@ -48,9 +50,10 @@ import uncertainVoronoiPathIntialization
 
 
 class HighPriorityPathPlanner:
-    def __init__(self,radarList):
+    def __init__(self,radarList=None,params=None):
         #run jax function once to compile
         start = time.time()
+        self.params = params
         self.evaluate_spline_derivative(0,np.zeros((params.numControlPoints,2)),np.zeros(params.numControlPoints+params.splineOrder+1),params.splineOrder,1)
         self.evaluate_spline(0,np.zeros((params.numControlPoints,2)),np.zeros(params.numControlPoints+params.splineOrder+1),params.splineOrder)
         create_unclamped_knot_points(0, 1, params.numControlPoints,params.splineOrder)
@@ -68,20 +71,21 @@ class HighPriorityPathPlanner:
         self.dTurnRateDControlPoints = jacfwd(get_spline_turn_rate)
         self.dTurnRateTf = jacfwd(get_spline_turn_rate,argnums=1)
 
-        self.deterministicRadarPositions = np.array([radar.position for radar in radarList])
+        if radarList is not None:
+            self.deterministicRadarPositions = np.array([radar.position for radar in radarList])
 
-        dist_of_points_to_line_segment(np.array([0,0]),np.array([1,1]),self.deterministicRadarPositions)
-        print("Time to compile jax functions", time.time()-start)
+            dist_of_points_to_line_segment(np.array([0,0]),np.array([1,1]),self.deterministicRadarPositions)
 
         self.useWeightedVoronoi = True
         self.uncertainRadar =True 
+
 
         
     
     
     def get_turn_rate_and_velocity(self, t, controlPoints, knotPoints):
-        out_d1 = self.evaluate_spline_derivative(t,controlPoints,knotPoints,params.splineOrder,1)
-        out_d2 = self.evaluate_spline_derivative(t,controlPoints,knotPoints,params.splineOrder,2)
+        out_d1 = self.evaluate_spline_derivative(t,controlPoints,knotPoints,self.params.splineOrder,1)
+        out_d2 = self.evaluate_spline_derivative(t,controlPoints,knotPoints,self.params.splineOrder,2)
         v = np.linalg.norm(out_d1,axis=1)
         u = np.cross(out_d1,out_d2) / (v**2)
         return u,v
@@ -100,7 +104,7 @@ class HighPriorityPathPlanner:
         return np.array((1/6)*cp1 + (2/3)*cp2 + (1/6)*cp3)
 
     def get_start_constraint_jacobian(self, controlPoints):
-        jac = np.zeros((2,2*params.numControlPoints))
+        jac = np.zeros((2,2*self.params.numControlPoints))
         jac[0,0] = 1/6
         jac[0,2] = 2/3
         jac[0,4] = 1/6
@@ -116,7 +120,7 @@ class HighPriorityPathPlanner:
         return (1/6)*cpnMinus2 + (2/3)*cpnMinus1 + (1/6)*cpn
     
     def get_end_constraint_jacobian(self, controlPoints):
-        jac = np.zeros((2,2*params.numControlPoints))
+        jac = np.zeros((2,2*self.params.numControlPoints))
         jac[0,-6] = 1/6
         jac[0,-4] = 2/3
         jac[0,-2] = 1/6
@@ -129,29 +133,29 @@ class HighPriorityPathPlanner:
 
     def spline_constraints(self, radarList, controlPoints, knotPoints,numConstraintSamples):
         # spline = self.spline_seg(controlPoints, knotPoints)
-        tf = knotPoints[-params.splineOrder-1]
+        tf = knotPoints[-self.params.splineOrder-1]
         t = np.linspace(0,tf,numConstraintSamples)
         u,v = self.get_turn_rate_and_velocity(t, controlPoints, knotPoints)
 
-        pos = self.evaluate_spline(t,controlPoints,knotPoints,params.splineOrder)
+        pos = self.evaluate_spline(t,controlPoints,knotPoints,self.params.splineOrder)
 
         # pd = self.ground_truth_probability_of_detection(pos, radarList)
 
-        pd = get_pd_along_spline(controlPoints, tf, radarList, params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
+        pd = get_pd_along_spline(controlPoints, tf, radarList, self.params.numControlPoints, self.params.splineOrder, self.params.numSamplesPerInterval, self.params.radarWavelengthPriorMean, self.params.agentRadarCrossSection, self.params.radarPulseWidth, self.params.radarSystemTemperaturePriorMean, self.params.radarProbabilityOfFalseAlarmPriorMean)
         # return np.max(pdMean), u, v, pos
         return pd, u, v, pos
     
     def spline_constraints_uncertain_radar(self, radarParams, radarParamsCov, controlPoints, knotPoints,numConstraintSamples):
         # spline = self.spline_seg(controlPoints, knotPoints)
-        tf = knotPoints[-params.splineOrder-1]
+        tf = knotPoints[-self.params.splineOrder-1]
         t = np.linspace(0,tf,numConstraintSamples)
         u,v = self.get_turn_rate_and_velocity(t, controlPoints, knotPoints)
 
-        pos = self.evaluate_spline(t,controlPoints,knotPoints,params.splineOrder)
+        pos = self.evaluate_spline(t,controlPoints,knotPoints,self.params.splineOrder)
 
         # pd = self.ground_truth_probability_of_detection(pos, radarList)
 # def get_prob_pd_less_than_threshold(pos, estimatedRadarParamsList, estimatedRadarParamsCovList, pdThreshold, radarrecievegainpriormean,radarrecievegainpriorvar, radarwavelengthpriormean,radarwavelengthpriormeanvar, agentradarcrosssection, radarpulsewidth,radarpulsewidthVar, radarsystemtemperaturepriormean,radarsystemtemperaturepriorvar, radarprobabilityoffalsealarmpriormean,radarprobabilityoffalsealarmpriorvar):
-        prob = get_prob_pd_less_than_threshold(pos, radarParams, radarParamsCov,params.probabilityOfDetectionThreshold, params.radarRecieveGain, 0, params.radarWavelength,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean,params.radarProbabilityOfFalseAlarmPriorVariance)
+        prob = get_prob_pd_less_than_threshold(pos, radarParams, radarParamsCov,self.params.probabilityOfDetectionThreshold, self.params.radarRecieveGain, 0, self.params.radarWavelength,self.params.radarWavelengthPriorVariance, self.params.agentRadarCrossSection, self.params.radarPulseWidth,self.params.radarPulseWidthPriorVariance, self.params.radarSystemTemperaturePriorMean,self.params.radarSystemTemperaturePriorVariance, self.params.radarProbabilityOfFalseAlarmPriorMean,self.params.radarProbabilityOfFalseAlarmPriorVariance)
         # prob = get_prob_pd_less_than_threshold(pos,radarParams, radarParamsCov, params.probabilityOfDetectionThreshold, params.radarRecieveGain, params.radarRecieveGain, params.radarWavelength, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
 
         # pd = get_pd_along_spline(controlPoints, tf, radarParams, radarParamsCov, params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
@@ -182,21 +186,21 @@ class HighPriorityPathPlanner:
         self.uncertainRadar = False
         startTimer = time.time()
         # initialControlPoints, tfIntial,ax = self.find_initial_guess_rrt_star(radarList,plot=plot)
-        initialControlPoints, tfIntial = self.get_initial_guess_voronoi(radar_list,params.bounds,plot=plot,ax=ax)
+        initialControlPoints, tfIntial = self.get_initial_guess_voronoi(radar_list,self.params.bounds,plot=plot,ax=ax)
         print("Time to find initial guess", time.time()-startTimer)
-        spline = self.spline_seg(initialControlPoints,create_unclamped_knot_points(0, tfIntial, params.numControlPoints,params.splineOrder))
+        spline = self.spline_seg(initialControlPoints,create_unclamped_knot_points(0, tfIntial, self.params.numControlPoints,self.params.splineOrder))
 
 
         def objective_function(xDict):
             tf = xDict['tf']
-            knotPoints = create_unclamped_knot_points(0, tf, params.numControlPoints,params.splineOrder)
+            knotPoints = create_unclamped_knot_points(0, tf, self.params.numControlPoints,self.params.splineOrder)
             controlPoints = xDict['control_points']
             funcs = {}
             funcs['start'] = self.get_start_constraint(controlPoints)
             funcs['end'] = self.get_end_constraint(controlPoints)
-            controlPoints = controlPoints.reshape((params.numControlPoints,2))
+            controlPoints = controlPoints.reshape((self.params.numControlPoints,2))
             # v = self.get_spline_velocity(controlPoints, tf)
-            pd, u, v, pos = self.spline_constraints(radar_list, controlPoints, knotPoints,params.numConstraintSamples)
+            pd, u, v, pos = self.spline_constraints(radar_list, controlPoints, knotPoints,self.params.numConstraintSamples)
             # funcs['start'] = self.get_start_constraint_jax(controlPoints)
             # funcs['start'] = pos[0]
             # funcs['end'] = pos[-1]
@@ -215,17 +219,17 @@ class HighPriorityPathPlanner:
             dStartDControlPoints = self.get_start_constraint_jacobian(controlPoints)
             dEndDControlPoints = self.get_end_constraint_jacobian(controlPoints)
             # dVelocityDControlPoints = jacfwd(get_spline_velocity)(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval)
-            dVelocityDControlPoints = self.dVelocityDControlPoints(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval)
-            dVelocityDtf = np.array(self.dVelocityDtf(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval),dtype=np.float64)
+            dVelocityDControlPoints = self.dVelocityDControlPoints(controlPoints, tf, self.params.splineOrder,self.params.numSamplesPerInterval)
+            dVelocityDtf = np.array(self.dVelocityDtf(controlPoints, tf, self.params.splineOrder,self.params.numSamplesPerInterval),dtype=np.float64)
             # dTurnRateDControlPoints = jacfwd(self.get_spline_turn_rate)(controlPoints, tf)
             # dTurnRateDtf = np.array(jacfwd(self.get_spline_turn_rate,argnums=1)(controlPoints, tf),dtype=np.float64)
-            dPdDControlPoints = self.dPdDControlPoints(controlPoints, tf, radar_list,params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean )
-            dPdDtf = np.array(self.dPdDtf(controlPoints, tf, radar_list,params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean),dtype=np.float64)
+            dPdDControlPoints = self.dPdDControlPoints(controlPoints, tf, radar_list,self.params.numControlPoints, self.params.splineOrder, self.params.numSamplesPerInterval, self.params.radarWavelengthPriorMean, self.params.agentRadarCrossSection, self.params.radarPulseWidth, self.params.radarSystemTemperaturePriorMean, self.params.radarProbabilityOfFalseAlarmPriorMean )
+            dPdDtf = np.array(self.dPdDtf(controlPoints, tf, radar_list,self.params.numControlPoints, self.params.splineOrder, self.params.numSamplesPerInterval, self.params.radarWavelengthPriorMean, self.params.agentRadarCrossSection, self.params.radarPulseWidth, self.params.radarSystemTemperaturePriorMean, self.params.radarProbabilityOfFalseAlarmPriorMean),dtype=np.float64)
 
-            dTurnRateDControlPoints = self.dTurnRateDControlPoints(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval)
-            dTurnRateDtf = np.array(self.dTurnRateTf(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval),dtype=np.float64)
+            dTurnRateDControlPoints = self.dTurnRateDControlPoints(controlPoints, tf, self.params.splineOrder,self.params.numSamplesPerInterval)
+            dTurnRateDtf = np.array(self.dTurnRateTf(controlPoints, tf, self.params.splineOrder,self.params.numSamplesPerInterval),dtype=np.float64)
 
-            funcsSens['obj'] = {"control_points": np.zeros((1,2*params.numControlPoints)), "tf": 1}
+            funcsSens['obj'] = {"control_points": np.zeros((1,2*self.params.numControlPoints)), "tf": 1}
             funcsSens['start'] = {"control_points": dStartDControlPoints, "tf": np.zeros((2,1))}
             funcsSens['end'] = {"control_points": dEndDControlPoints, "tf": np.zeros((2,1))}
             # funcsSens['turn_rate'] = {"control_points": np.zeros((params.numConstraintSamples,2*params.numControlPoints)), "tf": np.zeros((params.numConstraintSamples,1))}
@@ -236,17 +240,17 @@ class HighPriorityPathPlanner:
             return funcsSens, False
             
         
-        straitLineDist = np.linalg.norm(np.array(params.highPriorityEnd) - np.array(params.highPriorityStart))
+        straitLineDist = np.linalg.norm(np.array(self.params.highPriorityEnd) - np.array(self.params.highPriorityStart))
             
 
         optProb = Optimization("low priority path", objective_function)
-        optProb.addVarGroup(name = "control_points", nVars = 2*(params.numControlPoints), varType = 'c', value = initialControlPoints.reshape((2*(params.numControlPoints))), lower = 0-2000, upper=params.bounds[1]+2000)
-        optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = tfIntial, lower = 0, upper=params.pathLengthMultiplier * straitLineDist/params.agentSpeed)
-        optProb.addConGroup("turn_rate", params.numConstraintSamples, lower=-params.maxTurnRate, upper=params.maxTurnRate, scale=1.0 / params.maxTurnRate)
-        optProb.addConGroup("velocity", params.numConstraintSamples, lower=-params.velocityBounds[0], upper=params.velocityBounds[1], scale=1.0 / params.velocityBounds[1])
-        optProb.addConGroup("pd", params.numConstraintSamples, lower=0, upper=params.probabilityOfDetectionThreshold, scale=1.0)
-        optProb.addConGroup("start", 2, lower = params.highPriorityStart, upper = params.highPriorityStart)
-        optProb.addConGroup("end", 2, lower = params.highPriorityEnd, upper = params.highPriorityEnd)
+        optProb.addVarGroup(name = "control_points", nVars = 2*(self.params.numControlPoints), varType = 'c', value = initialControlPoints.reshape((2*(self.params.numControlPoints))), lower = 0-2000, upper=self.params.bounds[1]+2000)
+        optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = tfIntial, lower = 0, upper=self.params.pathLengthMultiplier * straitLineDist/self.params.agentSpeed)
+        optProb.addConGroup("turn_rate", self.params.numConstraintSamples, lower=-self.params.maxTurnRate, upper=self.params.maxTurnRate, scale=1.0 / self.params.maxTurnRate)
+        optProb.addConGroup("velocity", self.params.numConstraintSamples, lower=-self.params.velocityBounds[0], upper=self.params.velocityBounds[1], scale=1.0 / self.params.velocityBounds[1])
+        optProb.addConGroup("pd", self.params.numConstraintSamples, lower=0, upper=self.params.probabilityOfDetectionThreshold, scale=1.0)
+        optProb.addConGroup("start", 2, lower = self.params.highPriorityStart, upper = self.params.highPriorityStart)
+        optProb.addConGroup("end", 2, lower = self.params.highPriorityEnd, upper = self.params.highPriorityEnd)
         optProb.addObj("obj")
         opt = OPT("ipopt")
         # opt.options['derivative_test'] = 'first-order'
@@ -259,36 +263,40 @@ class HighPriorityPathPlanner:
         opt.options['tol'] = 1e-8
         sol = opt(optProb, sens = sens)
         # sol = opt(optProb, sens = 'FD')
-        print(sol)
-        knotPoints = create_unclamped_knot_points(0, sol.xStar['tf'], params.numControlPoints,params.splineOrder)
+        knotPoints = create_unclamped_knot_points(0, sol.xStar['tf'], self.params.numControlPoints,self.params.splineOrder)
         # controlPoints = self.create_control_points(sol.xStar['control_points'], params.highPriorityStart, params.highPriorityEnd, params.splineOrder, knotPoints)
-        controlPoints = sol.xStar['control_points'].reshape((params.numControlPoints,2))
+        controlPoints = sol.xStar['control_points'].reshape((self.params.numControlPoints,2))
         self.spline = self.spline_seg(controlPoints, knotPoints)
         return ax
 
     def plan_uncertain_path(self,radarList, estimateRadarParams,estimatedRadarParamsCov,plot=False,ax=None):
         startTimer = time.time()
         # initialControlPoints, tfIntial,ax = self.find_initial_guess_rrt_star(radarList,plot=plot)
-        initialControlPoints, tfIntial = self.get_initial_guess_voronoi(radarList,params.bounds,estimateRadarParams, estimatedRadarParamsCov,plot=plot,ax=ax)
+        try:
+            initialControlPoints, tfIntial = self.get_initial_guess_voronoi(radarList,self.params.bounds,estimateRadarParams, estimatedRadarParamsCov,plot=plot,ax=ax)
+        except:
+            print("Could not find initial path, error occured")
+            return
+        
         if initialControlPoints is None:
+            print("Could not find initial path")
             return
     
         print("Time to find initial guess", time.time()-startTimer)
 
-        pd,u,v,pos = self.spline_constraints_uncertain_radar(estimateRadarParams,estimatedRadarParamsCov, initialControlPoints, create_unclamped_knot_points(0, tfIntial, params.numControlPoints,params.splineOrder),params.numConstraintSamples)
-        print("max velocity", np.max(v))
+        pd,u,v,pos = self.spline_constraints_uncertain_radar(estimateRadarParams,estimatedRadarParamsCov, initialControlPoints, create_unclamped_knot_points(0, tfIntial, self.params.numControlPoints,self.params.splineOrder),self.params.numConstraintSamples)
 
 
         def objective_function(xDict):
             tf = xDict['tf']
-            knotPoints = create_unclamped_knot_points(0, tf, params.numControlPoints,params.splineOrder)
+            knotPoints = create_unclamped_knot_points(0, tf, self.params.numControlPoints,self.params.splineOrder)
             controlPoints = xDict['control_points']
             funcs = {}
             funcs['start'] = self.get_start_constraint(controlPoints)
             funcs['end'] = self.get_end_constraint(controlPoints)
-            controlPoints = controlPoints.reshape((params.numControlPoints,2))
+            controlPoints = controlPoints.reshape((self.params.numControlPoints,2))
             # v = self.get_spline_velocity(controlPoints, tf)
-            pd, u, v, pos = self.spline_constraints_uncertain_radar(estimateRadarParams,estimatedRadarParamsCov, controlPoints, knotPoints,params.numConstraintSamples)
+            pd, u, v, pos = self.spline_constraints_uncertain_radar(estimateRadarParams,estimatedRadarParamsCov, controlPoints, knotPoints,self.params.numConstraintSamples)
             # funcs['start'] = self.get_start_constraint_jax(controlPoints)
             # funcs['start'] = pos[0]
             # funcs['end'] = pos[-1]
@@ -306,15 +314,15 @@ class HighPriorityPathPlanner:
 
             dStartDControlPoints = self.get_start_constraint_jacobian(controlPoints)
             dEndDControlPoints = self.get_end_constraint_jacobian(controlPoints)
-            dVelocityDControlPoints = self.dVelocityDControlPoints(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval)
-            dVelocityDtf = np.array(self.dVelocityDtf(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval),dtype=np.float64)
-            dPdDControlPoints = self.dProbDControlPoints(controlPoints, tf, estimateRadarParams,estimatedRadarParamsCov,params.probabilityOfDetectionThreshold,params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarRecieveGain,0,params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
-            dPdDtf = np.array(self.dProbDtf(controlPoints, tf, estimateRadarParams,estimatedRadarParamsCov,params.probabilityOfDetectionThreshold,params.numControlPoints, params.splineOrder, params.numSamplesPerInterval, params.radarRecieveGain,0,params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance))
+            dVelocityDControlPoints = self.dVelocityDControlPoints(controlPoints, tf, self.params.splineOrder,self.params.numSamplesPerInterval)
+            dVelocityDtf = np.array(self.dVelocityDtf(controlPoints, tf, self.params.splineOrder,self.params.numSamplesPerInterval),dtype=np.float64)
+            dPdDControlPoints = self.dProbDControlPoints(controlPoints, tf, estimateRadarParams,estimatedRadarParamsCov,self.params.probabilityOfDetectionThreshold,self.params.numControlPoints, self.params.splineOrder, self.params.numSamplesPerInterval, self.params.radarRecieveGain,0,self.params.radarWavelengthPriorMean,self.params.radarWavelengthPriorVariance, self.params.agentRadarCrossSection, self.params.radarPulseWidth, self.params.radarPulseWidthPriorVariance, self.params.radarSystemTemperaturePriorMean,self.params.radarSystemTemperaturePriorVariance, self.params.radarProbabilityOfFalseAlarmPriorMean, self.params.radarProbabilityOfFalseAlarmPriorVariance)
+            dPdDtf = np.array(self.dProbDtf(controlPoints, tf, estimateRadarParams,estimatedRadarParamsCov,self.params.probabilityOfDetectionThreshold,self.params.numControlPoints, self.params.splineOrder, self.params.numSamplesPerInterval, self.params.radarRecieveGain,0,self.params.radarWavelengthPriorMean,self.params.radarWavelengthPriorVariance, self.params.agentRadarCrossSection, self.params.radarPulseWidth, self.params.radarPulseWidthPriorVariance, self.params.radarSystemTemperaturePriorMean,self.params.radarSystemTemperaturePriorVariance, self.params.radarProbabilityOfFalseAlarmPriorMean, self.params.radarProbabilityOfFalseAlarmPriorVariance))
 
-            dTurnRateDControlPoints = self.dTurnRateDControlPoints(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval)
-            dTurnRateDtf = np.array(self.dTurnRateTf(controlPoints, tf, params.splineOrder,params.numSamplesPerInterval),dtype=np.float64)
+            dTurnRateDControlPoints = self.dTurnRateDControlPoints(controlPoints, tf, self.params.splineOrder,self.params.numSamplesPerInterval)
+            dTurnRateDtf = np.array(self.dTurnRateTf(controlPoints, tf, self.params.splineOrder,self.params.numSamplesPerInterval),dtype=np.float64)
 
-            funcsSens['obj'] = {"control_points": np.zeros((1,2*params.numControlPoints)), "tf": 1}
+            funcsSens['obj'] = {"control_points": np.zeros((1,2*self.params.numControlPoints)), "tf": 1}
             funcsSens['start'] = {"control_points": dStartDControlPoints, "tf": np.zeros((2,1))}
             funcsSens['end'] = {"control_points": dEndDControlPoints, "tf": np.zeros((2,1))}
             funcsSens['velocity'] = {"control_points": dVelocityDControlPoints, "tf": dVelocityDtf}
@@ -323,18 +331,18 @@ class HighPriorityPathPlanner:
             return funcsSens, False
             
         
-        straitLineDist = np.linalg.norm(np.array(params.highPriorityEnd) - np.array(params.highPriorityStart))
+        straitLineDist = np.linalg.norm(np.array(self.params.highPriorityEnd) - np.array(self.params.highPriorityStart))
             
 
         optProb = Optimization("low priority path", objective_function)
-        optProb.addVarGroup(name = "control_points", nVars = 2*(params.numControlPoints), varType = 'c', value = initialControlPoints.reshape((2*(params.numControlPoints))), lower = 0-2000, upper=params.bounds[1]+2000)
-        optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = tfIntial, lower = 0, upper=params.pathLengthMultiplier * straitLineDist/params.agentSpeed)
+        optProb.addVarGroup(name = "control_points", nVars = 2*(self.params.numControlPoints), varType = 'c', value = initialControlPoints.reshape((2*(self.params.numControlPoints))), lower = 0-2000, upper=self.params.bounds[1]+2000)
+        optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = tfIntial, lower = 0, upper=self.params.pathLengthMultiplier * straitLineDist/self.params.agentSpeed)
         # optProb.addVarGroup(name = "tf", nVars = 1, varType = 'c', value = tfIntial, lower = 0, upper=None)
-        optProb.addConGroup("turn_rate", params.numConstraintSamples, lower=-params.maxTurnRate, upper=params.maxTurnRate, scale=1.0 / params.maxTurnRate)
-        optProb.addConGroup("velocity", params.numConstraintSamples, lower=-params.velocityBounds[0], upper=params.velocityBounds[1], scale=1.0 / params.velocityBounds[1])
-        optProb.addConGroup("pd", params.numConstraintSamples, lower=params.thresholdConfidence, upper=1, scale=1.0)
-        optProb.addConGroup("start", 2, lower = params.highPriorityStart, upper = params.highPriorityStart)
-        optProb.addConGroup("end", 2, lower = params.highPriorityEnd, upper = params.highPriorityEnd)
+        optProb.addConGroup("turn_rate", self.params.numConstraintSamples, lower=-self.params.maxTurnRate, upper=self.params.maxTurnRate, scale=1.0 / self.params.maxTurnRate)
+        optProb.addConGroup("velocity", self.params.numConstraintSamples, lower=-self.params.velocityBounds[0], upper=self.params.velocityBounds[1], scale=1.0 / self.params.velocityBounds[1])
+        optProb.addConGroup("pd", self.params.numConstraintSamples, lower=self.params.thresholdConfidence, upper=1, scale=1.0)
+        optProb.addConGroup("start", 2, lower = self.params.highPriorityStart, upper = self.params.highPriorityStart)
+        optProb.addConGroup("end", 2, lower = self.params.highPriorityEnd, upper = self.params.highPriorityEnd)
         optProb.addObj("obj")
         opt = OPT("ipopt")
         # opt.options['derivative_test'] = 'first-order'
@@ -342,26 +350,25 @@ class HighPriorityPathPlanner:
 
         opt.options['hsllib'] = '/home/' + username + '/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['linear_solver'] = 'ma97'
-        opt.options['print_level'] = 5
+        opt.options['print_level'] = 0
         opt.options['max_iter'] = 1000
         opt.options['tol'] = 1e-8
         sol = opt(optProb, sens = sens)
         # sol = opt(optProb, sens = 'FD')
-        print(sol)
-        knotPoints = create_unclamped_knot_points(0, sol.xStar['tf'], params.numControlPoints,params.splineOrder)
+        knotPoints = create_unclamped_knot_points(0, sol.xStar['tf'], self.params.numControlPoints,self.params.splineOrder)
         # controlPoints = self.create_control_points(sol.xStar['control_points'], params.highPriorityStart, params.highPriorityEnd, params.splineOrder, knotPoints)
-        controlPoints = sol.xStar['control_points'].reshape((params.numControlPoints,2))
+        controlPoints = sol.xStar['control_points'].reshape((self.params.numControlPoints,2))
         self.spline = self.spline_seg(controlPoints, knotPoints)
-        return ax
+        return sol.fStar
 
     def find_radius_from_radar_pd(self,radar, pd):
-        erp = params.radarOutputPower*params.radarTransmitGain
-        G_r = params.radarRecieveGain
-        lamb = params.radarWavelength
-        sigma = params.agentRadarCrossSection
-        tua = params.radarPulseWidth
-        Pfa = params.radarProbabilityOfFalseAlarm
-        Ts = params.radarSystemTemperature
+        erp = self.params.radarOutputPower*self.params.radarTransmitGain
+        G_r = self.params.radarRecieveGain
+        lamb = self.params.radarWavelength
+        sigma = self.params.agentRadarCrossSection
+        tua = self.params.radarPulseWidth
+        Pfa = self.params.radarProbabilityOfFalseAlarm
+        Ts = self.params.radarSystemTemperature
         k = boltzman
         R = (((erp*G_r*lamb**2*sigma*tua)/((np.log(Pfa)/np.log(pd))-1))*(1/((4*np.pi)**3*k*Ts)))**.25
         return R
@@ -370,7 +377,7 @@ class HighPriorityPathPlanner:
 
         obsticleList = []
         for radar in radarList:
-            radius = self.find_radius_from_radar_pd(radar, params.probabilityOfDetectionThreshold)
+            radius = self.find_radius_from_radar_pd(radar, self.params.probabilityOfDetectionThreshold)
             obsticleList.append((radar.position[0], radar.position[1], radius))
         return obsticleList
 
@@ -379,48 +386,47 @@ class HighPriorityPathPlanner:
         t = np.linspace(0,tf, len(path))
         
         # num_control_points = params.numControlPoints
-        n_interior_knots = num_control_points - params.splineOrder - 1
+        n_interior_knots = num_control_points - self.params.splineOrder - 1
         qs = np.linspace(0, 1, n_interior_knots + 2)[1:-1]
         knots = np.quantile(t, qs)
 
         s = 0
-        tck_x = splrep(t,path[:,0],k=params.splineOrder,t=knots,s=s)
+        tck_x = splrep(t,path[:,0],k=self.params.splineOrder,t=knots,s=s)
         control_points_x = tck_x[1]
         control_points_x = control_points_x[control_points_x != 0]
-        control_points_x[0] = params.highPriorityStart[0]
-        control_points_x[-1] = params.highPriorityEnd[0]
+        control_points_x[0] = self.params.highPriorityStart[0]
+        control_points_x[-1] = self.params.highPriorityEnd[0]
 
-        tck_y = splrep(t,path[:,1],k=params.splineOrder,t=knots,s=s)
+        tck_y = splrep(t,path[:,1],k=self.params.splineOrder,t=knots,s=s)
         control_points_y = tck_y[1]
         control_points_y = control_points_y[control_points_y != 0]
-        control_points_y[0] = params.highPriorityStart[1]
-        control_points_y[-1] = params.highPriorityEnd[1]
+        control_points_y[0] = self.params.highPriorityStart[1]
+        control_points_y[-1] = self.params.highPriorityEnd[1]
         combined_control_points = np.hstack((control_points_x.reshape((len(control_points_x),1)), control_points_y.reshape((len(control_points_y),1))))
 
         combined_knot_points = tck_x[0]
         return combined_control_points,combined_knot_points
     
     def assure_pd_less_than_threshold(self, radarList, controlPoints, knotPoints):
-        pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,params.numConstraintSamples)
+        pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,self.params.numConstraintSamples)
         num_control_points = len(controlPoints)
-        while np.max(pd) > params.probabilityOfDetectionThreshold:
+        while np.max(pd) > self.params.probabilityOfDetectionThreshold:
             num_control_points += 1
             combined_control_points, combined_knot_points = self.fit_spline_to_path(pos,num_control_points)
-            pd, u, v, pos = self.spline_constraints(radarList, combined_control_points, combined_knot_points,params.numConstraintSamples)
+            pd, u, v, pos = self.spline_constraints(radarList, combined_control_points, combined_knot_points,self.params.numConstraintSamples)
 
         return combined_control_points,combined_knot_points
     
     def assure_velocity_constraint(self, radarList, controlPoints, knotPoints,num_control_points):
         # pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,params.numConstraintSamples)
-        tf=np.linalg.norm(controlPoints[0]-controlPoints[-1])/params.agentSpeed
-        v = get_spline_velocity(controlPoints, tf,params.splineOrder,params.numSamplesPerInterval)
-        while np.max(v) > params.velocityBounds[1]:
+        tf=np.linalg.norm(controlPoints[0]-controlPoints[-1])/self.params.agentSpeed
+        v = get_spline_velocity(controlPoints, tf,self.params.splineOrder,self.params.numSamplesPerInterval)
+        while np.max(v) > self.params.velocityBounds[1]:
             tf += 10
             # combined_knot_points = self.create_unclamped_knot_points(0, tf, num_control_points,params.splineOrder)
-            v = get_spline_velocity(controlPoints, tf,params.splineOrder,params.numSamplesPerInterval)
+            v = get_spline_velocity(controlPoints, tf,self.params.splineOrder,self.params.numSamplesPerInterval)
             # pd, u, v, pos = self.spline_constraints(radarList, controlPoints, combined_knot_points,params.numConstraintSamples)
-        print("max v", np.max(v))
-        combined_knot_points = create_unclamped_knot_points(0, tf, num_control_points,params.splineOrder)
+        combined_knot_points = create_unclamped_knot_points(0, tf, num_control_points,self.params.splineOrder)
         return combined_knot_points,tf
         
     
@@ -428,9 +434,9 @@ class HighPriorityPathPlanner:
         obsticle_list = self.find_obsticle_list_from_radars(radarList)
             # Set Initial parameters
         rrt = rrt_star.RRTStar(
-            start=[params.highPriorityStart[0], params.highPriorityStart[1]],
-            goal=[params.highPriorityEnd[0], params.highPriorityEnd[1]],
-            rand_area=[0, params.bounds[0]],
+            start=[self.params.highPriorityStart[0], self.params.highPriorityStart[1]],
+            goal=[self.params.highPriorityEnd[0], self.params.highPriorityEnd[1]],
+            rand_area=[0, self.params.bounds[0]],
             obstacle_list=obsticle_list,
             expand_dis=500,
             # robot_radius=0.8,
@@ -439,7 +445,7 @@ class HighPriorityPathPlanner:
         path = rrt.planning(animation=plot)
         path = np.flip(np.array(path),axis=0)
 
-        num_control_points = params.numControlPoints
+        num_control_points = self.params.numControlPoints
         combined_control_points, combined_knot_points = self.fit_spline_to_path(path,num_control_points)
 
         combined_knot_points,tf = self.assure_velocity_constraint(radarList, combined_control_points, combined_knot_points,num_control_points)
@@ -475,7 +481,7 @@ class HighPriorityPathPlanner:
         for seg in segments:
             seg = np.array(seg)
             #only check segments on boundary
-            if np.any(seg == 0) or np.any(seg == params.bounds):
+            if np.any(seg == 0) or np.any(seg == self.params.bounds):
                 # dist = self.dist_of_point_to_line_segment(seg[0][0], seg[0][1], seg[1][0], seg[1][1], point[0], point[1])
                 dist = np.min(np.linalg.norm(np.array(seg) - np.array(point),axis=1))
                 whichPoint.append(np.argmin(np.linalg.norm(np.array(seg) - np.array(point),axis=1)))
@@ -566,76 +572,76 @@ class HighPriorityPathPlanner:
             for i in range(len(y_coords)+1):
                 if i == 0:
                     distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,0]),np.array([0,y_coords[i]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
+                    if distToClosestRadar > self.params.safeRadius:
                         segments_to_add.append([[0,0],[0,y_coords[i]]])
                 elif i == len(y_coords):
                     distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,y_coords[i-1]]),np.array([0,bounds[1]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
+                    if distToClosestRadar > self.params.safeRadius:
                         segments_to_add.append([[0,y_coords[i-1]],[0,bounds[1]]])
                 else:
                     distToClosestRadar1 = np.min(dist_of_points_to_line_segment(np.array([0,y_coords[i-1]]),np.array([0,y_coords[i]]),self.deterministicRadarPositions))
-                    if distToClosestRadar1 > params.safeRadius:
+                    if distToClosestRadar1 > self.params.safeRadius:
                         segments_to_add.append([[0,y_coords[i-1]],[0,y_coords[i]]])    
         else:
             distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,0]),np.array([0,bounds[1]]),self.deterministicRadarPositions))
-            if distToClosestRadar > params.safeRadius:
+            if distToClosestRadar > self.params.safeRadius:
                 segments_to_add.append([[0,0],[0,bounds[1]]])
         if np.any(np.isclose(segments[:,:,0], bounds[0],atol=tolerance)):
             y_coords = np.sort(segments[np.isclose(segments[:,:,0], bounds[0],atol=tolerance)][:,1])
             for i in range(len(y_coords)+1):
                 if i == 0:
                     distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([bounds[0],0]),np.array([bounds[0],y_coords[i]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
+                    if distToClosestRadar > self.params.safeRadius:
                         segments_to_add.append([[bounds[0],0],[bounds[0],y_coords[i]]])
                 elif i == len(y_coords):
                     distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([bounds[0],y_coords[i-1]]),np.array([bounds[0],bounds[1]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
+                    if distToClosestRadar > self.params.safeRadius:
                         segments_to_add.append([[bounds[0],y_coords[i-1]],[bounds[0],bounds[1]]])
                 else:
                     distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([bounds[0],y_coords[i-1]]),np.array([bounds[0],y_coords[i]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
+                    if distToClosestRadar > self.params.safeRadius:
                         segments_to_add.append([[bounds[0],y_coords[i-1]],[bounds[0],y_coords[i]]])    
         else:
             distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([bounds[0],0]),np.array([bounds[0],bounds[1]]),self.deterministicRadarPositions))
-            if distToClosestRadar > params.safeRadius:
+            if distToClosestRadar > self.params.safeRadius:
                 segments_to_add.append([[bounds[0],0],[bounds[0],bounds[1]]])
         if np.any(np.isclose(segments[:,:,1],0,atol=1e-5)):
             x_coords = np.sort(segments[np.isclose(segments[:,:,1],0,atol=1e-5)][:,0])
             for i in range(len(x_coords)+1):
                 if i == 0:
                     distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,0]),np.array([x_coords[i],0]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
+                    if distToClosestRadar > self.params.safeRadius:
                         segments_to_add.append([[0,0],[x_coords[i],0]])
                 elif i == len(x_coords):
                     distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([x_coords[i-1],0]),np.array([bounds[0],0]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
+                    if distToClosestRadar > self.params.safeRadius:
                         segments_to_add.append([[x_coords[i-1],0],[bounds[0],0]])
                 else:
                     distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([x_coords[i-1],0]),np.array([x_coords[i],0]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
+                    if distToClosestRadar > self.params.safeRadius:
                         segments_to_add.append([[x_coords[i-1],0],[x_coords[i],0]])
         else:
             distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,0]),np.array([bounds[0],0]),self.deterministicRadarPositions))
-            if distToClosestRadar > params.safeRadius:
+            if distToClosestRadar > self.params.safeRadius:
                 segments_to_add.append([[0,0],[bounds[0],0]])
         if np.any(np.isclose(segments[:,:,1], bounds[1],atol=tolerance)):
             x_coords = np.sort(segments[np.isclose(segments[:,:,1], bounds[1],atol=tolerance)][:,0])
             for i in range(len(x_coords)+1):
                 if i == 0:
                     distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,bounds[1]]),np.array([x_coords[i],bounds[1]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
+                    if distToClosestRadar > self.params.safeRadius:
                         segments_to_add.append([[0,bounds[1]],[x_coords[i],bounds[1]]])
                 elif i == len(x_coords):
                     distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([x_coords[i-1],bounds[1]]),np.array([bounds[0],bounds[1]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
+                    if distToClosestRadar > self.params.safeRadius:
                         segments_to_add.append([[x_coords[i-1],bounds[1]],[bounds[0],bounds[1]]])
                 else:
                     distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([x_coords[i-1],bounds[1]]),np.array([x_coords[i],bounds[1]]),self.deterministicRadarPositions))
-                    if distToClosestRadar > params.safeRadius:
+                    if distToClosestRadar > self.params.safeRadius:
                         segments_to_add.append([[x_coords[i-1],bounds[1]],[x_coords[i],bounds[1]]])
         else:
             distToClosestRadar = np.min(dist_of_points_to_line_segment(np.array([0,bounds[1]]),np.array([bounds[0],bounds[1]]),self.deterministicRadarPositions))
-            if distToClosestRadar > params.safeRadius:
+            if distToClosestRadar > self.params.safeRadius:
                 segments_to_add.append([[0,bounds[1]],[bounds[0],bounds[1]]])
                     
         segments = np.vstack((segments,segments_to_add))
@@ -647,7 +653,7 @@ class HighPriorityPathPlanner:
     def remove_unfeasible_segments(self,segments,radarList):
         minRadarDists = np.array([np.min(dist_of_points_to_line_segment(seg[0],seg[1],self.deterministicRadarPositions)) for seg in segments])
         
-        return segments[minRadarDists > params.safeRadius]
+        return segments[minRadarDists > self.params.safeRadius]
         
     
     def transform_to_unweighted_segment(self,segment,weights):
@@ -656,7 +662,6 @@ class HighPriorityPathPlanner:
 
         unweighted_p1 = np.sum(p1 * weights[:, np.newaxis], axis=0) / np.sum(weights)
         unweighted_p2 = np.sum(p2 * weights[:, np.newaxis], axis=0) / np.sum(weights)
-        print(unweighted_p1)
         return [unweighted_p1,unweighted_p2]
 
 
@@ -727,8 +732,8 @@ class HighPriorityPathPlanner:
             fig = plt.figure()
             ax = plt.gca()
             ax.set_aspect('equal')
-            ax.scatter(params.highPriorityStart[0], params.highPriorityStart[1], c='r',zorder=10000)
-            ax.scatter(params.highPriorityEnd[0], params.highPriorityEnd[1], c='r',zorder=10000)
+            ax.scatter(self.params.highPriorityStart[0], self.params.highPriorityStart[1], c='r',zorder=10000)
+            ax.scatter(self.params.highPriorityEnd[0], self.params.highPriorityEnd[1], c='r',zorder=10000)
             # ax.set_xlim([-1000,params.bounds[0]+1000])
             # ax.set_ylim([-1000,params.bounds[1]+1000])
             for seg in segments:
@@ -801,10 +806,10 @@ class HighPriorityPathPlanner:
             fig = plt.figure()
             ax = plt.gca()
             ax.set_aspect('equal')
-            ax.scatter(params.highPriorityStart[0], params.highPriorityStart[1], c='r',zorder=10000)
-            ax.scatter(params.highPriorityEnd[0], params.highPriorityEnd[1], c='r',zorder=10000)
-            ax.set_xlim([-1000,params.bounds[0]+1000])
-            ax.set_ylim([-1000,params.bounds[1]+1000])
+            ax.scatter(self.params.highPriorityStart[0], self.params.highPriorityStart[1], c='r',zorder=10000)
+            ax.scatter(self.params.highPriorityEnd[0], self.params.highPriorityEnd[1], c='r',zorder=10000)
+            ax.set_xlim([-1000,self.params.bounds[0]+1000])
+            ax.set_ylim([-1000,self.params.bounds[1]+1000])
             for seg in segments:
                 plt.plot([seg[0][0], seg[1][0]], [seg[0][1], seg[1][1]], 'g--')
 
@@ -825,7 +830,7 @@ class HighPriorityPathPlanner:
                 if not nodeExists:
                     currentNodeNumber += 1
                     nodes[currentNodeNumber] = point
-                    if np.all(np.isclose(point, params.highPriorityEnd,atol=1e-5)):
+                    if np.all(np.isclose(point, self.params.highPriorityEnd,atol=1e-5)):
                         goalNode = currentNodeNumber
         adjacencyMatrix = np.zeros((len(nodes),len(nodes)))
         for seg in segments:
@@ -894,7 +899,7 @@ class HighPriorityPathPlanner:
         # # out = matrix_bspline_evaluation(evalPoints, 1, controlPoints.T, knotPoints)
         # scaleFactor = knotPoints[-splineOrder-1]/(len(knotPoints)-2*splineOrder-1)
         # return np.array([matrix_bspline_evaluation(point, scaleFactor, controlPoints.T, knotPoints) for point in evalPoints]).squeeze()
-        return matrix_bspline_evaluation_for_dataset(controlPoints.T, knotPoints, params.numSamplesPerInterval)
+        return matrix_bspline_evaluation_for_dataset(controlPoints.T, knotPoints, self.params.numSamplesPerInterval)
         # return self.spline_seg(controlPoints, knotPoints)(evalPoints)
 
     def evaluate_spline_at_time_t(self,t, controlPoints, knotPoints,splineOrder):
@@ -926,7 +931,7 @@ class HighPriorityPathPlanner:
         # return np.array([derivative_matrix_bspline_evaluation(time, derivativeOrder, scaleFactor, controlPoints.T, knotPoints, clamped = False) for time in t]).squeeze()
         # return self.spline_seg(controlPoints, knotPoints).derivative(derivativeOrder)(t)
         # return matrix_bspline_derivative_evaluation_for_dataset(controlPoints.T, knotPoints, 3, derivativeOrder)
-        return matrix_bspline_derivative_evaluation_for_dataset(derivativeOrder, scaleFactor, controlPoints.T, knotPoints, params.numSamplesPerInterval)
+        return matrix_bspline_derivative_evaluation_for_dataset(derivativeOrder, scaleFactor, controlPoints.T, knotPoints, self.params.numSamplesPerInterval)
         
         
 
@@ -960,7 +965,6 @@ class HighPriorityPathPlanner:
 ######################
         else:
             if not self.uncertainRadar:
-                print(type(radarList))
                 path = compute_path_weighted_voronoi(radarList,plot,ax)
             else:
                 startTime = time.time()
@@ -975,17 +979,17 @@ class HighPriorityPathPlanner:
         
 
         startTime = time.time()
-        controlPoints, knotPoints = self.fit_spline_to_path(path,params.numControlPoints)
+        controlPoints, knotPoints = self.fit_spline_to_path(path,self.params.numControlPoints)
         print("Time to fit spline to path", time.time()-startTime)
         
         startTime = time.time()
-        knotPoints = create_unclamped_knot_points(0,1, params.numControlPoints,params.splineOrder)
-        knotPoints,tf = self.assure_velocity_constraint(radarList, controlPoints.reshape((-1,)), knotPoints,params.numControlPoints)
+        knotPoints = create_unclamped_knot_points(0,1, self.params.numControlPoints,self.params.splineOrder)
+        knotPoints,tf = self.assure_velocity_constraint(radarList, controlPoints.reshape((-1,)), knotPoints,self.params.numControlPoints)
         print("tf", tf)
         print("Time to assure velocity constraint", time.time()-startTime)
 
-        controlPoints = self.move_first_control_point_so_spline_passes_through_start(controlPoints,knotPoints,params.highPriorityStart,[10,10])
-        controlPoints = self.move_last_control_point_so_spline_passes_through_end(controlPoints,knotPoints,params.highPriorityEnd,[10,10])
+        controlPoints = self.move_first_control_point_so_spline_passes_through_start(controlPoints,knotPoints,self.params.highPriorityStart,[10,10])
+        controlPoints = self.move_last_control_point_so_spline_passes_through_end(controlPoints,knotPoints,self.params.highPriorityEnd,[10,10])
 
         spline = self.spline_seg(controlPoints, knotPoints)
 
@@ -1018,14 +1022,14 @@ class HighPriorityPathPlanner:
     
     def plot_spline(self, spline,ax,c = 'blue'):
         controlPoints = spline.c
-        tf = spline.t[-params.splineOrder-1]
+        tf = spline.t[-self.params.splineOrder-1]
         t = np.linspace(0, tf, 1000)
         pos = spline(t)
         ax.plot(pos[:,0], pos[:,1],linewidth=3,c=c)
         # ax.plot(controlPoints[:,0], controlPoints[:,1], 'k--',marker='o',alpha=.5)
 
     def plot_spline_from_control_points(self, controlPoints, knotPoints,ax):
-        t = np.linspace(0, knotPoints[-params.splineOrder-1], 1000)
+        t = np.linspace(0, knotPoints[-self.params.splineOrder-1], 1000)
         spline = self.spline_seg(controlPoints, knotPoints)
         pos = spline(t)
         
@@ -1036,7 +1040,7 @@ class HighPriorityPathPlanner:
     
     def plot_constraints(self, spline, radarList,radarParams = None, radarParamsCov=None, numConstraintSamples=100,ax= None):
         tf = spline.t[-1]
-        t = np.linspace(0, tf, params.numConstraintSamples)
+        t = np.linspace(0, tf, self.params.numConstraintSamples)
         # t = np.linspace(0, tf, numConstraintSamples)
         controlPoints = spline.c
         knotPoints = spline.t
@@ -1044,7 +1048,6 @@ class HighPriorityPathPlanner:
             pd, u, v, pos = self.spline_constraints(radarList, controlPoints, knotPoints,numConstraintSamples)
         else:
             pd, u, v, pos = self.spline_constraints_uncertain_radar(radarParams,radarParamsCov, controlPoints, knotPoints,numConstraintSamples)
-            # print()
         maxpdIndex = np.argmax(pd)
         closestRadarIndex = np.argmin(np.linalg.norm(pos[maxpdIndex]-np.array([radar.position for radar in radarList]),axis=1)) 
         if ax is None:
@@ -1053,7 +1056,7 @@ class HighPriorityPathPlanner:
         fig.colorbar(c, ax=ax)
         # c = ax.scatter(pos[:,0], pos[:,1],s=5)
     
-    def evaluate_path_sefety(self, spline, pathHistoryList, radarList = None):
+    def evaluate_path_sefety(self, spline, pathHistoryList, radarList = None,plot=False,ax=None):
         combinedPathHistory = []
         for pathHistory in pathHistoryList:
             combinedPathHistory.extend(pathHistory)
@@ -1061,23 +1064,23 @@ class HighPriorityPathPlanner:
         
         path = self.evaluate_spline(np.linspace(0, spline.t[-1], 1000), spline.c, spline.t, spline.k)
         # pathSafety = path_safety(combinedPathHistory, path, params.lengthScale)
-        pathSafety = path_safety_prob(combinedPathHistory,path,params.radarTransmitGain,params.radarOutputPower, params.agentELINTAnteneaGain, params.radarWavelength, params.radarSystemTemperature,params.radarProbabilityOfFalseAlarm, params.radarPulseWidth)
-        print("max path safety", np.max(pathSafety))
+        pathSafety = path_safety_prob(combinedPathHistory,path,self.params.radarTransmitGain,self.params.radarOutputPower, self.params.agentELINTAnteneaGain, self.params.radarWavelength, self.params.radarSystemTemperature,self.params.radarProbabilityOfFalseAlarm, self.params.radarPulseWidth)
 
-        figm,axm = plt.subplots()
-        axm.scatter(combinedPathHistory[:,0], combinedPathHistory[:,1],c='r',marker='x',s = 1)
+        if plot:
+            figm,axm = plt.subplots()
+            axm.scatter(combinedPathHistory[:,0], combinedPathHistory[:,1],c='r',marker='x',s = 1)
 
-        if radarList is not None:
-            truePd = self.spline_constraints(tuple(radarList), spline.c, spline.t,1000)[0]
-            c = axm.scatter(path[:,0], path[:,1],c=truePd)
-            figm.colorbar(c, ax=axm)
-        else:
-            c = axm.scatter(path[:,0], path[:,1],c = pathSafety)
-            plt.colorbar(c)
+            if radarList is not None:
+                truePd = self.spline_constraints(tuple(radarList), spline.c, spline.t,1000)[0]
+                c = axm.scatter(path[:,0], path[:,1],c=truePd)
+                figm.colorbar(c, ax=axm)
+            else:
+                c = axm.scatter(path[:,0], path[:,1],c = pathSafety)
+                plt.colorbar(c)
             
 
-        # plt.show()
         
+        return pathSafety
         
 
 def load_estimated_params(dataFilePath,dataIndex,numRadar):
@@ -1091,93 +1094,248 @@ def load_estimated_params(dataFilePath,dataIndex,numRadar):
             radarParamsCovAll.append(radarParamsCov)
     
     return np.array(radarParamsAll),np.array(radarParamsCovAll)
+
+def get_highest_data_file_number(directory):
+
+    # Get all .npy files in the directory
+    files = [f for f in os.listdir(directory) if f.endswith('.npy')]
+
+    # Extract numbers from filenames and find the highest number
+    numbers = [int(re.findall(r'\d+', f)[0]) for f in files]
+    highest_number = max(numbers)
+    return highest_number
+
+
+def test_high_priority_path_planner(seeds):
+    largeStep = 100
+    optimalTime = None
+    for seed in seeds:
+        importDir = "saved_data."+str(seed)+".params"
+        params = importlib.import_module(importDir)
+        dataFilePath = "saved_data/"+str(seed)+"/"
+
+        agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
+        pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=','),np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=','),np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')]
+        # # pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
+        # print("max ground truth pd", np.max(groundTruthPD))
+        numFiles = get_highest_data_file_number(dataFilePath+"radar_12/estimated_params/")
+        print("numFiles", numFiles)
+        
+        for i in range(1,numFiles//largeStep):
+            print("i", i*largeStep)
+            dataIndex = i*largeStep
+            # dataIndex = 2280
+
+            
+            radarParams, radarParamsCov = load_estimated_params(dataFilePath,dataIndex,params.numRadar)
+
+            hpp = HighPriorityPathPlanner(params= params)
+            hpp.uncertainRadar = True
+            
+            optimalTime = hpp.plan_uncertain_path(tuple(),radarParams,radarParamsCov,plot=False,ax=None)
+            if optimalTime is not None:
+                print("optimal time", optimalTime)
+                hpp.evaluate_path_sefety(hpp.spline,pathHistoryList)
+                numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
+                pathHistoryListTemp = [pathHistory[0:numPathHistory] for pathHistory in pathHistoryList]
+                pathSafety = hpp.evaluate_path_sefety(hpp.spline,pathHistoryListTemp)
+                print("max path safety", np.max(pathSafety))
+                if np.max(pathSafety) < 0.05:
+                    print("path safety below threshold")
+                    break
+            else:
+                print("no path found")
+        
+        print("dataIndex", dataIndex)
+        smallStep = 10
+        for i in range(dataIndex-smallStep,dataIndex-largeStep,-smallStep):
+            print("i", i)
+            dataIndex = i
+
+            
+            radarParams, radarParamsCov = load_estimated_params(dataFilePath,dataIndex,params.numRadar)
+
+            hpp = HighPriorityPathPlanner(params= params)
+            hpp.uncertainRadar = True
+            
+            optimalTime = hpp.plan_uncertain_path(tuple(),radarParams,radarParamsCov,plot=False,ax=None)
+            if optimalTime is not None:
+                print("optimal time", optimalTime)
+                hpp.evaluate_path_sefety(hpp.spline,pathHistoryList)
+                numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
+                pathHistoryListTemp = [pathHistory[0:numPathHistory] for pathHistory in pathHistoryList]
+                pathSafety = hpp.evaluate_path_sefety(hpp.spline,pathHistoryListTemp)
+                print("max path safety", np.max(pathSafety))
+                if np.max(pathSafety) < 0.05:
+                    print("path safety below threshold")
+                else:
+                    print("path safety above threshold")
+                    break
+            else:
+                print("no path found")
+                break
+        
+        dataIndex = 2270
+
+        print("i", i)
+        for i in range(dataIndex,dataIndex+smallStep+2,1):
+            print("i", i)
+            dataIndex = i
+
+            
+            radarParams, radarParamsCov = load_estimated_params(dataFilePath,dataIndex,params.numRadar)
+
+            hpp = HighPriorityPathPlanner(params= params)
+            hpp.uncertainRadar = True
+            
+            optimalTime = hpp.plan_uncertain_path(tuple(),radarParams,radarParamsCov,plot=False,ax=None)
+            if optimalTime is not None:
+                print("optimal time", optimalTime)
+                hpp.evaluate_path_sefety(hpp.spline,pathHistoryList)
+                numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
+                pathHistoryListTemp = [pathHistory[0:numPathHistory] for pathHistory in pathHistoryList]
+                pathSafety = hpp.evaluate_path_sefety(hpp.spline,pathHistoryListTemp)
+                print("max path safety", np.max(pathSafety))
+                if np.max(pathSafety) < 0.05:
+                    print("path safety below threshold")
+                    break
+            else:
+                print("no path found")
+        
+        print("first safe path found at", i)
+        lpFindPathTime = numPathHistory * params.agentPathHistorydt
+        print("time for low priority agents to find path", lpFindPathTime)
+        radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
+        pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList),params)
+        groundTruthPdAlongSplines = pdMap.ground_truth_probability_of_detection(hpp.spline(np.linspace(0,hpp.spline.t[-1],1000)),tuple(radarList))
+        print("max ground truth pd along spline", np.max(groundTruthPdAlongSplines))
+        
+
+        np.savetxt(dataFilePath+"high_priority_path/controlPoints.txt", hpp.spline.c)
+        np.savetxt(dataFilePath+"high_priority_path/knotPoints.txt", hpp.spline.t)
+        np.savetxt(dataFilePath+"high_priority_path/optimalTime.txt", np.array([optimalTime]))
+        np.savetxt(dataFilePath+"high_priority_path/groundTruthPdAlongSplines.txt", np.array([np.max(groundTruthPdAlongSplines)]))
+        np.savetxt(dataFilePath+"high_priority_path/lpFindPathTime.txt", np.array([lpFindPathTime]))
+        np.savetxt(dataFilePath+"high_priority_path/maxProbUndiscoveredRadar.txt", np.array([np.max(pathSafety)]))
+        
+        
+
+        fig,ax = plt.subplots()
+        Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGain,0, params.radarWavelength,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperature,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarm,params.radarProbabilityOfFalseAlarmPriorVariance) 
+        ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints),alpha=1)
+        ax.scatter(radarParams[:,0],radarParams[:,1],c='r',marker='x',s=100)
+        hpp.plot_spline(hpp.spline,ax,c='magenta')
+        for radar in radarList:
+            ax.scatter(radar.position[0],radar.position[1],c='b',marker='o',s=100)
+
+        plt.show()
+        
+
+        
+        
+        
+            
+
+            # hpp.evaluate_path_sefety(hpp.spline,pathHistoryList)
+            # groundTruthPD = pdMap.ground_truth_probability_of_detection(hpp.spline(np.linspace(0,hpp.spline.t[-1],1000)),tuple(radarList))
+
+            
+
+            
+
+            
+        
+        
+        
+
     
         
 def main():
-    radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
-    dataFilePath = "saved_data/11024122/"
-    numFiles = 2006
-    dataIndex =1350
+    import params
+    seeds = [91231]
+    # seeds = [11024122]
+    test_high_priority_path_planner(seeds)
+    # radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
 
-    radarParams, radarParamsCov = load_estimated_params(dataFilePath,dataIndex,len(radarList))
-    print("radarParams", radarParams)
-    print("radarParamsCov", radarParamsCov)
+    # useUncertainRadars = True
+    
+    
+    # if useUncertainRadars:
+    #     randomSeed = 91231
+    #     dataFilePath = "saved_data/"+str(randomSeed)+"/"
+    #     numFiles = 4909
+    #     dataIndex =2280
+
+    #     radarParams, radarParamsCov = load_estimated_params(dataFilePath,dataIndex,len(radarList))
+    #     print("radarParams", radarParams)
+    #     print("radarParamsCov", radarParamsCov)
 
 
-    # dataFilePath = "saved_data/1102042/"
-    # dataFilePath = "saved_data/11024122/"
+    # hpp = HighPriorityPathPlanner(tuple(radarList),params= params)
+    # if useUncertainRadars:
+    #     hpp.uncertainRadar = True
+    # else:
+    #     hpp.uncertainRadar = False
 
-    # dataIndex = 1700 specialized allez
-    # # dataFilePath = "saved_data/1102042/"
-    # radarParams = np.load(dataFilePath+"estimated_params/"+str(dataIndex)+".npy")
-    # radarParamsCov = np.load(dataFilePath+"estimated_params_cov/"+str(dataIndex)+".npy")
-    hpp = HighPriorityPathPlanner(tuple(radarList))
+    # pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList))
+    # fig,ax = plt.subplots()
+    # plt.xticks(fontsize=26)
+    # plt.yticks(fontsize=26)
+    # ax.set_aspect('equal')
 
-    pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList))
-    ######
-    # covImageSpacing = 10
-    # for i in range(1,numFiles//covImageSpacing):
-    #     radarParams, radarParamsCov = load_estimated_params(dataFilePath,i*covImageSpacing,len(radarList))
-    #     pdMap.compute_probability_of_detection_at_points_multiple_radar(params.X_test,radarParams,radarParamsCov)
-    #     fig,ax = plt.subplots()
-    #     Z = pdMap.pdCovMap
-    #     c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints),alpha=1)
+    # if hpp.uncertainRadar:
+    #     Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGain,0, params.radarWavelength,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperature,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarm,params.radarProbabilityOfFalseAlarmPriorVariance) 
+    #     # pdMap.compute_probability_of_detection_at_points_multiple_radar(params.X_test,radarParams,radarParamsCov)
+    #     # Z = pdMap.pdCovMap
+
+    #     ax.set_title("Likelihood True PD < Threshold",fontsize=34)
+    # else:
+    #     Z = pdMap.groundTruthpdMap
+    # c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints),alpha=1)
+    # startTime = time.time()
+    # if useUncertainRadars:
+    #     hpp.plan_uncertain_path(tuple(radarList),radarParams,radarParamsCov,plot=True,ax=ax)
     #     ax.scatter(radarParams[:,0],radarParams[:,1],c='r',marker='x',s=100)
-    #     fig.colorbar(c, ax=ax)
-    #     file = "images/pd_cov/"+str(i*covImageSpacing)+".png"
-    #     plt.savefig(file)
-    #######
-    fig,ax = plt.subplots()
-    plt.xticks(fontsize=26)
-    plt.yticks(fontsize=26)
-    ax.set_aspect('equal')
-    if hpp.uncertainRadar:
-        Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGain,0, params.radarWavelength,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperature,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarm,params.radarProbabilityOfFalseAlarmPriorVariance) 
-        # pdMap.compute_probability_of_detection_at_points_multiple_radar(params.X_test,radarParams,radarParamsCov)
-        # Z = pdMap.pdCovMap
+    # radarPositions = np.array([radar.position for radar in radarList])
+    # ax.scatter(radarPositions[:,0],radarPositions[:,1],c='b',marker='o',s=100)
 
-        ax.set_title("Likelihood True PD < Threshold",fontsize=34)
-    else:
-        Z = pdMap.groundTruthpdMap
-    c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints),alpha=1)
-    startTime = time.time()
-    hpp.plan_uncertain_path(tuple(radarList),radarParams,radarParamsCov,plot=True,ax=ax)
-    ax.scatter(radarParams[:,0],radarParams[:,1],c='r',marker='x',s=100)
-    radarPositions = np.array([radar.position for radar in radarList])
-    ax.scatter(radarPositions[:,0],radarPositions[:,1],c='b',marker='o',s=100)
-    for i,cov in enumerate(radarParamsCov):
-        print(i)
-        print("det",np.linalg.det(cov))
-    for i,radPos in enumerate(radarPositions):
-        ax.annotate(str(i),radPos,c='b',fontsize=20)
-    # hpp.plan_deterministic_path(tuple(radarList),plot=True,ax=ax)
-    print("path planning time", time.time()-startTime)
-    print("path length", hpp.spline.t[-1])
+    # if useUncertainRadars:
+    #     for i,cov in enumerate(radarParamsCov):
+    #         print(i)
+    #         print("det",np.linalg.det(cov))
+    # for i,radPos in enumerate(radarPositions):
+    #     ax.annotate(str(i),radPos,c='b',fontsize=20)
+    # if not useUncertainRadars:
+    #     hpp.plan_deterministic_path(tuple(radarList),plot=True,ax=ax)
+    # print("path planning time", time.time()-startTime)
+    # print("path length", hpp.spline.t[-1])
 
     
-    agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
-    numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
-    print(numPathHistory)
-    print(len(agent1PathHistory))
-    pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
-    hpp.evaluate_path_sefety(hpp.spline,pathHistoryList)
-    groundTruthPD = pdMap.ground_truth_probability_of_detection(hpp.spline(np.linspace(0,hpp.spline.t[-1],1000)),tuple(radarList))
-    print("max ground truth pd", np.max(groundTruthPD))
+    # if useUncertainRadars:
+    #     agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
+    #     numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
+    #     print(numPathHistory)
+    #     print(len(agent1PathHistory))
+    #     pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
+    #     pathSafe = hpp.evaluate_path_sefety(hpp.spline,pathHistoryList)
+    #     print("max path safety", np.max(pathSafe))
+    #     groundTruthPD = pdMap.ground_truth_probability_of_detection(hpp.spline(np.linspace(0,hpp.spline.t[-1],1000)),tuple(radarList))
+    #     print("max ground truth pd", np.max(groundTruthPD))
 
 
-    # _,_ = hpp.get_initial_guess_voronoi(radarList,params.bounds,radarParams,radarParamsCov,plot=True,ax=ax)
+    # # _,_ = hpp.get_initial_guess_voronoi(radarList,params.bounds,radarParams,radarParamsCov,plot=True,ax=ax)
     
 
-    if ax is None:
-        fig,ax = plt.subplots()
-    else:
-        fig = ax.get_figure()
-    # c = pdMap.plot_mean(ax,plotGroundTruth=True)
-    cbar = fig.colorbar(c, ax=ax)
-    cbar.ax.tick_params(labelsize=26)
-    hpp.plot_spline(hpp.spline,ax,c='magenta')
-    hpp.plot_constraints(hpp.spline, tuple(radarList),radarParams,radarParamsCov)
-    plt.show()
+    # if ax is None:
+    #     fig,ax = plt.subplots()
+    # else:
+    #     fig = ax.get_figure()
+    # # c = pdMap.plot_mean(ax,plotGroundTruth=True)
+    # cbar = fig.colorbar(c, ax=ax)
+    # cbar.ax.tick_params(labelsize=26)
+    # hpp.plot_spline(hpp.spline,ax,c='magenta')
+    # # hpp.plot_constraints(hpp.spline, tuple(radarList),radarParams,radarParamsCov)
+    # plt.show()
     
     
 if __name__ == "__main__":

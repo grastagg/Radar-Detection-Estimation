@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.constants import Boltzmann
-import params
+# import params
 import jax.numpy as jnp
 from jax import jacfwd
 from numpy.random import multivariate_normal
@@ -9,7 +9,9 @@ from params import measurement_jacobian
 from probabilityOfDetectionJax import ground_truth_probability_of_detection,compute_probability_of_detection_at_points_multiple_radar
 
 class ProbabilityOfDetectionMap():
-    def __init__(self, X_test,radarList):
+    def __init__(self, X_test,radarList,params):
+        self.params = params
+        
         self.X_test = np.array(X_test)
         self.pdMap = None
         self.pdCovMap = None
@@ -31,10 +33,10 @@ class ProbabilityOfDetectionMap():
     def compute_probability_of_detection_at_xy(self, position, estimatedRadarParams):
         radarXY = estimatedRadarParams[0:2]
         distance = np.linalg.norm(radarXY-position)
-        snr = self.signal_to_noise_ration(estimatedRadarParams[2], params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidth, distance, params.radarSystemTemperaturePriorMean)
+        snr = self.signal_to_noise_ration(estimatedRadarParams[2], self.params.radarRecieveGainPriorMean, self.params.radarWavelengthPriorMean, self.params.agentRadarCrossSection, self.params.radarPulseWidth, distance, self.params.radarSystemTemperaturePriorMean)
         if snr<0:
             print("STOP")
-        return np.array([self.probability_of_detection(params.radarProbabilityOfFalseAlarmPriorMean, snr)])
+        return np.array([self.probability_of_detection(self.params.radarProbabilityOfFalseAlarmPriorMean, snr)])
     
     def compute_probability_of_detection_at_points(self, X_test, estimatedRadarParams, estimatedRadarParamsCov):
         pdMap = np.zeros(len(X_test))
@@ -43,8 +45,8 @@ class ProbabilityOfDetectionMap():
         radarXY = estimatedRadarParams[0:2]
         for i,position in enumerate(X_test):
             distance = np.linalg.norm(radarXY-position)
-            snr = self.signal_to_noise_ration(estimatedRadarParams[2], params.radarRecieveGainPriorMean, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidthPriorMean, distance, params.radarSystemTemperaturePriorMean)
-            pdMap[i] = self.probability_of_detection(params.radarProbabilityOfFalseAlarm, snr)
+            snr = self.signal_to_noise_ration(estimatedRadarParams[2], self.params.radarRecieveGainPriorMean, self.params.radarWavelengthPriorMean, self.params.agentRadarCrossSection, self.params.radarPulseWidthPriorMean, distance, self.params.radarSystemTemperaturePriorMean)
+            pdMap[i] = self.probability_of_detection(self.params.radarProbabilityOfFalseAlarm, snr)
             pdCovMap[i] = self.probability_of_detection_uncertainty_single_radar_at_xy(position, estimatedRadarParams, estimatedRadarParamsCov)
     
         self.pdMap = pdMap
@@ -53,7 +55,7 @@ class ProbabilityOfDetectionMap():
 
     def compute_probability_of_detection_at_points_multiple_radar(self, X_test, estimatedRadarParamsList, estimatedRadarParamsCovList, updateMap = True):
 
-        pdMap,pdCovMap = compute_probability_of_detection_at_points_multiple_radar(np.array(X_test), np.array(estimatedRadarParamsList), estimatedRadarParamsCovList, params.radarRecieveGainPriorMean, params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidthPriorMean, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
+        pdMap,pdCovMap = compute_probability_of_detection_at_points_multiple_radar(np.array(X_test), np.array(estimatedRadarParamsList), estimatedRadarParamsCovList, self.params.radarRecieveGainPriorMean, self.params.radarRecieveGainPriorVariance, self.params.radarWavelengthPriorMean, self.params.radarWavelengthPriorVariance, self.params.agentRadarCrossSection, self.params.radarPulseWidthPriorMean, self.params.radarPulseWidthPriorVariance, self.params.radarSystemTemperaturePriorMean, self.params.radarSystemTemperaturePriorVariance, self.params.radarProbabilityOfFalseAlarmPriorMean, self.params.radarProbabilityOfFalseAlarmPriorVariance)
         if updateMap:
             self.pdCovMap = pdCovMap
             self.pdMap = pdMap
@@ -99,7 +101,7 @@ class ProbabilityOfDetectionMap():
         estimatedRadarParamsJacobian = self.pd_jacobian_emittor_params(position, estimatedRadarParams)
         radarParametersJacobian = self.pd_jacobian_unkown_radar_parameters(position, estimatedRadarParams)
         # radarParametersCovariance = np.zeros((radarParametersJacobian.shape[0],radarParametersJacobian.shape[0]))
-        radarParametersCovariance = np.diag([params.radarRecieveGainPriorVariance, params.radarWavelengthPriorVariance, 0, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorVariance])
+        radarParametersCovariance = np.diag([self.params.radarRecieveGainPriorVariance, self.params.radarWavelengthPriorVariance, 0, self.params.radarPulseWidthPriorVariance, self.params.radarSystemTemperaturePriorVariance, self.params.radarProbabilityOfFalseAlarmPriorVariance])
 
         
         return np.squeeze(estimatedRadarParamsJacobian @ estimatedRadarParamsCov@estimatedRadarParamsJacobian.T + radarParametersJacobian @ radarParametersCovariance @ radarParametersJacobian.T)
@@ -123,12 +125,12 @@ class ProbabilityOfDetectionMap():
         x_em = estimatedRadarParams[0]
         y_em = estimatedRadarParams[1]
         ERP = estimatedRadarParams[2]
-        Gr = params.radarRecieveGainPriorMean
-        Pfa = params.radarProbabilityOfFalseAlarmPriorMean
-        rcs = params.agentRadarCrossSection
-        tau_p = params.radarPulseWidthPriorMean
-        wavelength = params.radarWavelengthPriorMean
-        T_s = params.radarSystemTemperaturePriorMean
+        Gr = self.params.radarRecieveGainPriorMean
+        Pfa = self.params.radarProbabilityOfFalseAlarmPriorMean
+        rcs = self.params.agentRadarCrossSection
+        tau_p = self.params.radarPulseWidthPriorMean
+        wavelength = self.params.radarWavelengthPriorMean
+        T_s = self.params.radarSystemTemperaturePriorMean
         k = Boltzmann
         d_pd_d_erp = -(Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*np.exp(np.log(Pfa)/((Gr*rcs*tau_p*wavelength**2*ERP)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)))/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2*((Gr*rcs*tau_p*wavelength**2*ERP)/(64*np.pi**3*T_s*k*((y-y_em)**2+(x-x_em)**2)**2)+1)**2)
         d_pd_d_xem = -(ERP*Gr*np.log(Pfa)*rcs*tau_p*wavelength**2*(x-x_em)*np.exp(np.log(Pfa)/((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)))/(16*np.pi**3*T_s*k*((ERP*Gr*rcs*tau_p*wavelength**2)/(64*np.pi**3*T_s*k*((x-x_em)**2+(y-y_em)**2)**2)+1)**2*((x-x_em)**2+(y-y_em)**2)**3)
@@ -141,12 +143,12 @@ class ProbabilityOfDetectionMap():
         x_em = estimatedRadarParams[0]
         y_em = estimatedRadarParams[1]
         ERP = estimatedRadarParams[2]
-        Gr = params.radarRecieveGainPriorMean
-        Pfa = params.radarProbabilityOfFalseAlarmPriorMean
-        rcs = params.agentRadarCrossSection
-        tau_p = params.radarPulseWidthPriorMean
-        wavelength = params.radarWavelengthPriorMean
-        T_s = params.radarSystemTemperaturePriorMean
+        Gr = self.params.radarRecieveGainPriorMean
+        Pfa = self.params.radarProbabilityOfFalseAlarmPriorMean
+        rcs = self.params.agentRadarCrossSection
+        tau_p = self.params.radarPulseWidthPriorMean
+        wavelength = self.params.radarWavelengthPriorMean
+        T_s = self.params.radarSystemTemperaturePriorMean
         k = Boltzmann
         SNR = self.signal_to_noise_ration(ERP, Gr, wavelength, rcs, tau_p, np.sqrt((x-x_em)**2+(y-y_em)**2),T_s)
 
@@ -237,7 +239,7 @@ class ProbabilityOfDetectionMap():
         y_em = estimatedRadarParams[1]
         erp = estimatedRadarParams[2]
         H = self.measurement_jacobian(x_em, y_em, erp, x, y)
-        R = params.measurementCov
+        R = self.params.measurementCov
         K = estimatedRadarCovariance @ H.T @ np.linalg.inv(H@estimatedRadarCovariance@H.T + R)
         nextCovariance = (np.eye(3) - K@H)@estimatedRadarCovariance
         # nextCovariance = estimatedRadarCovariance - estimatedRadarCovariance@H.T@np.linalg.inv(H@estimatedRadarCovariance@H.T+R)@H@estimatedRadarCovariance
@@ -260,33 +262,33 @@ class ProbabilityOfDetectionMap():
     
     def plot_mean(self, ax, plotGroundTruth = False):
         if plotGroundTruth:
-            x_test = self.X_test[:,0].reshape((params.numTestPoints,params.numTestPoints))
-            y_test = self.X_test[:,1].reshape((params.numTestPoints,params.numTestPoints))
+            x_test = self.X_test[:,0].reshape((self.params.numTestPoints,self.params.numTestPoints))
+            y_test = self.X_test[:,1].reshape((self.params.numTestPoints,self.params.numTestPoints))
 
 
-            c = ax.pcolormesh(x_test, y_test, self.groundTruthpdMap.reshape((params.numTestPoints, params.numTestPoints)))
+            c = ax.pcolormesh(x_test, y_test, self.groundTruthpdMap.reshape((self.params.numTestPoints, self.params.numTestPoints)))
             levels = np.linspace(0,.01,10)
             # c = ax.contour(x_test, y_test, self.groundTruthpdMap.reshape((params.numTestPoints, params.numTestPoints)), levels = levels)
             
         else:
             if self.pdMap is not None:
-                x_test = self.X_test[:,0].reshape((params.numTestPoints,params.numTestPoints))
-                y_test = self.X_test[:,1].reshape((params.numTestPoints,params.numTestPoints))
+                x_test = self.X_test[:,0].reshape((self.params.numTestPoints,self.params.numTestPoints))
+                y_test = self.X_test[:,1].reshape((self.params.numTestPoints,self.params.numTestPoints))
 
                 # plotMap = np.square(np.subtract(self.pdMap, self.groundTruthpdMap))
 
                 # c = ax.pcolormesh(x_test, y_test, self.groundTruthpdMap.reshape((params.numTestPoints, params.numTestPoints)))
-                c = ax.pcolormesh(x_test, y_test, self.pdMap.reshape((params.numTestPoints, params.numTestPoints)))
+                c = ax.pcolormesh(x_test, y_test, self.pdMap.reshape((self.params.numTestPoints, self.params.numTestPoints)))
                 # c = ax.pcolormesh(x_test, y_test, plotMap.reshape((params.numTestPoints, params.numTestPoints)))
                 return c
 
     def plot_cov(self, ax):
         if self.pdCovMap is not None:
-            x_test = self.X_test[:,0].reshape((params.numTestPoints,params.numTestPoints))
-            y_test = self.X_test[:,1].reshape((params.numTestPoints,params.numTestPoints))
+            x_test = self.X_test[:,0].reshape((self.params.numTestPoints,self.params.numTestPoints))
+            y_test = self.X_test[:,1].reshape((self.params.numTestPoints,self.params.numTestPoints))
 
             # c1 = ax.contour(x_test, y_test, self.pdMap.reshape((params.numTestPoints,params.numTestPoints)), levels = [params.probabilityOfDetectionThreshold])
-            c = ax.pcolormesh(x_test, y_test, self.pdCovMap.reshape((params.numTestPoints, params.numTestPoints)))
+            c = ax.pcolormesh(x_test, y_test, self.pdCovMap.reshape((self.params.numTestPoints, self.params.numTestPoints)))
             return c
     def plot_best_measurement_map(self, ax):
         
@@ -297,17 +299,17 @@ class ProbabilityOfDetectionMap():
             
             best_measurement_location_map = self.create_best_measurement_location_map(self.estimatedRadarParamsList, self.estimatedRadarParamsCovList)
 
-            c = ax.pcolormesh(X_test[:,0].reshape((params.numTestPoints,params.numTestPoints)), X_test[:,1].reshape((params.numTestPoints,params.numTestPoints)), best_measurement_location_map.reshape((params.numTestPoints,params.numTestPoints)))
+            c = ax.pcolormesh(X_test[:,0].reshape((self.params.numTestPoints,self.params.numTestPoints)), X_test[:,1].reshape((self.params.numTestPoints,self.params.numTestPoints)), best_measurement_location_map.reshape((self.params.numTestPoints,self.params.numTestPoints)))
 
         return c
 
     def ground_truth_probability_of_detection(self, X_test, trueRadarParametersList):
-        return ground_truth_probability_of_detection(np.array(X_test), trueRadarParametersList, params.radarWavelengthPriorMean, params.agentRadarCrossSection, params.radarPulseWidthPriorMean, params.radarSystemTemperaturePriorMean, params.radarProbabilityOfFalseAlarmPriorMean)
+        return ground_truth_probability_of_detection(np.array(X_test), trueRadarParametersList, self.params.radarWavelengthPriorMean, self.params.agentRadarCrossSection, self.params.radarPulseWidthPriorMean, self.params.radarSystemTemperaturePriorMean, self.params.radarProbabilityOfFalseAlarmPriorMean)
             
 
 if __name__ == '__main__':
-    Pdmap = ProbabilityOfDetectionMap(params.X_test)
-    val, cov = Pdmap.compute_probability_of_detection_at_points(np.array([[500,0]]), np.array([0,0,params.radarOutputPower]), np.array([[10,0,0],[0,10,0],[0,0,1]]), )
+    Pdmap = ProbabilityOfDetectionMap(self.params.X_test)
+    val, cov = Pdmap.compute_probability_of_detection_at_points(np.array([[500,0]]), np.array([0,0,self.params.radarOutputPower]), np.array([[10,0,0],[0,10,0],[0,0,1]]), )
     print(val)
     print(cov)
     # Pdmap.compute_probability_of_detection_at_points_multiple_radar(X_test, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances)

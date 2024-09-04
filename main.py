@@ -153,6 +153,7 @@ def remove_empty_lists(paramsList):
 
 def main():
     params.create_data_file(params.dataFile)
+    params.copy_params()
     bounds = params.bounds 
     numTestPoints = params.numTestPoints
     X_test = params.create_test_points(numTestPoints, bounds)

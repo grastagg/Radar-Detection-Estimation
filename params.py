@@ -9,8 +9,9 @@ import getpass
 
 # np.random.seed(1241)
 
-# np.random.seed(91231)
-randomSeed = 11024122
+# randomSeed = 91231
+randomSeed = 1111
+# randomSeed = 11024122
 # randomSeed = 1102042
 np.random.seed(randomSeed)
 
@@ -317,10 +318,7 @@ def measurement_jacobian_jax(xem, yem, erp, x, y):
     
 
 c = (radarRecieveGain*radarWavelength**2*agentRadarCrossSection*radarPulseWidth)/((4*np.pi)**3*boltzman*radarSystemTemperature)
-print(c)
 erp = radarOutputPower*radarTransmitGain
-print(erp)
-print(np.log(radarProbabilityOfFalseAlarm))
 
 
 def create_data_file(filepath):
@@ -328,6 +326,7 @@ def create_data_file(filepath):
         os.mkdir(filepath)
         # os.mkdir(filepath+"estimated_params/")
         # os.mkdir(filepath+"estimated_params_cov/")
+        os.mkdir(filepath+"/high_priority_path/")
         for i in range(numRadar):
             os.mkdir(filepath+"radar_"+str(i)+"/")
             os.mkdir(filepath+"radar_"+str(i)+"/estimated_params/")
@@ -348,6 +347,11 @@ saveDataToFile = True
 username = getpass.getuser()
 dataFile = "/home/"+ username+"/repos/magiccvs/radar_detection_estimation/saved_data/"+str(randomSeed)+"/"
 agentColors = ['b','g','c','m','y','k']
+
+
+#copy params.py to data folder for reference
+def copy_params():
+    os.system("cp params.py "+dataFile +"params.py ")
 
 
 
