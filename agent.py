@@ -2,12 +2,12 @@ import numpy as np
 from matplotlib.patches import Circle
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
-import params
+# import params
 import os
 
 
 class Agent:
-    def __init__(self, initialPosition, numRadar, sensingRange, powerMeasurementStdDev, angleMeasurementStdDev, elintAntenneaGain, elintSystemLoss, emittorWavelength, radarCrossSection,agentId,plotColor):
+    def __init__(self, initialPosition, numRadar, sensingRange, powerMeasurementStdDev, angleMeasurementStdDev, elintAntenneaGain, elintSystemLoss, emittorWavelength, radarCrossSection,agentId,plotColor,pathHistorydt,dataFile):
 
         self.position = initialPosition #x,y,heading
         self.sensingRange = sensingRange
@@ -42,12 +42,12 @@ class Agent:
         self.firstPlot = True
         
         self.pathHistory = []
-        self.timeSinceLastPathUpdate = params.agentPathHistorydt+1
-        self.pathHistorydt = params.agentPathHistorydt
+        self.timeSinceLastPathUpdate = pathHistorydt+1
+        self.pathHistorydt = pathHistorydt
 
         self.savePathHistoryToFile = True
         # self.pathHistoryFileName = "saved_data/agent"+str(self.agentId)+"PathHistory.txt"
-        self.pathHistoryFileName = params.dataFile + "/agent"+str(self.agentId)+"PathHistory.txt"
+        self.pathHistoryFileName = dataFile + "/agent"+str(self.agentId)+"PathHistory.txt"
 
         if os.path.isfile(self.pathHistoryFileName):
             print("agent path history file already exists, deleting")

@@ -3,17 +3,20 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.linalg import block_diag
 from matplotlib import colors
-import params
-from params import measurement_jacobian, measurement_model
+# import params
+# from params import measurement_jacobian, measurement_model
 
 from sklearn.linear_model import RANSACRegressor
 
 import matplotlib.pyplot as plt
 
 
-class MultipleEmitterOnlineLocationAndPowerEstimator:
-    def __init__(self, sensing_range, angle_measurement_std_dev, measurement_cov, X_test, radar_measurement_coeff):
+from measurement_model import measurement_model, measurement_jacobian, measurement_jacobian_jax
 
+class MultipleEmitterOnlineLocationAndPowerEstimator:
+    def __init__(self, sensing_range, angle_measurement_std_dev, measurement_cov, X_test, radar_measurement_coeff,params):
+
+        self.params = params
         
         
         
@@ -33,9 +36,9 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.measurement_values = []
 
         self.inlier_mask = None
-        self.group_lists = [[] for i in range(params.numRadar)]
-        self.estimated_emmiter_params = [[] for i in range(params.numRadar)] 
-        self.estimated_emmiter_params_covariances = [[] for i in range(params.numRadar)] 
+        self.group_lists = [[] for i in range(self.params.numRadar)]
+        self.estimated_emmiter_params = [[] for i in range(self.params.numRadar)] 
+        self.estimated_emmiter_params_covariances = [[] for i in range(self.params.numRadar)] 
 
         self.mahalonobis_distance_inlier_threshold = 4
         self.ransacResidualThreshold = 4
@@ -54,10 +57,10 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.max_aoa_measurement = None
         self.min_aoa_diff_to_start = .3
         # self.minDistBetweenModels = params.minInterRadarDist
-        self.minDistBetweenModels = np.average([params.minInterRadarDistList])
+        self.minDistBetweenModels = np.average([self.params.minInterRadarDistList])
 
         
-        self.saveRadarData = params.saveDataToFile 
+        self.saveRadarData = self.params.saveDataToFile 
         self.fileCounter = 0
     
     def delete_lowest_probability_model(self):
@@ -123,7 +126,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                 if len(original_index[ransacRegressor.inlier_mask_== True]) >= 5:
                     inlier_aoa_diff = self.compute_inlier_aoa_diff(measurements[ransacRegressor.inlier_mask_==True])
                     max_distance_measurement_to_model = self.compute_max_distance_measurement_to_model(measurement_locations[ransacRegressor.inlier_mask_==True],ransacRegressor.estimator_.get_estimate_emmitor_params())
-                    if inlier_aoa_diff > self.min_aoa_diff_to_start and max_distance_measurement_to_model < 1.5*params.agentSensingRange:
+                    if inlier_aoa_diff > self.min_aoa_diff_to_start and max_distance_measurement_to_model < 1.5*self.params.agentSensingRange:
                         self.estimated_emmiter_params.append(ransacRegressor.estimator_.get_estimate_emmitor_params())
                         self.group_lists.append(original_index[ransacRegressor.inlier_mask_== True])
                         self.estimated_emmiter_params_covariances.append(ransacRegressor.estimator_.compute_emmitor_estimate_covariance(np.array(self.measurement_locations)[self.group_lists[-1]], np.array(self.measurement_values)[self.group_lists[-1]]))
@@ -211,11 +214,11 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
     #     return np.array([[np.arctan2(yem-y, xem-x)], [(erp*self.radar_measurement_coeff)/((xem-x)**2 + (yem-y)**2)]])
 
     def measurement_model(self, xem, yem, erp, x, y):
-        return measurement_model(xem, yem, erp, x, y)
+        return measurement_model(xem, yem, erp, x, y,self.params.radarMeasurementCoeff)
         # return np.array([[np.arctan2(yem-y, xem-x)], [erp_db + self.radar_measurement_coeff_db - 10*np.log10((xem-x)**2 + (yem-y)**2)]])
 
     def measurement_jacobian(self, xem, yem, erp, x, y):
-        return measurement_jacobian(xem, yem, erp, x, y)
+        return measurement_jacobian(xem, yem, erp, x, y,self.params.radarMeasurementCoeff)
         # d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
         # d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
         # d_h1_d_p_emmitter = 0
@@ -269,12 +272,12 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
 
     
     def measurement_residual(self, emitter_params, measurements, measurement_locations):
-        return np.array([params.measurement_model(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1]) for loc in measurement_locations]).reshape((-1,)) - np.array(measurements).reshape((-1,))
+        return np.array([measurement_model(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1],self.params.radarMeasurementCoeff) for loc in measurement_locations]).reshape((-1,)) - np.array(measurements).reshape((-1,))
 
     def batch_estimation(self,measurement_locations, measurement_values, measurement_cov):
-        x0 = [params.bounds[0]/2,params.bounds[1]/2,params.erp]
+        x0 = [self.params.bounds[0]/2,self.params.bounds[1]/2,self.params.erp]
         # sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(measurement_values,measurement_locations))
-        sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(measurement_values,measurement_locations), bounds=([0,0,10],[params.bounds[0],params.bounds[1],np.inf]))
+        sol = least_squares(self.measurement_residual, x0,jac=self.stack_measurement_jacobian, args=(measurement_values,measurement_locations), bounds=([0,0,10],[self.params.bounds[0],self.params.bounds[1],np.inf]))
         # print("sol",sol)
         estimated_emmiter_params = sol.x
         jacobians = self.stack_measurement_jacobian(estimated_emmiter_params, None, measurement_locations)
@@ -284,7 +287,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
 
     
     def stack_measurement_jacobian(self, emitter_params, measurements, measurement_locations):
-        return np.array([params.measurement_jacobian(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1]) for loc in measurement_locations]).reshape((2*len(measurement_locations),3))
+        return np.array([measurement_jacobian(emitter_params[0], emitter_params[1], emitter_params[2], loc[0], loc[1],self.params.radarMeasurementCoeff) for loc in measurement_locations]).reshape((2*len(measurement_locations),3))
 
     # def measurement_jacobian(self, xem, yem, pem, x, y):
     #     d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
@@ -331,9 +334,9 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         print()
         if self.saveRadarData:
             self.fileCounter += 1
-            for radarId in range(params.numRadar):
-                np.save(params.dataFile+'/radar_'+str(radarId)+'/estimated_params/'+str(self.fileCounter), self.estimated_emmiter_params[radarId])
-                np.save(params.dataFile+'/radar_'+str(radarId)+'/estimated_params_cov/'+str(self.fileCounter), self.estimated_emmiter_params_covariances[radarId])
+            for radarId in range(self.params.numRadar):
+                np.save(self.params.dataFile+'/radar_'+str(radarId)+'/estimated_params/'+str(self.fileCounter), self.estimated_emmiter_params[radarId])
+                np.save(self.params.dataFile+'/radar_'+str(radarId)+'/estimated_params_cov/'+str(self.fileCounter), self.estimated_emmiter_params_covariances[radarId])
                 
             # np.save(params.dataFile+"/estimated_params/"+str(self.fileCounter), self.estimated_emmiter_params)
             # np.save(params.dataFile+"/estimated_params_cov/"+str(self.fileCounter), self.estimated_emmiter_params_covariances)
@@ -388,7 +391,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         
             
 
-        if minimum_mal_dist < self.mahalonobis_distance_inlier_threshold and minimum_mal_dist_dist_from_measurement_to_model < 1.5*params.agentSensingRange:
+        if minimum_mal_dist < self.mahalonobis_distance_inlier_threshold and minimum_mal_dist_dist_from_measurement_to_model < 1.5*self.params.agentSensingRange:
             
             estimated_emmiter_param,  estimated_emmiter_params_covariances = self.ekf_update(measurement_location, measurement_value, self.measurement_cov, self.estimated_emmiter_params[minimum_mal_dist_index], self.estimated_emmiter_params_covariances[minimum_mal_dist_index])
             if estimated_emmiter_param[2] < 0:
@@ -511,8 +514,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
     def plot_esimate_1_sigma_bounds(self, ax, estimated_emmiter_params, estimated_emmiter_params_cov):
         invCovariance = np.linalg.inv(estimated_emmiter_params_cov[0:2,0:2])
         
-        x = np.linspace(0, params.bounds[1], num=100)
-        y = np.linspace(0, params.bounds[1], num=100)
+        x = np.linspace(0,self.params.bounds[1], num=100)
+        y = np.linspace(0,self.params.bounds[1], num=100)
         X, Y = np.meshgrid(x,y)
         malhanobisDist = np.zeros(X.shape)
         for i in range(X.shape[0]):

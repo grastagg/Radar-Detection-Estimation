@@ -11,6 +11,7 @@ import getpass
 import os
 import re
 import importlib
+import traceback
 
 
 import matplotlib.pyplot as plt
@@ -45,6 +46,7 @@ from weightedVoronoiPathIntialzation import compute_path_weighted_voronoi
 
 import uncertainVoronoiPathIntialization
 
+from utils import change_random_seed
 
 
 
@@ -186,7 +188,7 @@ class HighPriorityPathPlanner:
         self.uncertainRadar = False
         startTimer = time.time()
         # initialControlPoints, tfIntial,ax = self.find_initial_guess_rrt_star(radarList,plot=plot)
-        initialControlPoints, tfIntial = self.get_initial_guess_voronoi(radar_list,self.params.bounds,plot=plot,ax=ax)
+        initialControlPoints, tfIntial = self.get_initial_guess_voronoi(radar_list,self.params.bounds,plot=plot,ax=ax,params=self.params)
         print("Time to find initial guess", time.time()-startTimer)
         spline = self.spline_seg(initialControlPoints,create_unclamped_knot_points(0, tfIntial, self.params.numControlPoints,self.params.splineOrder))
 
@@ -267,14 +269,16 @@ class HighPriorityPathPlanner:
         # controlPoints = self.create_control_points(sol.xStar['control_points'], params.highPriorityStart, params.highPriorityEnd, params.splineOrder, knotPoints)
         controlPoints = sol.xStar['control_points'].reshape((self.params.numControlPoints,2))
         self.spline = self.spline_seg(controlPoints, knotPoints)
-        return ax
+        return sol.fStar
 
     def plan_uncertain_path(self,radarList, estimateRadarParams,estimatedRadarParamsCov,plot=False,ax=None):
         startTimer = time.time()
         # initialControlPoints, tfIntial,ax = self.find_initial_guess_rrt_star(radarList,plot=plot)
         try:
-            initialControlPoints, tfIntial = self.get_initial_guess_voronoi(radarList,self.params.bounds,estimateRadarParams, estimatedRadarParamsCov,plot=plot,ax=ax)
-        except:
+            initialControlPoints, tfIntial = self.get_initial_guess_voronoi(radarList,self.params.bounds,estimateRadarParams, estimatedRadarParamsCov,plot=plot,ax=ax,params=self.params)
+        except Exception as e:
+            traceback.print_exc()
+            # print(e)
             print("Could not find initial path, error occured")
             return
         
@@ -935,7 +939,7 @@ class HighPriorityPathPlanner:
         
         
 
-    def get_initial_guess_voronoi(self,radarList,bounds,radarParams = None, radarParamsCov = None, plot=False,ax=None):
+    def get_initial_guess_voronoi(self,radarList,bounds,radarParams = None, radarParamsCov = None, plot=False,ax=None,params=None):
 
 
 #################### this code is for unwieghted voronoi
@@ -965,10 +969,11 @@ class HighPriorityPathPlanner:
 ######################
         else:
             if not self.uncertainRadar:
-                path = compute_path_weighted_voronoi(radarList,plot,ax)
+                path = compute_path_weighted_voronoi(radarList,params,plot,ax)
             else:
                 startTime = time.time()
-                path = uncertainVoronoiPathIntialization.find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing=500,ax=ax)
+                # path = uncertainVoronoiPathIntialization.find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing=500,bounds=self.params.bounds,params=self.params,ax=ax)
+                path = uncertainVoronoiPathIntialization.find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing = 500,bounds=self.params.bounds,params=self.params,ax=None)
                 print("Time to find initial trajectory", time.time()-startTime)
         
         
@@ -1175,7 +1180,6 @@ def test_high_priority_path_planner(seeds):
                 print("no path found")
                 break
         
-        dataIndex = 2270
 
         print("i", i)
         for i in range(dataIndex,dataIndex+smallStep+2,1):
@@ -1251,91 +1255,93 @@ def test_high_priority_path_planner(seeds):
     
         
 def main():
-    import params
-    seeds = [91231]
+    randomSeed = 11024122
+    importDir = "saved_data."+str(randomSeed)+".params"
+    params = importlib.import_module(importDir)
+    # import params
+    # # seeds = [91231]
     # seeds = [11024122]
-    test_high_priority_path_planner(seeds)
-    # radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
+    # test_high_priority_path_planner(seeds)
+    radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
 
-    # useUncertainRadars = True
+    useUncertainRadars = True
     
     
-    # if useUncertainRadars:
-    #     randomSeed = 91231
-    #     dataFilePath = "saved_data/"+str(randomSeed)+"/"
-    #     numFiles = 4909
-    #     dataIndex =2280
+    if useUncertainRadars:
+        dataFilePath = "saved_data/"+str(randomSeed)+"/"
+        numFiles = get_highest_data_file_number(dataFilePath+"radar_12/estimated_params/") 
+        dataIndex =1500
 
-    #     radarParams, radarParamsCov = load_estimated_params(dataFilePath,dataIndex,len(radarList))
-    #     print("radarParams", radarParams)
-    #     print("radarParamsCov", radarParamsCov)
+        radarParams, radarParamsCov = load_estimated_params(dataFilePath,dataIndex,len(radarList))
+        print("radarParams", radarParams)
+        print("radarParamsCov", radarParamsCov)
 
 
-    # hpp = HighPriorityPathPlanner(tuple(radarList),params= params)
-    # if useUncertainRadars:
-    #     hpp.uncertainRadar = True
-    # else:
-    #     hpp.uncertainRadar = False
+    hpp = HighPriorityPathPlanner(tuple(radarList),params= params)
+    if useUncertainRadars:
+        hpp.uncertainRadar = True
+    else:
+        hpp.uncertainRadar = False
 
-    # pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList))
-    # fig,ax = plt.subplots()
-    # plt.xticks(fontsize=26)
-    # plt.yticks(fontsize=26)
-    # ax.set_aspect('equal')
+    pdMap = ProbabilityOfDetectionMap(params.X_test,tuple(radarList),params)
+    fig,ax = plt.subplots()
+    plt.xticks(fontsize=26)
+    plt.yticks(fontsize=26)
+    ax.set_aspect('equal')
 
-    # if hpp.uncertainRadar:
-    #     Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGain,0, params.radarWavelength,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperature,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarm,params.radarProbabilityOfFalseAlarmPriorVariance) 
-    #     # pdMap.compute_probability_of_detection_at_points_multiple_radar(params.X_test,radarParams,radarParamsCov)
-    #     # Z = pdMap.pdCovMap
+    if hpp.uncertainRadar:
+        Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGain,0, params.radarWavelength,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperature,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarm,params.radarProbabilityOfFalseAlarmPriorVariance) 
+        # pdMap.compute_probability_of_detection_at_points_multiple_radar(params.X_test,radarParams,radarParamsCov)
+        # Z = pdMap.pdCovMap
 
-    #     ax.set_title("Likelihood True PD < Threshold",fontsize=34)
-    # else:
-    #     Z = pdMap.groundTruthpdMap
-    # c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints),alpha=1)
-    # startTime = time.time()
-    # if useUncertainRadars:
-    #     hpp.plan_uncertain_path(tuple(radarList),radarParams,radarParamsCov,plot=True,ax=ax)
-    #     ax.scatter(radarParams[:,0],radarParams[:,1],c='r',marker='x',s=100)
-    # radarPositions = np.array([radar.position for radar in radarList])
-    # ax.scatter(radarPositions[:,0],radarPositions[:,1],c='b',marker='o',s=100)
+        ax.set_title("Likelihood True PD < Threshold",fontsize=34)
+    else:
+        Z = pdMap.groundTruthpdMap
+    c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints),alpha=1)
+    startTime = time.time()
+    if useUncertainRadars:
+        hpp.plan_uncertain_path(tuple(radarList),radarParams,radarParamsCov,plot=True,ax=ax)
+        ax.scatter(radarParams[:,0],radarParams[:,1],c='r',marker='x',s=100)
+    radarPositions = np.array([radar.position for radar in radarList])
+    ax.scatter(radarPositions[:,0],radarPositions[:,1],c='b',marker='o',s=100)
 
-    # if useUncertainRadars:
-    #     for i,cov in enumerate(radarParamsCov):
-    #         print(i)
-    #         print("det",np.linalg.det(cov))
-    # for i,radPos in enumerate(radarPositions):
-    #     ax.annotate(str(i),radPos,c='b',fontsize=20)
-    # if not useUncertainRadars:
-    #     hpp.plan_deterministic_path(tuple(radarList),plot=True,ax=ax)
-    # print("path planning time", time.time()-startTime)
-    # print("path length", hpp.spline.t[-1])
+    if useUncertainRadars:
+        for i,cov in enumerate(radarParamsCov):
+            print(i)
+            print("det",np.linalg.det(cov))
+    for i,radPos in enumerate(radarPositions):
+        ax.annotate(str(i),radPos,c='b',fontsize=20)
+    if not useUncertainRadars:
+        hpp.plan_deterministic_path(tuple(radarList),plot=True,ax=ax)
+    print("path planning time", time.time()-startTime)
+    print("path length", hpp.spline.t[-1])
 
     
-    # if useUncertainRadars:
-    #     agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
-    #     numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
-    #     print(numPathHistory)
-    #     print(len(agent1PathHistory))
-    #     pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
-    #     pathSafe = hpp.evaluate_path_sefety(hpp.spline,pathHistoryList)
-    #     print("max path safety", np.max(pathSafe))
-    #     groundTruthPD = pdMap.ground_truth_probability_of_detection(hpp.spline(np.linspace(0,hpp.spline.t[-1],1000)),tuple(radarList))
-    #     print("max ground truth pd", np.max(groundTruthPD))
+    if useUncertainRadars:
+        agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
+        numPathHistory = int(dataIndex/numFiles*len(agent1PathHistory))
+        print(numPathHistory)
+        print(len(agent1PathHistory))
+        pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
+        pathSafe = hpp.evaluate_path_sefety(hpp.spline,pathHistoryList)
+        print("max path safety", np.max(pathSafe))
+        groundTruthPD = pdMap.ground_truth_probability_of_detection(hpp.spline(np.linspace(0,hpp.spline.t[-1],1000)),tuple(radarList))
+        print("max ground truth pd", np.max(groundTruthPD))
 
 
-    # # _,_ = hpp.get_initial_guess_voronoi(radarList,params.bounds,radarParams,radarParamsCov,plot=True,ax=ax)
+    # _,_ = hpp.get_initial_guess_voronoi(radarList,params.bounds,radarParams,radarParamsCov,plot=True,ax=ax)
     
 
-    # if ax is None:
-    #     fig,ax = plt.subplots()
-    # else:
-    #     fig = ax.get_figure()
-    # # c = pdMap.plot_mean(ax,plotGroundTruth=True)
-    # cbar = fig.colorbar(c, ax=ax)
-    # cbar.ax.tick_params(labelsize=26)
-    # hpp.plot_spline(hpp.spline,ax,c='magenta')
-    # # hpp.plot_constraints(hpp.spline, tuple(radarList),radarParams,radarParamsCov)
-    # plt.show()
+    if ax is None:
+        fig,ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+    # c = pdMap.plot_mean(ax,plotGroundTruth=True)
+    cbar = fig.colorbar(c, ax=ax)
+    cbar.ax.tick_params(labelsize=26)
+    hpp.plot_spline(hpp.spline,ax,c='magenta')
+    # hpp.plot_constraints(hpp.spline, tuple(radarList),radarParams,radarParamsCov)
+    plt.show()
     
     
 if __name__ == "__main__":

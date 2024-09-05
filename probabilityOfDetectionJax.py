@@ -5,7 +5,7 @@ from jax import jit, vmap
 jax.config.update("jax_enable_x64", True)
 from functools import partial
 from scipy.constants import k as boltzman
-import params
+# import params
 import numpy as np
 from time import time
 

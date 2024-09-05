@@ -6,7 +6,7 @@ import jax.numpy as jnp
 
 
 from main_helper import create_radar_list
-import params
+# import params
 
 from weightedVoronoiHelperFunctions import arc_line_segment_intersection
 from probabilityOfDetectionMap import ProbabilityOfDetectionMap
@@ -378,7 +378,7 @@ def get_arc_length(arc):
     return radius*(theta2-theta1)
     
 
-def create_adjacency_matrix_from_arcs_and_bounary(arcs,boundarySegments,ax=None):
+def create_adjacency_matrix_from_arcs_and_bounary(arcs,boundarySegments,bounds,ax=None):
     nodes = dict()
     currentNodeNumber = 0
     nodes[currentNodeNumber] = np.array([0,0])
@@ -401,11 +401,11 @@ def create_adjacency_matrix_from_arcs_and_bounary(arcs,boundarySegments,ax=None)
             nodes[currentNodeNumber] = p2
     
     currentNodeNumber+=1
-    nodes[currentNodeNumber] = np.array([params.bounds[0],0])
+    nodes[currentNodeNumber] = np.array([bounds[0],0])
     currentNodeNumber+=1
-    nodes[currentNodeNumber] = np.array([0,params.bounds[0]])
+    nodes[currentNodeNumber] = np.array([0,bounds[0]])
     currentNodeNumber+=1
-    nodes[currentNodeNumber] = np.array([params.bounds[0],params.bounds[1]])
+    nodes[currentNodeNumber] = np.array([bounds[0],bounds[1]])
 
     adjacencyMatrix = np.zeros((len(nodes),len(nodes)))
     edges = dict()
@@ -550,7 +550,7 @@ def dist_points_to_arc(arc, points,weights, ax = None):
     
     return distances, intersectionPointsAll,inRange
 
-def trim_arcs_pd_threshold(arcs,radarList,weights, pdThreshold,ax):
+def trim_arcs_pd_threshold(arcs,radarList,weights, pdThreshold,params,ax):
     radarPositions = np.array([radar.position for radar in radarList])
     for a in range(len(arcs)-1,-1,-1):
     # for a,arc in enumerate(arcs):
@@ -604,7 +604,7 @@ def trim_arcs_pd_threshold(arcs,radarList,weights, pdThreshold,ax):
     return arcs
 
 
-def remove_unfeasible_segments(segments,radarPositions):
+def remove_unfeasible_segments(segments,radarPositions,params):
     minRadarIndicies = np.array([np.argmin(dist_of_points_to_line_segment(seg[0],seg[1],radarPositions)) for seg in segments])
     minRadarDists = np.array([np.min(dist_of_points_to_line_segment(seg[0],seg[1],radarPositions)) for seg in segments])
     
@@ -631,7 +631,7 @@ def remove_unfeasible_segments(segments,radarPositions):
     return segments[np.greater(minRadarDists,params.safePdDists[minRadarIndicies])]
     
         
-def compute_path_weighted_voronoi(radarList,plot =False,ax=None):
+def compute_path_weighted_voronoi(radarList,params,plot =False,ax=None):
 
     radarPositions, weights = save_points_and_weights_to_file(radarList,"my_input.pnts")
 
@@ -643,10 +643,10 @@ def compute_path_weighted_voronoi(radarList,plot =False,ax=None):
 
     arcs = combine_attached_arcs(arcs)
 
-    arcs = trim_arcs_pd_threshold(arcs,radarList, weights, params.probabilityOfDetectionThreshold,ax)
+    arcs = trim_arcs_pd_threshold(arcs,radarList, weights, params.probabilityOfDetectionThreshold,params,ax)
     arcs,boundarySegments = intersect_arcs_with_boundary(arcs,params.bounds,ax)
     boundarySegments = np.array(boundarySegments)
-    boundarySegments = remove_unfeasible_segments(boundarySegments,radarPositions)
+    boundarySegments = remove_unfeasible_segments(boundarySegments,radarPositions,params)
     # fig,ax1 = plt.subplots()
     # ax1.set_aspect('equal')
     # ax1.set_xlim([-1000,params.bounds[0]+1000])
@@ -654,7 +654,7 @@ def compute_path_weighted_voronoi(radarList,plot =False,ax=None):
     # plot_weighted_voronoi_arcs(arcs,boundarySegments,ax1)
     # plt.show()
     
-    adjacencyMatrix,nodes,edges = create_adjacency_matrix_from_arcs_and_bounary(arcs,boundarySegments,ax)
+    adjacencyMatrix,nodes,edges = create_adjacency_matrix_from_arcs_and_bounary(arcs,boundarySegments,params.bounds,ax)
     path = create_graph_and_find_shortest_path(adjacencyMatrix,nodes)
 
     path = fill_in_path(path,edges,nodes,spacing=50)

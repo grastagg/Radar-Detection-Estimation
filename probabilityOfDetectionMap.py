@@ -4,7 +4,7 @@ from scipy.constants import Boltzmann
 import jax.numpy as jnp
 from jax import jacfwd
 from numpy.random import multivariate_normal
-from params import measurement_jacobian
+# from params import measurement_jacobian
 
 from probabilityOfDetectionJax import ground_truth_probability_of_detection,compute_probability_of_detection_at_points_multiple_radar
 
@@ -220,7 +220,7 @@ class ProbabilityOfDetectionMap():
     #     return grad
 
     def measurement_jacobian(self, xem, yem, erp, x, y):
-        return measurement_jacobian(xem, yem, erp, x, y)
+        return self.params.measurement_jacobian(xem, yem, erp, x, y)
 
         # d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
         # d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))

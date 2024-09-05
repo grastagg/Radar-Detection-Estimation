@@ -13,7 +13,7 @@ import jax
 from jax import vmap
 import matplotlib.pyplot as plt
 
-import params
+# import params
 
 
 

@@ -9,25 +9,24 @@ mplstyle.use('fast')
 import time
 
 
-from radar import RadarCircularPattern
-from agent import Agent
+# from radar import RadarCircularPattern
+# from agent import Agent
 from multipleEmitterOnlineLocationAndPowerEstimator import MultipleEmitterOnlineLocationAndPowerEstimator
 from probabilityOfDetectionMap import ProbabilityOfDetectionMap
-import params
+# import params
 from pathPlanning import SplinePathPlanningLowPriority 
 
 
 from main_helper import create_agent_list, create_radar_list
 
+from highPriorityPathPlanner import HighPriorityPathPlanner
+
+from utils import change_random_seed
+
 # np.random.seed(1234)
 
-fig,ax = plt.subplots()
 
-ax.set_xlim((0,params.bounds[0]))
-ax.set_ylim((0,params.bounds[1]))
-ax.set_aspect('equal')
-
-def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner,numMeasurements):
+def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner,numMeasurements,ax):
     c = None
 
 
@@ -149,18 +148,23 @@ def remove_empty_lists(paramsList):
         if len(paramsList[i]) > 0:
             newParamsList.append(paramsList[i].copy())
     return newParamsList
-        
 
-def main():
-    params.create_data_file(params.dataFile)
-    params.copy_params()
+
+def main(params):
+    plot = False
+    if plot:
+        fig,ax = plt.subplots()
+
+        ax.set_xlim((0,params.bounds[0]))
+        ax.set_ylim((0,params.bounds[1]))
+        ax.set_aspect('equal')
     bounds = params.bounds 
     numTestPoints = params.numTestPoints
     X_test = params.create_test_points(numTestPoints, bounds)
     
 
     radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
-    agentList = create_agent_list(params.agentInitialStates, len(radarList), params.agentSensingRange, params.agentPowerMeasurementStdDev, params.agentAngleMeasurementStdDev, params.agentELINTAnteneaGain, params.agentELINTSystemLoss, params.radarWavelength, params.agentRadarCrossSection,params.agentColors)
+    agentList = create_agent_list(params.agentInitialStates, len(radarList), params.agentSensingRange, params.agentPowerMeasurementStdDev, params.agentAngleMeasurementStdDev, params.agentELINTAnteneaGain, params.agentELINTSystemLoss, params.radarWavelength, params.agentRadarCrossSection,params.agentColors,params.agentPathHistorydt,params.dataFile)
 
     # radarList = params.radarList
     # agentList = params.agentList
@@ -169,9 +173,9 @@ def main():
 
 
 
-    multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=params.agentSensingRange, angle_measurement_std_dev=params.agentAngleMeasurementStdDev, measurement_cov=params.measurementCov, X_test=X_test, radar_measurement_coeff=params.radarMeasurementCoeff)
-    probabilityOfDetectionMap = ProbabilityOfDetectionMap(X_test, tuple(radarList))
-    lowPriorityPathPlanner = SplinePathPlanningLowPriority()
+    multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=params.agentSensingRange, angle_measurement_std_dev=params.agentAngleMeasurementStdDev, measurement_cov=params.measurementCov, X_test=X_test, radar_measurement_coeff=params.radarMeasurementCoeff,params=params)
+    probabilityOfDetectionMap = ProbabilityOfDetectionMap(X_test, tuple(radarList),params= params)
+    lowPriorityPathPlanner = SplinePathPlanningLowPriority(params=params)
 
 
 
@@ -197,7 +201,8 @@ def main():
             # if len(remove_empty_lists(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params)) > 0:
             #     probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, remove_empty_lists(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params), remove_empty_lists(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances))
 
-            plot_scene(radarList, agentList, bounds, plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner,currentNumberOfMeasurements)
+            if plot:
+                plot_scene(radarList, agentList, bounds, plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner,currentNumberOfMeasurements)
             timeSinceLastPlot = 0
             plotIndex += 1
         
@@ -240,19 +245,38 @@ def main():
 
     
     
+def run_mc_simulation(seeds):
+    for seed in seeds:
+        change_random_seed("params.py", seed)
+        import params
+        params.create_data_file(params.dataFile)
+        params.copy_params()
+        radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
+        
+        hpp = HighPriorityPathPlanner(radarList=radarList, params=params)
+        optPathTime = hpp.plan_deterministic_path(tuple(radarList))
+        print("Optimal path time:", optPathTime)
+        np.savetxt(params.dataFile+"/high_priority_path/deterministic_path_time.txt", np.array([optPathTime]))
+        main(params)
 
 
 
 if __name__ == '__main__':
-    do_profile =  True
-    if do_profile:
-        with cProfile.Profile() as pr:
-            main()
-        with open('profile_state.txt','w') as stream:
-            stats = Stats(pr, stream=stream)
-            stats.strip_dirs()
-            stats.sort_stats('cumulative')
-            stats.dump_stats('.prof_stats')
-            stats.print_stats()
-    else:
-        main()
+    randomSeeds = range(100000,100100)
+    print("random seeds:", randomSeeds)
+    run_mc_simulation(randomSeeds)
+    # do_profile = False 
+    # if do_profile:
+    #     with cProfile.Profile() as pr:
+    #         main()
+    #     with open('profile_state.txt','w') as stream:
+    #         stats = Stats(pr, stream=stream)
+    #         stats.strip_dirs()
+    #         stats.sort_stats('cumulative')
+    #         stats.dump_stats('.prof_stats')
+    #         stats.print_stats()
+    # else:
+    #     randomSeed = 1
+    #     change_random_seed("params.py", randomSeed)
+    #     import params
+    #     main(params)

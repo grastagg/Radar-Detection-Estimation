@@ -7,12 +7,19 @@ from scipy.constants import k as boltzman
 import os
 import getpass
 
+import inspect
+from utils import create_test_points
+
+def caller_discoverer():
+    print('Importing file is', inspect.stack()[-1][1])
+
+caller_discoverer()
+
+print("in params.py")
+
 # np.random.seed(1241)
 
-# randomSeed = 91231
-randomSeed = 1111
-# randomSeed = 11024122
-# randomSeed = 1102042
+randomSeed = 100000
 np.random.seed(randomSeed)
 
         
@@ -33,7 +40,7 @@ numTestPoints = 500
 
 # numTestPoints = 1
 # numTestPoints =30
-simulationEndTime = 10000
+simulationEndTime = 2000
 simulationTimestep = 0.1
 plotTimeStep = 0.5
 
@@ -261,17 +268,7 @@ lengthScale = 300
 
 
 
-def create_test_points(numTestPoints, bounds):
-    x_test = np.linspace(0,bounds[0],numTestPoints)
-    y_test = np.linspace(0,bounds[1],numTestPoints)
 
-    X_test = []
-    
-    for i in range(numTestPoints):
-        for j in range(numTestPoints):
-            X_test.append(np.array([x_test[i],y_test[j]]))
-    return np.array(X_test)
-    
     
 X_test = create_test_points(numTestPoints, bounds)
 
@@ -289,31 +286,6 @@ X_test = create_test_points(numTestPoints, bounds)
 
 #     return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
 
-def measurement_model(xem, yem, erp, x, y):
-    return np.array([[np.arctan2(yem-y, xem-x)], [(erp*radarMeasurementCoeff)/((xem-x)**2 + (yem-y)**2)]])
-
-def measurement_jacobian(xem, yem, erp, x, y):
-    d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
-    d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
-    d_h1_d_p_emmitter = 0
-
-    d_h2_d_x_emmitter = -(2*erp*radarMeasurementCoeff*(xem-x))/((xem-x)**2+(yem-y)**2)**2 
-    d_h2_d_y_emmitter = -(2*erp*radarMeasurementCoeff*(yem-y))/((yem-y)**2+(xem-x)**2)**2 
-    d_h2_d_p_emmitter = radarMeasurementCoeff/((yem-y)**2+(xem-x)**2)
-
-    return np.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
-    
-@jax.jit
-def measurement_jacobian_jax(xem, yem, erp, x, y):
-    d_h1_d_x_emmitter = -(yem-y)/((xem-x)**2*((yem-y)**2/(xem-x)**2+1))
-    d_h1_d_y_emmitter = 1/((xem-x)*((yem-y)**2/(xem-x)**2+1))
-    d_h1_d_p_emmitter = 0
-
-    d_h2_d_x_emmitter = -(2*erp*radarMeasurementCoeff*(xem-x))/((xem-x)**2+(yem-y)**2)**2 
-    d_h2_d_y_emmitter = -(2*erp*radarMeasurementCoeff*(yem-y))/((yem-y)**2+(xem-x)**2)**2 
-    d_h2_d_p_emmitter = radarMeasurementCoeff/((yem-y)**2+(xem-x)**2)
-
-    return jnp.array([[d_h1_d_x_emmitter, d_h1_d_y_emmitter, d_h1_d_p_emmitter],[d_h2_d_x_emmitter, d_h2_d_y_emmitter, d_h2_d_p_emmitter]])
 
     
 

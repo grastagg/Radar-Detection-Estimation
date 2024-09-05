@@ -11,7 +11,7 @@ import scipy
 import sklearn.cluster
 
 from main_helper import create_radar_list
-import params
+# import params
 from probabilityOfDetectionJax import ground_truth_probability_of_detection,compute_probability_of_detection_at_points_multiple_radar, compute_probability_of_detection_vectorized, probability_of_detection_uncertainty_single_radar_at_xy, probability_of_detection_uncertainty_single_radar_at_xy_bounds
 # from test import compute_probability_of_detection_at_points_multiple_radar
 from weightedVoronoiPathIntialzation import compute_path_weighted_voronoi
@@ -24,6 +24,7 @@ from scipy.interpolate import splrep
 
 import igraph
 import highPriorityHelperFunctions
+from utils import create_test_points
 
 def get_weighted_distance(p,x,weight):
     return np.linalg.norm(p-x)/weight
@@ -209,7 +210,7 @@ def get_closest_neighbor_triplets(vor):
             
     return np.array(vertex_to_regions)
 
-def create_probability_of_detection_below_threshold_grid_list(X_test,estimatedRadarParamsList,estiamtedRadarParamsCovList):
+def create_probability_of_detection_below_threshold_grid_list(X_test,estimatedRadarParamsList,estiamtedRadarParamsCovList,params):
     prob_list = []
     
     for i,radar in enumerate(estimatedRadarParamsList):
@@ -231,13 +232,13 @@ def xy_to_index(x,y):
     indy = y//indexToXYConversion
     return int(indx*params.numTestPoints + indy)
 
-def find_contour_points(cellAssignment,index):
+def find_contour_points(cellAssignment,index,bounds,numTestPoints):
     cellI = np.where(cellAssignment == index,1,0)
 
-    contours,_ = cv2.findContours(cellI.reshape(params.numTestPoints,params.numTestPoints).astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours,_ = cv2.findContours(cellI.reshape(numTestPoints,numTestPoints).astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     if len(contours) == 0:
         return None
-    pixelDist = params.bounds[0]/params.numTestPoints
+    pixelDist = bounds[0]/numTestPoints
     # print(contours)
     # fig,ax = plt.subplots()
     # ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),cellI.reshape(params.numTestPoints,params.numTestPoints))
@@ -315,7 +316,7 @@ def find_closest_common_point_within_threshold(array1, array2, array3, threshold
     else:
         return False, ()
 
-def find_generalized_voronoi_verticies(prob_list):
+def find_generalized_voronoi_verticies(prob_list,bounds,numTestPoints):
 
     verticies = {}
 
@@ -324,7 +325,7 @@ def find_generalized_voronoi_verticies(prob_list):
     
     radarIndeciesToIgnore = []
     for i in range(len(prob_list)):
-        contourP = find_contour_points(cellAssignment,i)
+        contourP = find_contour_points(cellAssignment,i,bounds,numTestPoints)
         if contourP is not None:
             contourPoints.append(contourP)
         else:
@@ -339,7 +340,7 @@ def find_generalized_voronoi_verticies(prob_list):
                 pointsK = contourPoints[k]
                 
 
-                commonPointExists,commonPoint = find_closest_common_point_within_threshold(pointsI,pointsJ,pointsK,2*params.bounds[0]/params.numTestPoints+100,i,j,k)
+                commonPointExists,commonPoint = find_closest_common_point_within_threshold(pointsI,pointsJ,pointsK,2*bounds[0]/numTestPoints+100,i,j,k)
                 
                 if commonPointExists:
                     if len(commonPoint) == 1:
@@ -715,7 +716,7 @@ def resample_points(points, spacing):
     
     return resampled_points
 
-def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParams,radarParamsCovDeterminants,allVertecies,vertex1Index,vertex2Index):
+def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParams,radarParamsCovDeterminants,allVertecies,vertex1Index,vertex2Index,bounds):
 
     i,j = ridgeNeighborIndecies
     # celliprob = prob_list[i]
@@ -733,7 +734,8 @@ def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParam
     #     cellAssignment = np.where(celliprob < celljprob,1,0).reshape(params.numTestPoints,params.numTestPoints)
 
     # cellAssignment = np.where(celliprob < celljprob,0,1).reshape(params.numTestPoints,params.numTestPoints)
-    cellAssignment = np.where(cellAssign == i ,1,0).reshape(params.numTestPoints,params.numTestPoints)
+    numTestPoints = int(np.sqrt(cellAssign.shape[0]))
+    cellAssignment = np.where(cellAssign == i ,1,0).reshape(numTestPoints,numTestPoints)
     # nonZeroCount = np.count_nonzero(cellAssignment)
     # print("nonZeroCount",nonZeroCount)
     # zerosCount = params.numTestPoints**2 - nonZeroCount
@@ -741,7 +743,7 @@ def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParam
     # if nonZeroCount > zerosCount:
     #     cellAssignment = np.logical_not(cellAssignment).astype(int)
     
-    pixelDist = params.bounds[0]/params.numTestPoints
+    pixelDist = bounds[0]/numTestPoints
 
     contour,_ = cv2.findContours(cellAssignment.astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -761,8 +763,8 @@ def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParam
 
     points = points[points[:,0]!=0]
     points = points[points[:,1]!=0]
-    points = points[~np.isclose(points[:,0],params.bounds[0],atol=50)]
-    points = points[~np.isclose(points[:,1],params.bounds[1],atol=50)]
+    points = points[~np.isclose(points[:,0],bounds[0],atol=50)]
+    points = points[~np.isclose(points[:,1],bounds[1],atol=50)]
 
     pointsInRange = new_filter_points_by_vertices(points, vertex1, vertex2, centroid,otherPoint,allVertecies,vertex1Index,vertex2Index)
     distVertex1ToFirstPoint = np.linalg.norm(pointsInRange[0] - vertex1)
@@ -806,7 +808,7 @@ def plot_spline(spline,ax,c='g'):
     # ax.plot(pos[:,0], pos[:,1],c=c,marker='o')
     ax.plot(pos[:,0], pos[:,1],c=c,linewidth=3)
 
-def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsCov,ax = None):
+def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsCov,bounds,params,ax = None):
     radarParamsCovDeterminants = [np.linalg.det(cov) for cov in radarParamsCov]
     potentialRidges = {}
     for i in range(len(verticies)): 
@@ -855,13 +857,13 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
             commonNeighbors = np.intersect1d(verticies[i]['neighbors'],verticies[j]['neighbors'])
             if len(commonNeighbors) == 3:
                 #need to add two ridges between these verticies
-                ridgeLineControlPoints1,ridgeLineKnotPoints1,points1 = find_ridge_line(prob_list,commonNeighbors[0:2],verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants,verticies,i,j)
+                ridgeLineControlPoints1,ridgeLineKnotPoints1,points1 = find_ridge_line(prob_list,commonNeighbors[0:2],verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants,verticies,i,j,bounds)
                 t = np.linspace(0,1,1000)
                 splinePoints1 = scipy.interpolate.BSpline(ridgeLineKnotPoints1,ridgeLineControlPoints1,3)(t)
                 probPDLessThanThreshold1 = highPriorityHelperFunctions.get_prob_pd_less_than_threshold(splinePoints1, radarParams, radarParamsCov, params.probabilityOfDetectionThreshold, params.radarRecieveGain,0,params.radarWavelength, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance,params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
                 minProb1 = np.min(probPDLessThanThreshold1)
                 
-                ridgeLineControlPoints2,ridgeLineKnotPoints2,points2 = find_ridge_line(prob_list,commonNeighbors[1:],verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants,verticies,i,j)
+                ridgeLineControlPoints2,ridgeLineKnotPoints2,points2 = find_ridge_line(prob_list,commonNeighbors[1:],verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants,verticies,i,j,bounds)
                 splinePoints2 = scipy.interpolate.BSpline(ridgeLineKnotPoints2,ridgeLineControlPoints2,3)(t)
                 probPDLessThanThreshold2 = highPriorityHelperFunctions.get_prob_pd_less_than_threshold(splinePoints2, radarParams, radarParamsCov, params.probabilityOfDetectionThreshold, params.radarRecieveGain,0,params.radarWavelength, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance,params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
                 minProb2 = np.min(probPDLessThanThreshold2)
@@ -882,7 +884,7 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
                 if (i,j) in ignore or (j,i) in ignore:
                     continue
                 else:
-                    ridgeLineControlPoints,ridgeLineKnotPoints,points = find_ridge_line(prob_list,commonNeighbors,verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants,verticies,i,j)
+                    ridgeLineControlPoints,ridgeLineKnotPoints,points = find_ridge_line(prob_list,commonNeighbors,verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants,verticies,i,j,bounds)
                     #############
                     # fig,ax = plt.subplots()
                     # ax.scatter(points[:,0],points[:,1])
@@ -904,14 +906,14 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
                         plot_spline(spline,ax)
     return ridges
 
-def find_exterior_points(contourList):
+def find_exterior_points(contourList,bounds):
     exteriorPoints = []
     for i,points in enumerate(contourList):
         tolerance = 50  # Adjust the tolerance as needed
         if (np.any(np.isclose(points[:, 0], 0, atol=tolerance)) or
-            np.any(np.isclose(points[:, 0], params.bounds[0], atol=tolerance)) or
+            np.any(np.isclose(points[:, 0], bounds[0], atol=tolerance)) or
             np.any(np.isclose(points[:, 1], 0, atol=tolerance)) or
-            np.any(np.isclose(points[:, 1], params.bounds[1], atol=tolerance))):
+            np.any(np.isclose(points[:, 1], bounds[1], atol=tolerance))):
         # if np.any(points[:,0] == 0) or np.any(points[:,0] == params.bounds[0]) or np.any(points[:,1] == 0) or np.any(points[:,1] == params.bounds[1]):
             exteriorPoints.append(i)
     
@@ -926,13 +928,13 @@ def find_exterior_points(contourList):
     
     return exteriorPoints
 
-def find_edge_points(cellAssignment):
+def find_edge_points(cellAssignment,bounds,numTestPoints):
     contour,_ = cv2.findContours(cellAssignment.astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    pixelDist = params.bounds[0]/params.numTestPoints
+    pixelDist = bounds[0]/numTestPoints
     points = contour[-1].squeeze()*pixelDist
     # upperBound = np.max(points)
     # lowerBound = np.min(points)
-    upperBound = params.bounds[0]
+    upperBound = bounds[0]
     lowerBound = 0
     
     corners = np.array([[lowerBound,lowerBound],[lowerBound,upperBound],[upperBound,upperBound],[upperBound,lowerBound]])
@@ -954,12 +956,13 @@ def find_edge_points(cellAssignment):
     #         (points[:, 1] == lowerBound) | (points[:, 1] == upperBound)]
     return edgePoints
 
-def find_edge_vertex(cellAssignment,i,j,verticies,vertexIndex):
+def find_edge_vertex(cellAssignment,i,j,verticies,vertexIndex,bounds):
     # celliprob = prob_list[i]
     # celljprob = prob_list[j]
     # cellAssignment = np.where(celliprob < celljprob,0,1).reshape(params.numTestPoints,params.numTestPoints)
-    cellAssignmentI = np.where(cellAssignment == i,1,0).reshape(params.numTestPoints,params.numTestPoints)
-    cellAssignmentJ = np.where(cellAssignment == j,1,0).reshape(params.numTestPoints,params.numTestPoints)
+    numTestPoints = int(np.sqrt(cellAssignment.shape[0]))
+    cellAssignmentI = np.where(cellAssignment == i,1,0).reshape(numTestPoints,numTestPoints)
+    cellAssignmentJ = np.where(cellAssignment == j,1,0).reshape(numTestPoints,numTestPoints)
 
     # contour,_ = cv2.findContours(cellAssignmentI.astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     # pixelDist = params.bounds[0]/params.numTestPoints
@@ -973,8 +976,8 @@ def find_edge_vertex(cellAssignment,i,j,verticies,vertexIndex):
 
     # edgePoints = points[(points[:, 0] == lowerBound) | (points[:, 0] == upperBound) |
     #         (points[:, 1] == lowerBound) | (points[:, 1] == upperBound)]
-    edgePointsI = find_edge_points(cellAssignmentI)
-    edgePointsJ = find_edge_points(cellAssignmentJ)
+    edgePointsI = find_edge_points(cellAssignmentI,bounds,numTestPoints)
+    edgePointsJ = find_edge_points(cellAssignmentJ,bounds,numTestPoints)
     
     minDistance = np.inf
     closestPointI = None
@@ -1006,13 +1009,14 @@ def find_edge_vertex(cellAssignment,i,j,verticies,vertexIndex):
     # return edgePoints[np.argmin(distances)]
     return (closestPointI+closestPointJ)/2
 
-def find_possible_edge_vertex(prob_list,i,j):
+def find_possible_edge_vertex(prob_list,i,j,bounds,numTestPoints):
     celliprob = prob_list[i]
     celljprob = prob_list[j]
-    cellAssignment = np.where(celliprob < celljprob,0,1).reshape(params.numTestPoints,params.numTestPoints)
+    
+    cellAssignment = np.where(celliprob < celljprob,0,1).reshape(numTestPoints,numTestPoints)
 
     contour,_ = cv2.findContours(cellAssignment.astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    pixelDist = params.bounds[0]/params.numTestPoints
+    pixelDist = bounds[0]/numTestPoints
 
     points = contour[0].squeeze()*pixelDist
     for i in range(1,len(contour)):
@@ -1032,7 +1036,7 @@ def find_possible_edge_vertex(prob_list,i,j):
     return edgePoints
     
 
-def find_generalized_voronoi_edge_verticies(cellAssignments, exteriorPoints,verticies,points):
+def find_generalized_voronoi_edge_verticies(cellAssignments, exteriorPoints,verticies,points,bounds):
     currentVertex = len(verticies)
 
     interoirRidges = []
@@ -1047,7 +1051,7 @@ def find_generalized_voronoi_edge_verticies(cellAssignments, exteriorPoints,vert
     center = np.mean(points,axis=0)
     for i in range(len(exteriorPoints)):
         for j in range(i+1,len(exteriorPoints)):
-            vertex = find_edge_vertex(cellAssignments,exteriorPoints[i],exteriorPoints[j],verticies,currentVertex)
+            vertex = find_edge_vertex(cellAssignments,exteriorPoints[i],exteriorPoints[j],verticies,currentVertex,bounds)
             if vertex is not None:
                 verticies[currentVertex] = {"neighbors":[exteriorPoints[i],exteriorPoints[j]],"point":vertex,"edge":True}
                 currentVertex += 1
@@ -1088,7 +1092,7 @@ def find_generalized_voronoi_edge_verticies(cellAssignments, exteriorPoints,vert
 
     return verticies
 
-def add_boundary_segment(boundarySegments, segment, vertex1,vertex2, radarParams, radarParamsCov):
+def add_boundary_segment(boundarySegments, segment, vertex1,vertex2, radarParams, radarParamsCov,params):
     points = np.linspace(segment[0],segment[1],100)
     probPdLessThanThreshold = highPriorityHelperFunctions.get_prob_pd_less_than_threshold(points, radarParams, radarParamsCov, params.probabilityOfDetectionThreshold, params.radarRecieveGain,0,params.radarWavelength, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance,params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
     minProb = np.min(probPdLessThanThreshold)
@@ -1099,13 +1103,13 @@ def add_boundary_segment(boundarySegments, segment, vertex1,vertex2, radarParams
     
     
 
-def find_boundary_segments(verticies,radarParams,radarParamsCov):
+def find_boundary_segments(verticies,radarParams,radarParamsCov,bounds,params):
     startVertexIndex = len(verticies)
     verticies[len(verticies)] = {"point":np.array([0,0]),"edge":True,"neighbors":[],"type":"start"}
-    verticies[len(verticies)] = {"point":np.array([params.bounds[0],0]),"edge":True,"neighbors":[]}
-    verticies[len(verticies)] = {"point":np.array([0,params.bounds[1]]),"edge":True,"neighbors":[]}
+    verticies[len(verticies)] = {"point":np.array([bounds[0],0]),"edge":True,"neighbors":[]}
+    verticies[len(verticies)] = {"point":np.array([0,bounds[1]]),"edge":True,"neighbors":[]}
     endVertexIndex = len(verticies)
-    verticies[len(verticies)] = {"point":np.array([params.bounds[0],params.bounds[1]]),"edge":True,"neighbors":[],"type":"end"}
+    verticies[len(verticies)] = {"point":np.array([bounds[0],bounds[1]]),"edge":True,"neighbors":[],"type":"end"}
 
     boundarySegments = {}
 
@@ -1114,9 +1118,9 @@ def find_boundary_segments(verticies,radarParams,radarParamsCov):
 
     leftEdgeVertexIndicies = np.where(np.isclose(edgeVerticies[:,0],0,atol=50))[0]
     sortedLeftEdgeVertexIndicies = leftEdgeVertexIndicies[np.argsort(edgeVerticies[leftEdgeVertexIndicies][:,1])]
-    rightEdgeVertexIndicies = np.where(np.isclose(edgeVerticies[:,0],params.bounds[0],atol=50))[0]
+    rightEdgeVertexIndicies = np.where(np.isclose(edgeVerticies[:,0],bounds[0],atol=50))[0]
     sortedRightEdgeVertexIndicies = rightEdgeVertexIndicies[np.argsort(edgeVerticies[rightEdgeVertexIndicies][:,1])]
-    topEdgeVertexIndicies = np.where(np.isclose(edgeVerticies[:,1],params.bounds[1],atol=50))[0]
+    topEdgeVertexIndicies = np.where(np.isclose(edgeVerticies[:,1],bounds[1],atol=50))[0]
     sortedTopEdgeVertexIndicies = topEdgeVertexIndicies[np.argsort(edgeVerticies[topEdgeVertexIndicies][:,0])]
     bottomEdgeVertexIndicies = np.where(np.isclose(edgeVerticies[:,1],0,atol=50))[0]
     sortedBottomEdgeVertexIndicies = bottomEdgeVertexIndicies[np.argsort(edgeVerticies[bottomEdgeVertexIndicies][:,0])]
@@ -1124,19 +1128,19 @@ def find_boundary_segments(verticies,radarParams,radarParamsCov):
     for i in range(len(sortedLeftEdgeVertexIndicies)-1):
         index = sortedLeftEdgeVertexIndicies[i]
         # boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedLeftEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedLeftEdgeVertexIndicies[i+1]]])
-        boundarySegments = add_boundary_segment(boundarySegments, np.array([edgeVerticies[index],edgeVerticies[sortedLeftEdgeVertexIndicies[i+1]]]), edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedLeftEdgeVertexIndicies[i+1]], radarParams, radarParamsCov)
+        boundarySegments = add_boundary_segment(boundarySegments, np.array([edgeVerticies[index],edgeVerticies[sortedLeftEdgeVertexIndicies[i+1]]]), edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedLeftEdgeVertexIndicies[i+1]], radarParams, radarParamsCov,params)
     for i in range(len(sortedRightEdgeVertexIndicies)-1):
         index = sortedRightEdgeVertexIndicies[i]
         # boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedRightEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedRightEdgeVertexIndicies[i+1]]])
-        boundarySegments = add_boundary_segment(boundarySegments, np.array([edgeVerticies[index],edgeVerticies[sortedRightEdgeVertexIndicies[i+1]]]), edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedRightEdgeVertexIndicies[i+1]], radarParams, radarParamsCov)
+        boundarySegments = add_boundary_segment(boundarySegments, np.array([edgeVerticies[index],edgeVerticies[sortedRightEdgeVertexIndicies[i+1]]]), edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedRightEdgeVertexIndicies[i+1]], radarParams, radarParamsCov,params)
     for i in range(len(sortedTopEdgeVertexIndicies)-1):
         index = sortedTopEdgeVertexIndicies[i]
         # boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedTopEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedTopEdgeVertexIndicies[i+1]]])
-        boundarySegments = add_boundary_segment(boundarySegments, np.array([edgeVerticies[index],edgeVerticies[sortedTopEdgeVertexIndicies[i+1]]]), edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedTopEdgeVertexIndicies[i+1]], radarParams, radarParamsCov)
+        boundarySegments = add_boundary_segment(boundarySegments, np.array([edgeVerticies[index],edgeVerticies[sortedTopEdgeVertexIndicies[i+1]]]), edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedTopEdgeVertexIndicies[i+1]], radarParams, radarParamsCov, params)
     for i in range(len(sortedBottomEdgeVertexIndicies)-1):
         index = sortedBottomEdgeVertexIndicies[i]
         # boundarySegments[(edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedBottomEdgeVertexIndicies[i+1]])] = np.array([edgeVerticies[index],edgeVerticies[sortedBottomEdgeVertexIndicies[i+1]]])
-        boundarySegments = add_boundary_segment(boundarySegments, np.array([edgeVerticies[index],edgeVerticies[sortedBottomEdgeVertexIndicies[i+1]]]), edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedBottomEdgeVertexIndicies[i+1]], radarParams, radarParamsCov)
+        boundarySegments = add_boundary_segment(boundarySegments, np.array([edgeVerticies[index],edgeVerticies[sortedBottomEdgeVertexIndicies[i+1]]]), edgeVerticiesIndicies[index],edgeVerticiesIndicies[sortedBottomEdgeVertexIndicies[i+1]], radarParams, radarParamsCov, params)
         
     return boundarySegments,startVertexIndex,endVertexIndex
 
@@ -1147,16 +1151,18 @@ def remove_radar_from_cell_assignments(cellAssignments,radarIndeciesToIgnore):
     return cellAssignments
     
     
-def find_generalized_voronoi(radarParams, radarParamsCov):
+def find_generalized_voronoi(radarParams, radarParamsCov, bounds,params):
     points = radarParams[:,0:2]
-    vor = Voronoi(points[:, 0:2])
+    # vor = Voronoi(points[:, 0:2])
+    numTestPoints = 500
+    X_test = create_test_points(numTestPoints,bounds)
 
-    prob_list = create_probability_of_detection_below_threshold_grid_list(params.X_test,radarParams,radarParamsCov)
+    prob_list = create_probability_of_detection_below_threshold_grid_list(X_test,radarParams,radarParamsCov,params)
     # Z = weighted_voronoi_uncertain_radar_grid_method(params.X_test,prob_list,radarParams,radarParamsCov,useUpperBound=False,ax=ax)
 
     # closestNeighborTriples = get_closest_neighbor_triplets(vor)
 
-    verticies,contourPoints,cellAssignments,radarIndeciesToIgnore = find_generalized_voronoi_verticies(prob_list)
+    verticies,contourPoints,cellAssignments,radarIndeciesToIgnore = find_generalized_voronoi_verticies(prob_list,bounds=params.bounds,numTestPoints=numTestPoints)
     
     cellAssignments = remove_radar_from_cell_assignments(cellAssignments,radarIndeciesToIgnore)
 
@@ -1166,10 +1172,10 @@ def find_generalized_voronoi(radarParams, radarParamsCov):
     
     
          
-    exteriorPoints = find_exterior_points(contourPoints)
+    exteriorPoints = find_exterior_points(contourPoints,bounds)
     # verticies = find_generalized_voronoi_edge_verticies(prob_list, exteriorPoints, verticies,points)
-    verticies = find_generalized_voronoi_edge_verticies(cellAssignments, exteriorPoints, verticies,points)
-    boundarySegments,startVertexIndex,endVertexIndex = find_boundary_segments(verticies,radarParams,radarParamsCov)
+    verticies = find_generalized_voronoi_edge_verticies(cellAssignments, exteriorPoints, verticies,points,bounds)
+    boundarySegments,startVertexIndex,endVertexIndex = find_boundary_segments(verticies,radarParams,radarParamsCov,bounds,params)
 
     # fig,ax = plt.subplots()
     # ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),np.argmin(prob_list,axis=0).reshape(params.numTestPoints,params.numTestPoints))
@@ -1180,7 +1186,7 @@ def find_generalized_voronoi(radarParams, radarParamsCov):
     
     
     
-    ridges = find_generalized_voronoi_ridges(cellAssignments,verticies,radarParams,radarParamsCov,ax=None)
+    ridges = find_generalized_voronoi_ridges(cellAssignments,verticies,radarParams,radarParamsCov,bounds,params,ax=None)
 
     return verticies,ridges,boundarySegments,startVertexIndex,endVertexIndex,cellAssignments
     
@@ -1268,9 +1274,9 @@ def path_to_points(path,ridges,boundarySegments,verticies,spacing):
     
     return np.vstack(pointsCombined)
 
-def find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing,ax=None):
+def find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing,bounds,params,ax=None):
     start = time()
-    verticies,ridges,boundarySegments,startVertexIndex,endVertexIndex,cellAssinments = find_generalized_voronoi(radarParams,radarParamsCov)
+    verticies,ridges,boundarySegments,startVertexIndex,endVertexIndex,cellAssinments = find_generalized_voronoi(radarParams,radarParamsCov,bounds,params)
     print("Time",time()-start)
 
     adjecencyMatrix = create_adjacency_matrix_from_ridges_and_boundary(ridges,boundarySegments,verticies)
