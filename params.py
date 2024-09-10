@@ -19,7 +19,7 @@ print("in params.py")
 
 # np.random.seed(1241)
 
-randomSeed = 100000
+randomSeed = 100117
 np.random.seed(randomSeed)
 
         
@@ -156,7 +156,10 @@ def find_radar_position(currentRadarPositions):
     minRadarDistFromStart = minRadarDistFromStartList[radarIndex]
     notFound = distToStart < minRadarDistFromStart or minDistToOtherRadar < minInterRadarDist or distToEnd < minRadarDistFromStart
 
-    while notFound:
+    maxTries = 1000
+    numTries = 0
+
+    while notFound and numTries < maxTries:
         potentialRadarPosition = np.random.uniform(0,bounds[0],2) 
         distToStart = np.linalg.norm(potentialRadarPosition)
         distToEnd = np.linalg.norm(potentialRadarPosition-highPriorityEnd)
@@ -164,14 +167,23 @@ def find_radar_position(currentRadarPositions):
         minInterRadarDist = minInterRadarDistList[radarIndex] + minInterRadarDistList[minRadarIndex]
         # notFound = distToStart < minRadarDistFromStart or minDistToOtherRadar < minInterRadarDist
         notFound = distToStart < minRadarDistFromStart or minDistToOtherRadar < minInterRadarDist or distToEnd < minRadarDistFromStart
-    return potentialRadarPosition
+        numTries += 1
+
+    return potentialRadarPosition, notFound
 
 
+radarPositionsFound = True
 for i in range(numRadar):
             
-    radarPositions.append(find_radar_position(radarPositions))
-    radarPhases.append(np.random.uniform(0,np.pi,1)[0])
-    radarAngularRates.append(np.random.uniform(2,4,1)[0])
+    radarPos,notFound = find_radar_position(radarPositions)
+    if notFound:
+        print("Radar not found")
+        radarPositionsFound = False
+        break
+    else:
+        radarPositions.append(radarPos)
+        radarPhases.append(np.random.uniform(0,np.pi,1)[0])
+        radarAngularRates.append(np.random.uniform(2,4,1)[0])
 
 safePdDists = []
 
@@ -247,7 +259,7 @@ splineOrder = 3
 
 distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)/2
 # distFromStraitWeight = 1
-distFromStraitWeight = .1
+distFromStraitWeight = .2
 distFromStraitWeight = 0
 
 seperationScale = 1
@@ -255,7 +267,7 @@ seperationWeight = .3
 # seperationWeight = 0
 
 # nextCovarianceScale = 1e16
-nextCovarianceScale = 1e14
+nextCovarianceScale = 1e13
 # nextCovarianceScale = 1e15
 # nextCovarianceScale = 1e22
 nextCovarianceWeight = .3
@@ -293,37 +305,18 @@ c = (radarRecieveGain*radarWavelength**2*agentRadarCrossSection*radarPulseWidth)
 erp = radarOutputPower*radarTransmitGain
 
 
-def create_data_file(filepath):
-    if not os.path.exists(filepath):
-        os.mkdir(filepath)
-        # os.mkdir(filepath+"estimated_params/")
-        # os.mkdir(filepath+"estimated_params_cov/")
-        os.mkdir(filepath+"/high_priority_path/")
-        for i in range(numRadar):
-            os.mkdir(filepath+"radar_"+str(i)+"/")
-            os.mkdir(filepath+"radar_"+str(i)+"/estimated_params/")
-            os.mkdir(filepath+"radar_"+str(i)+"/estimated_params_cov/")
-    else:
-        print("Directory already exists")
-        return
-        # cont = input("overwrite? y/n")
-        # if cont == "y":
-        #     return
-        # else:
-        #     exit()
             
     
     
 saveDataToFile = True
 
 username = getpass.getuser()
-dataFile = "/home/"+ username+"/repos/magiccvs/radar_detection_estimation/saved_data/"+str(randomSeed)+"/"
+dataFile = "/home/"+ username+"/repos/magiccvs/radar_detection_estimation/saved_data/mc_runs/"+str(randomSeed)+"/"
+print("TEST",dataFile)
 agentColors = ['b','g','c','m','y','k']
 
 
 #copy params.py to data folder for reference
-def copy_params():
-    os.system("cp params.py "+dataFile +"params.py ")
 
 
 

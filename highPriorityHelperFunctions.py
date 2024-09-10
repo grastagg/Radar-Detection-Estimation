@@ -165,7 +165,7 @@ def get_prob_along_spline(controlpoints, tf, estimatedRadarParams, estimatedRada
 @jit
 def radar_intercept_snr(radarPos, agentPos, radarTransmitGain, radarTransmitPower, agentRecieveGain, radarWavelength, systemTemp,radarPulseWidth):
     R = jnp.linalg.norm(radarPos-agentPos)
-    SNR = (radarTransmitPower*radarTransmitGain*agentRecieveGain*radarWavelength**2*radarPulseWidth) / ((4*jnp.pi)**2*R**2*systemTemp*k * 60000000)
+    SNR = (radarTransmitPower*radarTransmitGain*agentRecieveGain*radarWavelength**2*radarPulseWidth) / ((4*jnp.pi)**2*R**2*systemTemp*k * 100000000)
     return SNR
 
 @jit
@@ -277,6 +277,7 @@ def path_safety(allAgentPathHistory, next_measurements, lengthScale):
 
 if __name__ == '__main__':
     dataFilePath = "saved_data/11024122/"
+    import params
     # dataIndex = 10
     # numFiles = 5758
     numFiles = 2006

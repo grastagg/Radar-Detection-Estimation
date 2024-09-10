@@ -7,6 +7,9 @@ import matplotlib
 mplstyle.use('fast')
 # matplotlib.use('TkAgg')
 import time
+import getpass
+import importlib
+import os
 
 
 # from radar import RadarCircularPattern
@@ -21,7 +24,7 @@ from main_helper import create_agent_list, create_radar_list
 
 from highPriorityPathPlanner import HighPriorityPathPlanner
 
-from utils import change_random_seed
+from utils import change_random_seed,copy_params,create_data_file
 
 # np.random.seed(1234)
 
@@ -246,24 +249,38 @@ def main(params):
     
     
 def run_mc_simulation(seeds):
+    numRadar = 13
+    username = getpass.getuser()
     for seed in seeds:
+        print("running seed:", seed)
+        dataFile = "/home/"+ username+"/repos/magiccvs/radar_detection_estimation/saved_data/mc_runs/"+str(seed)+"/"
         change_random_seed("params.py", seed)
-        import params
-        params.create_data_file(params.dataFile)
-        params.copy_params()
+        create_data_file(dataFile,numRadar)
+        copy_params(dataFile)
+        importDir = "saved_data.mc_runs."+str(seed)+".params"
+        params = importlib.import_module(importDir)
+        if not params.radarPositionsFound:
+            print("skipping seed:", seed)
+            os.system("rm -r "+dataFile)
+            continue
+
         radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
         
         hpp = HighPriorityPathPlanner(radarList=radarList, params=params)
-        optPathTime = hpp.plan_deterministic_path(tuple(radarList))
-        print("Optimal path time:", optPathTime)
+        try:
+            optPathTime = hpp.plan_deterministic_path(tuple(radarList))
+            print("Optimal path time:", optPathTime)
+        except:
+            print("Optimal path not found, skipping seed:", seed)
+            os.system("rm -r "+dataFile)
+            continue
         np.savetxt(params.dataFile+"/high_priority_path/deterministic_path_time.txt", np.array([optPathTime]))
         main(params)
 
 
 
 if __name__ == '__main__':
-    randomSeeds = range(100000,100100)
-    print("random seeds:", randomSeeds)
+    randomSeeds = range(100116,100400)
     run_mc_simulation(randomSeeds)
     # do_profile = False 
     # if do_profile:
