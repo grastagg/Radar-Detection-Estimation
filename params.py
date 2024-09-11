@@ -19,7 +19,7 @@ print("in params.py")
 
 # np.random.seed(1241)
 
-randomSeed = 100117
+randomSeed = 100132
 np.random.seed(randomSeed)
 
         

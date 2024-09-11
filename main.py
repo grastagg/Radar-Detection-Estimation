@@ -248,10 +248,13 @@ def main(params):
 
     
     
-def run_mc_simulation(seeds):
+def run_mc_simulation(startSeed, numSeeds):
+    currentNumSeeds = 0
     numRadar = 13
     username = getpass.getuser()
-    for seed in seeds:
+    # for seed in seeds:
+    seed = startSeed
+    while currentNumSeeds < numSeeds:
         print("running seed:", seed)
         dataFile = "/home/"+ username+"/repos/magiccvs/radar_detection_estimation/saved_data/mc_runs/"+str(seed)+"/"
         change_random_seed("params.py", seed)
@@ -262,6 +265,7 @@ def run_mc_simulation(seeds):
         if not params.radarPositionsFound:
             print("skipping seed:", seed)
             os.system("rm -r "+dataFile)
+            seed += 1
             continue
 
         radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
@@ -276,12 +280,15 @@ def run_mc_simulation(seeds):
             continue
         np.savetxt(params.dataFile+"/high_priority_path/deterministic_path_time.txt", np.array([optPathTime]))
         main(params)
+        seed += 1
+        currentNumSeeds += 1
 
 
 
 if __name__ == '__main__':
-    randomSeeds = range(100116,100400)
-    run_mc_simulation(randomSeeds)
+    randomSeed = 100131
+    numSeeds = 1
+    run_mc_simulation(randomSeed, numSeeds)
     # do_profile = False 
     # if do_profile:
     #     with cProfile.Profile() as pr:
