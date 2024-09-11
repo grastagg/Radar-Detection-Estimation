@@ -11,6 +11,7 @@ import getpass
 import importlib
 import os
 
+import sys
 
 # from radar import RadarCircularPattern
 # from agent import Agent
@@ -257,9 +258,9 @@ def run_mc_simulation(startSeed, numSeeds):
     while currentNumSeeds < numSeeds:
         print("running seed:", seed)
         dataFile = "/home/"+ username+"/repos/magiccvs/radar_detection_estimation/saved_data/mc_runs/"+str(seed)+"/"
-        change_random_seed("params.py", seed)
         create_data_file(dataFile,numRadar)
         copy_params(dataFile)
+        change_random_seed(dataFile+"params.py", seed)
         importDir = "saved_data.mc_runs."+str(seed)+".params"
         params = importlib.import_module(importDir)
         if not params.radarPositionsFound:
@@ -286,8 +287,12 @@ def run_mc_simulation(startSeed, numSeeds):
 
 
 if __name__ == '__main__':
-    randomSeed = 100131
-    numSeeds = 1
+    # randomSeed = 100133
+    # numSeeds = 100
+    randomSeed = int(sys.argv[1])
+    numSeeds = int(sys.argv[2])
+    # print(sys.argv)
+    print("running", numSeeds, "seeds starting at seed:", randomSeed)
     run_mc_simulation(randomSeed, numSeeds)
     # do_profile = False 
     # if do_profile:
