@@ -30,12 +30,33 @@ def change_random_seed(file_path, new_seed):
     
     print(f"randomSeed changed to {new_seed} in {file_path}")  
 
+def set_path_planner(file_path, pathPlanner):
+    # Read the existing script
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+    
+    # Find and replace the line with `randomSeed`
+    for i, line in enumerate(lines):
+        if line.strip().startswith("lowPriorityPathPlanner ="):
+            lines[i] = f"lowPriorityPathPlanner = \"{pathPlanner}\"\n"
+            break
+    
+    # Write the updated script back to the file
+    with open(file_path, 'w') as file:
+        file.writelines(lines)
+    
+    print(f"pathPlanner changed to {pathPlanner} in {file_path}")  
+
 def copy_params(dataFile):
     os.system("cp params.py "+dataFile +"params.py ")
 
-def create_data_file(filepath,numRadar):
+def create_data_file(filepath,numRadar,pathPlanner):
     print("creating data file: ",filepath)
     if not os.path.exists(filepath):
+        os.mkdir(filepath)
+    print("creating subdirectories")
+    if not os.path.exists(filepath + "/"+pathPlanner+"/"):
+        filepath = filepath + "/"+pathPlanner+"/"
         os.mkdir(filepath)
         # os.mkdir(filepath+"estimated_params/")
         # os.mkdir(filepath+"estimated_params_cov/")
@@ -44,9 +65,6 @@ def create_data_file(filepath,numRadar):
             os.mkdir(filepath+"radar_"+str(i)+"/")
             os.mkdir(filepath+"radar_"+str(i)+"/estimated_params/")
             os.mkdir(filepath+"radar_"+str(i)+"/estimated_params_cov/")
-    else:
-        print("Directory already exists")
-        return
         # cont = input("overwrite? y/n")
         # if cont == "y":
         #     return

@@ -1118,7 +1118,7 @@ def test_high_priority_path_planner(seeds):
     for seed in seeds:
         importDir = "saved_data.mc_runs."+str(seed)+".params"
         params = importlib.import_module(importDir)
-        dataFilePath = "saved_data/mc_runs/"+str(seed)+"/"
+        dataFilePath = "saved_data/mc_runs/"+str(seed)+"/lawnmower/"
 
         agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
         pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=','),np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=','),np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')]
@@ -1261,7 +1261,7 @@ def main():
     # randomSeed = 100103
     # importDir = "saved_data."+str(randomSeed)+".params"
     # params = importlib.import_module(importDir)
-    seeds = [100114,100116]
+    seeds = [1000002]
     test_high_priority_path_planner(seeds)
     # radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
 

@@ -19,7 +19,7 @@ print("in params.py")
 
 # np.random.seed(1241)
 
-randomSeed = 100132
+randomSeed = 10000017
 np.random.seed(randomSeed)
 
         
@@ -40,7 +40,8 @@ numTestPoints = 500
 
 # numTestPoints = 1
 # numTestPoints =30
-simulationEndTime = 2000
+simulationEndTime = 1500
+# simulationEndTime = 1
 simulationTimestep = 0.1
 plotTimeStep = 0.5
 
@@ -310,13 +311,18 @@ erp = radarOutputPower*radarTransmitGain
     
 saveDataToFile = True
 
+#what type of path planning to use
+lowPriorityPathPlanner = "optimization"
+# pathPlanner = "optimization"
+
 username = getpass.getuser()
-dataFile = "/home/"+ username+"/repos/magiccvs/radar_detection_estimation/saved_data/mc_runs/"+str(randomSeed)+"/"
+dataFile = "/home/"+ username+"/repos/magiccvs/radar_detection_estimation/saved_data/mc_runs/"+str(randomSeed)+"/"+lowPriorityPathPlanner+"/"
 print("TEST",dataFile)
 agentColors = ['b','g','c','m','y','k']
 
 
 #copy params.py to data folder for reference
+
 
 
 

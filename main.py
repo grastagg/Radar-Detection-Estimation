@@ -11,7 +11,6 @@ import getpass
 import importlib
 import os
 
-import sys
 
 # from radar import RadarCircularPattern
 # from agent import Agent
@@ -25,12 +24,14 @@ from main_helper import create_agent_list, create_radar_list
 
 from highPriorityPathPlanner import HighPriorityPathPlanner
 
-from utils import change_random_seed,copy_params,create_data_file
+from utils import change_random_seed,copy_params,create_data_file,set_path_planner
+
+from lawn_mower_control import LawnMowerControlAllAgents
 
 # np.random.seed(1234)
 
 
-def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner,numMeasurements,ax):
+def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner,numMeasurements,fig,ax, params):
     c = None
 
 
@@ -86,11 +87,12 @@ def plot_scene(radarList, agentList,bounds,plotIndex, multipleEmitterOnlineLocat
             
         plt.title(numMeasurements-1)
         scatterPlotList = None
-        if lowPriorityPathPlanner.bestMeasurementLocList is not None:
-            scatterPlotList = []
-            for i,point in enumerate(lowPriorityPathPlanner.bestMeasurementLocList):
-                s = ax.scatter(point[0],point[1],c=params.agentColors[i])
-                scatterPlotList.append(s)
+
+        # if lowPriorityPathPlanner.bestMeasurementLocList is not None:
+        #     scatterPlotList = []
+        #     for i,point in enumerate(lowPriorityPathPlanner.bestMeasurementLocList):
+        #         s = ax.scatter(point[0],point[1],c=params.agentColors[i])
+                # scatterPlotList.append(s)
 
         fig.savefig('images/pd_mean/'+str(plotIndex)+'.png')
         if scatterPlotList is not None:
@@ -155,7 +157,7 @@ def remove_empty_lists(paramsList):
 
 
 def main(params):
-    plot = False
+    plot = True 
     if plot:
         fig,ax = plt.subplots()
 
@@ -179,7 +181,13 @@ def main(params):
 
     multipleEmitterOnlineLocationAndPowerEstimator = MultipleEmitterOnlineLocationAndPowerEstimator(sensing_range=params.agentSensingRange, angle_measurement_std_dev=params.agentAngleMeasurementStdDev, measurement_cov=params.measurementCov, X_test=X_test, radar_measurement_coeff=params.radarMeasurementCoeff,params=params)
     probabilityOfDetectionMap = ProbabilityOfDetectionMap(X_test, tuple(radarList),params= params)
-    lowPriorityPathPlanner = SplinePathPlanningLowPriority(params=params)
+
+    if params.lowPriorityPathPlanner == "lawnmower":
+        lowPriorityPathPlanner = LawnMowerControlAllAgents(numAgents=len(agentList),boundary=params.bounds[0],params=params)
+        
+
+    else:
+        lowPriorityPathPlanner = SplinePathPlanningLowPriority(params=params)
 
 
 
@@ -206,7 +214,7 @@ def main(params):
             #     probabilityOfDetectionMap.compute_probability_of_detection_at_points_multiple_radar(X_test, remove_empty_lists(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params), remove_empty_lists(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances))
 
             if plot:
-                plot_scene(radarList, agentList, bounds, plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner,currentNumberOfMeasurements)
+                plot_scene(radarList, agentList, bounds, plotIndex, multipleEmitterOnlineLocationAndPowerEstimator, probabilityOfDetectionMap, lowPriorityPathPlanner,currentNumberOfMeasurements,fig,ax, params)
             timeSinceLastPlot = 0
             plotIndex += 1
         
@@ -240,7 +248,9 @@ def main(params):
         
         
         # lowPriorityPathPlanner.update_path(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params, multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances, probabilityOfDetectionMap, agentList, currentNumberOfMeasurements,multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations ,dt,allAgentCurrentPositions)
-        lowPriorityPathPlanner.update_path(remove_empty_lists(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params), remove_empty_lists(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances), probabilityOfDetectionMap, agentList, currentNumberOfMeasurements,multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations ,dt,allAgentCurrentPositions)
+
+        if params.lowPriorityPathPlanner == "optimization":
+            lowPriorityPathPlanner.update_path(remove_empty_lists(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params), remove_empty_lists(multipleEmitterOnlineLocationAndPowerEstimator.estimated_emmiter_params_covariances), probabilityOfDetectionMap, agentList, currentNumberOfMeasurements,multipleEmitterOnlineLocationAndPowerEstimator.measurement_locations ,dt,allAgentCurrentPositions)
 
 
 
@@ -256,12 +266,15 @@ def run_mc_simulation(startSeed, numSeeds):
     # for seed in seeds:
     seed = startSeed
     while currentNumSeeds < numSeeds:
+        lowPriorityPathPlanner = "lawnmower"
         print("running seed:", seed)
         dataFile = "/home/"+ username+"/repos/magiccvs/radar_detection_estimation/saved_data/mc_runs/"+str(seed)+"/"
-        create_data_file(dataFile,numRadar)
-        copy_params(dataFile)
-        change_random_seed(dataFile+"params.py", seed)
-        importDir = "saved_data.mc_runs."+str(seed)+".params"
+        change_random_seed("params.py", seed)
+        set_path_planner("params.py", lowPriorityPathPlanner)
+        create_data_file(dataFile,numRadar,lowPriorityPathPlanner)
+        copy_params(dataFile+lowPriorityPathPlanner+"/")
+        importDir = "saved_data.mc_runs."+str(seed)+"."+lowPriorityPathPlanner+".params"
+        # importDir = "saved_data.mc_runs."+str(seed)+".params"
         params = importlib.import_module(importDir)
         if not params.radarPositionsFound:
             print("skipping seed:", seed)
@@ -281,18 +294,21 @@ def run_mc_simulation(startSeed, numSeeds):
             continue
         np.savetxt(params.dataFile+"/high_priority_path/deterministic_path_time.txt", np.array([optPathTime]))
         main(params)
+        lowPriorityPathPlanner = "optimization"
+        set_path_planner("params.py", lowPriorityPathPlanner)
+        create_data_file(dataFile,numRadar,lowPriorityPathPlanner)
+        copy_params(dataFile+lowPriorityPathPlanner+"/")
+        importDir = "saved_data.mc_runs."+str(seed)+"."+lowPriorityPathPlanner+".params"
+        params = importlib.import_module(importDir)
+        main(params)
         seed += 1
         currentNumSeeds += 1
 
 
 
 if __name__ == '__main__':
-    # randomSeed = 100133
-    # numSeeds = 100
-    randomSeed = int(sys.argv[1])
-    numSeeds = int(sys.argv[2])
-    # print(sys.argv)
-    print("running", numSeeds, "seeds starting at seed:", randomSeed)
+    randomSeed = 10000010
+    numSeeds = 1
     run_mc_simulation(randomSeed, numSeeds)
     # do_profile = False 
     # if do_profile:
