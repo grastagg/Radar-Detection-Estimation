@@ -10,6 +10,7 @@ import time
 import getpass
 import importlib
 import os
+import sys
 
 
 # from radar import RadarCircularPattern
@@ -269,10 +270,12 @@ def run_mc_simulation(startSeed, numSeeds):
         lowPriorityPathPlanner = "lawnmower"
         print("running seed:", seed)
         dataFile = "/home/"+ username+"/repos/magiccvs/radar_detection_estimation/saved_data/mc_runs/"+str(seed)+"/"
-        change_random_seed("params.py", seed)
-        set_path_planner("params.py", lowPriorityPathPlanner)
         create_data_file(dataFile,numRadar,lowPriorityPathPlanner)
         copy_params(dataFile+lowPriorityPathPlanner+"/")
+        change_random_seed(dataFile + "/"+lowPriorityPathPlanner + "/" + "params.py", seed)
+        set_path_planner(dataFile + "/"+lowPriorityPathPlanner + "/" + "params.py", lowPriorityPathPlanner)
+
+        # set_path_planner("params.py", lowPriorityPathPlanner)
         importDir = "saved_data.mc_runs."+str(seed)+"."+lowPriorityPathPlanner+".params"
         # importDir = "saved_data.mc_runs."+str(seed)+".params"
         params = importlib.import_module(importDir)
@@ -295,9 +298,10 @@ def run_mc_simulation(startSeed, numSeeds):
         np.savetxt(params.dataFile+"/high_priority_path/deterministic_path_time.txt", np.array([optPathTime]))
         main(params)
         lowPriorityPathPlanner = "optimization"
-        set_path_planner("params.py", lowPriorityPathPlanner)
         create_data_file(dataFile,numRadar,lowPriorityPathPlanner)
         copy_params(dataFile+lowPriorityPathPlanner+"/")
+        change_random_seed(dataFile + "/"+lowPriorityPathPlanner + "/" + "params.py", seed)
+        set_path_planner(dataFile + "/"+lowPriorityPathPlanner + "/" + "params.py", lowPriorityPathPlanner)
         importDir = "saved_data.mc_runs."+str(seed)+"."+lowPriorityPathPlanner+".params"
         params = importlib.import_module(importDir)
         main(params)
@@ -307,8 +311,11 @@ def run_mc_simulation(startSeed, numSeeds):
 
 
 if __name__ == '__main__':
-    randomSeed = 10000010
-    numSeeds = 1
+    # randomSeed = 10000001
+    # numSeeds = 1
+    randomSeed = int(sys.argv[1])
+    numSeeds = int(sys.argv[2])
+
     run_mc_simulation(randomSeed, numSeeds)
     # do_profile = False 
     # if do_profile:

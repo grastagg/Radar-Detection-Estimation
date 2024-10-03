@@ -19,7 +19,7 @@ print("in params.py")
 
 # np.random.seed(1241)
 
-randomSeed = 10000017
+randomSeed = 100
 np.random.seed(randomSeed)
 
         
@@ -40,8 +40,8 @@ numTestPoints = 500
 
 # numTestPoints = 1
 # numTestPoints =30
-simulationEndTime = 1500
-# simulationEndTime = 1
+# simulationEndTime = 1500
+simulationEndTime = 6
 simulationTimestep = 0.1
 plotTimeStep = 0.5
 
@@ -312,7 +312,7 @@ erp = radarOutputPower*radarTransmitGain
 saveDataToFile = True
 
 #what type of path planning to use
-lowPriorityPathPlanner = "optimization"
+lowPriorityPathPlanner = "lawnmower"
 # pathPlanner = "optimization"
 
 username = getpass.getuser()

@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-threads=100
+threads=2
 startSeed=1213123
 
 for i in $(seq 1 $threads)

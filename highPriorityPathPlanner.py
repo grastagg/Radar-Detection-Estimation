@@ -186,7 +186,7 @@ class HighPriorityPathPlanner:
         return spline
     
     def plan_deterministic_path(self, radar_list,plot=False,ax=None):
-        self.uncertainRadar = False
+        self.uncertainRadar = False 
         startTimer = time.time()
         # initialControlPoints, tfIntial,ax = self.find_initial_guess_rrt_star(radarList,plot=plot)
         initialControlPoints, tfIntial = self.get_initial_guess_voronoi(radar_list,self.params.bounds,plot=plot,ax=ax,params=self.params)
