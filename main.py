@@ -297,14 +297,16 @@ def run_mc_simulation(startSeed, numSeeds):
             continue
         np.savetxt(params.dataFile+"/high_priority_path/deterministic_path_time.txt", np.array([optPathTime]))
         main(params)
-        lowPriorityPathPlanner = "optimization"
-        create_data_file(dataFile,numRadar,lowPriorityPathPlanner)
-        copy_params(dataFile+lowPriorityPathPlanner+"/")
-        change_random_seed(dataFile + "/"+lowPriorityPathPlanner + "/" + "params.py", seed)
-        set_path_planner(dataFile + "/"+lowPriorityPathPlanner + "/" + "params.py", lowPriorityPathPlanner)
-        importDir = "saved_data.mc_runs."+str(seed)+"."+lowPriorityPathPlanner+".params"
-        params = importlib.import_module(importDir)
-        main(params)
+
+        ##uncomment to run optimization path planner
+        # lowPriorityPathPlanner = "optimization"
+        # create_data_file(dataFile,numRadar,lowPriorityPathPlanner)
+        # copy_params(dataFile+lowPriorityPathPlanner+"/")
+        # change_random_seed(dataFile + "/"+lowPriorityPathPlanner + "/" + "params.py", seed)
+        # set_path_planner(dataFile + "/"+lowPriorityPathPlanner + "/" + "params.py", lowPriorityPathPlanner)
+        # importDir = "saved_data.mc_runs."+str(seed)+"."+lowPriorityPathPlanner+".params"
+        # params = importlib.import_module(importDir)
+        # main(params)
         seed += 1
         currentNumSeeds += 1
 

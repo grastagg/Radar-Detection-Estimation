@@ -40,8 +40,8 @@ numTestPoints = 500
 
 # numTestPoints = 1
 # numTestPoints =30
-# simulationEndTime = 1500
-simulationEndTime = 6
+simulationEndTime = 1500
+# simulationEndTime = 6
 simulationTimestep = 0.1
 plotTimeStep = 0.5
 
