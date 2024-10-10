@@ -74,6 +74,10 @@ def next_measurement_covariance_determinant(pos, estimatedRadarParams_list, esti
 def distance_from_line(x0,y0,x1,y1,x2,y2):
     return np.abs((x2-x1)*(y1-y0)-(x1-x0)*(y2-y1))/np.sqrt((x2-x1)**2+(y2-y1)**2)
 
+@jax.jit
+def distance_from_goal(x0,y0,x1,y1):
+    return np.sqrt((x1-x0)**2+(y1-y0)**2)
+
 partial(jax.jit, static_argnums=(2,3))
 def get_agent_future_path_waypoint(waypoint, pos, agentSpeed, agentPathHistorydt):
     dist = np.linalg.norm(waypoint - pos)
@@ -163,7 +167,7 @@ class SplinePathPlanningLowPriority():
         self.plotTest = False
 
         
-        self.numOptStartLocations = 1
+        self.numOptStartLocations = 5
         
         xStart = np.linspace(params.bounds[0]/(self.numOptStartLocations+1),params.bounds[0]-params.bounds[0]/(self.numOptStartLocations+1), self.numOptStartLocations)
         yStart = np.linspace(params.bounds[1]/(self.numOptStartLocations+1),params.bounds[1]-params.bounds[1]/(self.numOptStartLocations+1), self.numOptStartLocations)
@@ -707,7 +711,9 @@ class SplinePathPlanningLowPriority():
                     #     print("TEST")
                     # if covDet <self.params.nextCovarianceScale:
                     #     covDet = 0
-                    dist = distance_from_line(testX[i,j],testY[i,j],x1,y1,x2,y2)
+                    # dist = distance_from_line(testX[i,j],testY[i,j],x1,y1,x2,y2)
+                    dist = distance_from_goal(testX[i,j],testY[i,j],x2,y2)
+                    # dist = distance_from_line(testX[i,j],testY[i,j],x1,y1,x2,y2)
                     futurePath_temp = get_agent_future_path_waypoint(np.array([testX[i,j],testY[i,j]]), np.array(agentList[index].position[0:2]),self.params.agentSpeed,self.params.agentPathHistorydt)
                     explore = path_safety_prob(allAgentPathHistory_temp,futurePath_temp,self.params.radarTransmitGain,self.params.radarOutputPower,self.params.agentELINTAnteneaGain,self.params.radarWavelength,self.params.radarSystemTemperature,self.params.radarProbabilityOfFalseAlarm,self.params.radarPulseWidth)
                     # explore = path_safety_prob(allAgentPathHistory_temp,futurePath_temp,params.radarTransmitGain,params.radarOutputPower,self.params.agentELINTAnteneaGain,self.params.radarWavelength,self.params.radarSystemTemperature,params.radarProbabilityOfFalseAlarm,self.params.radarPulseWidth)

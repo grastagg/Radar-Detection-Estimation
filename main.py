@@ -158,7 +158,7 @@ def remove_empty_lists(paramsList):
 
 
 def main(params):
-    plot = True 
+    plot = False 
     if plot:
         fig,ax = plt.subplots()
 
@@ -197,6 +197,8 @@ def main(params):
 
     
     tEnd = params.simulationEndTime
+    if params.lowPriorityPathPlanner == "lawnmower":
+        tEnd*=2
     dt = params.simulationTimestep
     tCurrent = 0
     plotIndex = 0
@@ -260,14 +262,14 @@ def main(params):
 
     
     
-def run_mc_simulation(startSeed, numSeeds):
+def run_mc_simulation(startSeed, numSeeds,lowPriorityPathPlanner):
     currentNumSeeds = 0
     numRadar = 13
     username = getpass.getuser()
     # for seed in seeds:
     seed = startSeed
     while currentNumSeeds < numSeeds:
-        lowPriorityPathPlanner = "lawnmower"
+        # lowPriorityPathPlanner = "lawnmower"
         print("running seed:", seed)
         dataFile = "/home/"+ username+"/repos/magiccvs/radar_detection_estimation/saved_data/mc_runs/"+str(seed)+"/"
         create_data_file(dataFile,numRadar,lowPriorityPathPlanner)
@@ -294,6 +296,7 @@ def run_mc_simulation(startSeed, numSeeds):
         except:
             print("Optimal path not found, skipping seed:", seed)
             os.system("rm -r "+dataFile)
+            seed += 1
             continue
         np.savetxt(params.dataFile+"/high_priority_path/deterministic_path_time.txt", np.array([optPathTime]))
         main(params)
@@ -317,8 +320,12 @@ if __name__ == '__main__':
     # numSeeds = 1
     randomSeed = int(sys.argv[1])
     numSeeds = int(sys.argv[2])
+    pathPlanner = sys.argv[3]
+    # randomSeed = 1232127
+    # numSeeds = 1
+    # pathPlanner = "lawnmower"
 
-    run_mc_simulation(randomSeed, numSeeds)
+    run_mc_simulation(randomSeed, numSeeds, pathPlanner)
     # do_profile = False 
     # if do_profile:
     #     with cProfile.Profile() as pr:

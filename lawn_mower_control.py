@@ -50,7 +50,7 @@ class LawnMowerControl:
 
         
 
-        print(self.waypoints)
+        # print(self.waypoints)
         self.first = True
 
     def get_test_points(self, num_points_real, num_points_imag):
@@ -79,6 +79,37 @@ class LawnMowerControl:
 
             end = start + len_subsection + extra
             return self.test_points[start:end, :]
+    # def get_waypoints_ladder_horizontal(self,num_agents, agent_id, step_size):
+    #     # Dummy function to represent get_sub_section
+
+    #     sub_section = self.get_sub_section(num_agents, agent_id)
+    #     print("subsection", sub_section)
+    #     temp_count = 0
+    #     temp = 0
+    #     while temp < sub_section.shape[1]:
+    #         temp_count += 1
+    #         temp += step_size
+    #     num_waypoints = 2 * temp_count
+    #     waypoints = np.zeros(num_waypoints * 2, dtype=complex)
+    #     r_list = [0, 1]
+    #     i = 0
+        
+    #     # Generate waypoints in one direction
+    #     r_index = 0
+    #     for k in range(num_waypoints):
+    #         waypoints[k] = sub_section[r_list[r_index % 2], i]
+    #         if k % 2 == 1:
+    #             i += step_size
+    #         r_index += 1
+
+    #     # Generate return path with halfway rungs
+    #     i = sub_section.shape[1] - step_size // 2
+    #     for k in range(num_waypoints, num_waypoints * 2, 2):
+    #         waypoints[k] = sub_section[0, i]
+    #         waypoints[k + 1] = sub_section[1, i]
+    #         i -= step_size
+
+    #     return waypoints
 
     def get_waypoints_ladder_horizontal(self, num_agents, agent_id, step_size):
         sub_section = self.get_sub_section(num_agents, agent_id)
@@ -109,6 +140,40 @@ class LawnMowerControl:
             if switch:
                 r_index = r_index + 1
             r = r_list[r_index % 2]
+
+        print(waypoints)
+        waypointsFlipped = np.copy(waypoints)
+
+        # Extract the real part of the array
+        real_parts = waypointsFlipped.real
+
+        # Modify the real part where the condition is met
+        real_parts[real_parts == real_parts[0]] = real_parts[1]
+
+        real_parts[waypoints.real == waypoints.real[1]] = waypoints.real[0]
+
+        # Reconstruct the array by updating the real part
+        waypointsFlipped = real_parts + 1j * waypointsFlipped.imag
+
+        waypointsFlipped = waypointsFlipped[:-2] + 1j*(waypointsFlipped.imag[2] - waypointsFlipped.imag[0])/2.0
+        # waypointsFlipped -= 1j*(waypointsFlipped.imag[1] - waypointsFlipped.imag[0])/2.0
+        waypointsFlipped = np.flip(waypointsFlipped)
+        waypoints = np.concatenate((waypoints,waypointsFlipped))
+
+        fig, ax = plt.subplots()
+        ax.set_xlim([-1000, self.boundary+1000])
+        ax.set_ylim([-1000, self.boundary+1000])
+        ax.set_aspect('equal')
+        ax.plot(waypoints.real, waypoints.imag)
+
+        # ax.plot(waypointsFlipped.real, waypointsFlipped.imag)
+        ax.scatter(waypointsFlipped.real[0], waypointsFlipped.imag[0], c='red')
+        ax.scatter(waypointsFlipped.real[-1], waypointsFlipped.imag[-1], c='red')
+        # ax.scatter(waypoints.real[0], waypoints.imag[0], c='blue')
+        ax.scatter(waypoints.real[-1], waypoints.imag[-1], c='blue')
+        
+        
+        
         return waypoints
 
 
@@ -264,12 +329,17 @@ class LawnMowerControl:
 def main():
 
     fig, ax = plt.subplots()
-    ax.set_xlim([0, params.bounds[0]])
-    ax.set_ylim([0, params.bounds[1]])
+    ax.set_xlim([-1000, params.bounds[0]+1000])
+    ax.set_ylim([-1000, params.bounds[1]+1000])
     ax.set_aspect('equal')
     mower = LawnMowerControl(1, params.bounds[0],2)
 
     # plt.scatter(mower.test_points.real,mower.test_points.imag)
+    #plotboundary
+    ax.plot([0,0],[0,params.bounds[1]],c='black')
+    ax.plot([0,params.bounds[0]],[params.bounds[1],params.bounds[1]],c='black')
+    ax.plot([params.bounds[0],params.bounds[0]],[params.bounds[1],0],c='black')
+    ax.plot([params.bounds[0],0],[0,0],c='black')
     ax.plot(mower.waypoints[:,0],mower.waypoints[:,1])
 
     plt.show()

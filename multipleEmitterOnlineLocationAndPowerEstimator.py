@@ -309,7 +309,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         # self.group_lists[radarId] = np.append(self.group_lists[radarId],(len(self.measurement_values)-1),dtype=int)
             
 
-        numMeasurementsNeeded = 5
+        numMeasurementsNeeded = 10
         # if len(self.group_lists[radarId]) > numMeasurementsNeeded:
         aoaDiff = self.compute_inlier_aoa_diff(np.array(self.measurement_values)[self.group_lists[radarId]])
         if len(self.estimated_emmiter_params[radarId]) > 0:

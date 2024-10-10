@@ -1,14 +1,15 @@
 #!/bin/zsh
 
-threads=100
-startSeed=1213123
+threads=1
+startSeed=143202793
 
 for i in $(seq 1 $threads)
 do
-    seed=$(($startSeed + 1000 * $i))
+    seed=$(($startSeed + 100000 * ($i-1)))
     echo "Running thread $i with seed $seed"
     
-    # Replace the following line with the actual command or script you want to run
-    # Example: Run a Python script in the background
-    nohup python3 -u main.py $seed 1 > outputs/$i.log 2>&1 & 
+    # pathPlanner='lawnmower'
+    # nohup python3 -u main.py $seed 1 $pathPlanner> outputs/lawnmower/$i.log 2>&1 & 
+    pathPlanner='optimization'
+    nohup python3 -u main.py $seed 1 $pathPlanner> outputs/optimization/$i.log 2>&1 & 
 done

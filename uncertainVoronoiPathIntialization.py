@@ -8,6 +8,7 @@ import scipy.integrate
 import scipy.interpolate
 from scipy.spatial import Voronoi, voronoi_plot_2d
 import scipy
+import importlib
 import sklearn.cluster
 
 from main_helper import create_radar_list
@@ -331,6 +332,13 @@ def find_generalized_voronoi_verticies(prob_list,bounds,numTestPoints):
         else:
             radarIndeciesToIgnore.append(i)
     prob_list = np.delete(prob_list,radarIndeciesToIgnore,axis=0)
+    # fig,ax = plt.subplots()
+    # ax.set_xlim(0,bounds[0])
+    # ax.set_ylim(0,bounds[1])
+    # for contour in contourPoints:
+    #     ax.plot(contour[:,0],contour[:,1])
+    # ax.pcolor(prob_list)
+    # plt.show()
     index = 0
     for i in range(len(prob_list)):
         for j in range(i+1,len(prob_list)):
@@ -674,6 +682,7 @@ def fit_spline_to_path(path, num_control_points, spline_order,vertex1,vertex2):
     control_points_y = tck_y[1]
     control_points_y = control_points_y[mask]
     combined_control_points = np.hstack((control_points_x.reshape((len(control_points_x),1)), control_points_y.reshape((len(control_points_y),1))))
+    num_control_points = len(combined_control_points)
 
     
     
@@ -716,7 +725,7 @@ def resample_points(points, spacing):
     
     return resampled_points
 
-def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParams,radarParamsCovDeterminants,allVertecies,vertex1Index,vertex2Index,bounds):
+def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParams,radarParamsCovDeterminants,allVertecies,vertex1Index,vertex2Index,bounds,params=None):
 
     i,j = ridgeNeighborIndecies
     # celliprob = prob_list[i]
@@ -781,18 +790,23 @@ def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParam
 
     pointsInRange = resample_points(pointsInRange, 100)
 
+
+    
+
+
+    
+    if len(pointsInRange) == 4:
+        pointsInRange = np.linspace(pointsInRange[0],pointsInRange[-1],5)
+
     # fig,ax = plt.subplots()
-    # ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),cellAssignment.reshape(params.numTestPoints,params.numTestPoints))
+    # c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),cellAssign.reshape(params.numTestPoints,params.numTestPoints))
+    # fig.colorbar(c,ax=ax)
     # ax.plot(points[:,0],points[:,1])
     # ax.plot(pointsInRange[:,0],pointsInRange[:,1])
     # ax.scatter(vertex1[0],vertex1[1],marker='*',color='r')
     # ax.scatter(vertex2[0],vertex2[1],marker='*',color='r')
     # plt.show()
-    
-
-
-    
-
+        
 
     splineControlPoints,splineKnotPoints = fit_spline_to_path(pointsInRange, 10, 3,vertex1,vertex2)
     return splineControlPoints,splineKnotPoints,pointsInRange 
@@ -838,7 +852,6 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
             
             
 
-            print("len", len(potentialRidges[neighbors]))
             point1 = verticies[potentialRidges[neighbors][0]]['point']
             point2 = verticies[potentialRidges[neighbors][1]]['point']
             point3 = verticies[potentialRidges[neighbors][2]]['point']
@@ -857,13 +870,13 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
             commonNeighbors = np.intersect1d(verticies[i]['neighbors'],verticies[j]['neighbors'])
             if len(commonNeighbors) == 3:
                 #need to add two ridges between these verticies
-                ridgeLineControlPoints1,ridgeLineKnotPoints1,points1 = find_ridge_line(prob_list,commonNeighbors[0:2],verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants,verticies,i,j,bounds)
+                ridgeLineControlPoints1,ridgeLineKnotPoints1,points1 = find_ridge_line(prob_list,commonNeighbors[0:2],verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants,verticies,i,j,bounds,params)
                 t = np.linspace(0,1,1000)
                 splinePoints1 = scipy.interpolate.BSpline(ridgeLineKnotPoints1,ridgeLineControlPoints1,3)(t)
                 probPDLessThanThreshold1 = highPriorityHelperFunctions.get_prob_pd_less_than_threshold(splinePoints1, radarParams, radarParamsCov, params.probabilityOfDetectionThreshold, params.radarRecieveGain,0,params.radarWavelength, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance,params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
                 minProb1 = np.min(probPDLessThanThreshold1)
                 
-                ridgeLineControlPoints2,ridgeLineKnotPoints2,points2 = find_ridge_line(prob_list,commonNeighbors[1:],verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants,verticies,i,j,bounds)
+                ridgeLineControlPoints2,ridgeLineKnotPoints2,points2 = find_ridge_line(prob_list,commonNeighbors[1:],verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants,verticies,i,j,bounds,params)
                 splinePoints2 = scipy.interpolate.BSpline(ridgeLineKnotPoints2,ridgeLineControlPoints2,3)(t)
                 probPDLessThanThreshold2 = highPriorityHelperFunctions.get_prob_pd_less_than_threshold(splinePoints2, radarParams, radarParamsCov, params.probabilityOfDetectionThreshold, params.radarRecieveGain,0,params.radarWavelength, params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth, params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean, params.radarSystemTemperaturePriorVariance,params.radarProbabilityOfFalseAlarmPriorMean, params.radarProbabilityOfFalseAlarmPriorVariance)
                 minProb2 = np.min(probPDLessThanThreshold2)
@@ -884,7 +897,7 @@ def find_generalized_voronoi_ridges(prob_list,verticies,radarParams,radarParamsC
                 if (i,j) in ignore or (j,i) in ignore:
                     continue
                 else:
-                    ridgeLineControlPoints,ridgeLineKnotPoints,points = find_ridge_line(prob_list,commonNeighbors,verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants,verticies,i,j,bounds)
+                    ridgeLineControlPoints,ridgeLineKnotPoints,points = find_ridge_line(prob_list,commonNeighbors,verticies[i]['point'],verticies[j]['point'],radarParams,radarParamsCovDeterminants,verticies,i,j,bounds,params)
                     #############
                     # fig,ax = plt.subplots()
                     # ax.scatter(points[:,0],points[:,1])
@@ -1275,6 +1288,7 @@ def path_to_points(path,ridges,boundarySegments,verticies,spacing):
     return np.vstack(pointsCombined)
 
 def find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing,bounds,params,ax=None):
+    # fig,ax = plt.subplots()
     start = time()
     verticies,ridges,boundarySegments,startVertexIndex,endVertexIndex,cellAssinments = find_generalized_voronoi(radarParams,radarParamsCov,bounds,params)
     print("Time",time()-start)
@@ -1299,7 +1313,7 @@ def find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,spacing,b
             ax.plot(pathPoints[:,0],pathPoints[:,1],color='r')
         # ax.plot(pathPoints[:,0],pathPoints[:,1],color='r')
     
-
+        plt.show()
     return pathPoints
     
 
@@ -1320,16 +1334,18 @@ def load_estimated_params(dataFilePath,dataIndex,numRadar):
     
 
 def main():
+    dataFilePath = "saved_data/mc_runs/143101536/optimization/"
+
+    importDir = "saved_data.mc_runs.143101536.optimization.params"
+    params = importlib.import_module(importDir)
+
     radarList = tuple(create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm))
 
 
-    dataFilePath = "saved_data/11024122/"
-    numFiles = 6218
-    dataIndex = 5900
+    numFiles = 2161
+    dataIndex = 701
 
     radarParams, radarParamsCov = load_estimated_params(dataFilePath,dataIndex,len(radarList))
-    print("radarParams", radarParams)
-    print("radarParamsCov", radarParamsCov)
 
 
     Z = safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold,params.thresholdConfidence,radarParams,radarParamsCov, params.radarRecieveGain,params.radarRecieveGainPriorVariance, params.radarWavelengthPriorMean,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperaturePriorMean,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarmPriorMean,params.radarProbabilityOfFalseAlarmPriorVariance)
@@ -1341,7 +1357,7 @@ def main():
     c = ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints))
     fig.colorbar(c, ax=ax)
 
-    pathPoints = find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,100,ax=ax)
+    pathPoints = find_initial_trajectory_uncertain_radar(radarParams,radarParamsCov,100,bounds=params.bounds,params=params,ax=ax)
 
 
 

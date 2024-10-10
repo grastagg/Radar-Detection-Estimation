@@ -40,7 +40,8 @@ numTestPoints = 500
 
 # numTestPoints = 1
 # numTestPoints =30
-simulationEndTime = 1500
+# simulationEndTime = 1500
+simulationEndTime = 1150
 # simulationEndTime = 6
 simulationTimestep = 0.1
 plotTimeStep = 0.5
@@ -110,8 +111,8 @@ radarAngularRates = []
 
 # safeRadius = find_radius_from_radar_pd(radarOutputPower, radarTransmitGain, radarRecieveGain, radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold)
 
-minInterRadarDistList = 1.1*np.array([find_radius_from_radar_pd(radarOutputPowerList[i], radarTransmitGainList[i], radarRecieveGainList[i], radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold) for i in range(numRadar)])
-minRadarDistFromStartList = 1.9*(minInterRadarDistList/2) 
+minInterRadarDistList = 1.5*np.array([find_radius_from_radar_pd(radarOutputPowerList[i], radarTransmitGainList[i], radarRecieveGainList[i], radarWavelength, radarPulseWidth, radarProbabilityOfFalseAlarm, radarSystemTemperature, highPriorityAgentRadarCrossSection, probabilityOfDetectionThreshold) for i in range(numRadar)])
+minRadarDistFromStartList = 2.2*(minInterRadarDistList/2) 
 
 
 radarWeights = np.sqrt(np.sqrt(np.array([outputPower*transmitGain*recieveGain for outputPower,transmitGain,recieveGain in zip(radarOutputPowerList,radarTransmitGainList,radarRecieveGainList)])))
@@ -258,17 +259,25 @@ numConstraintSamples = numSamplesPerInterval*(numControlPoints-2)-2
 # numConstraintSamples = 22
 splineOrder = 3
 
-distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)/2
-# distFromStraitWeight = 1
-distFromStraitWeight = .2
-distFromStraitWeight = 0
+useDistToGoal = True 
+
+if useDistToGoal:
+    distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)
+    # distFromStraitWeight = 1
+    distFromStraitWeight = .05
+    # distFromStraitWeight = 0
+else:
+    distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)/2
+    # distFromStraitWeight = 1
+    distFromStraitWeight = .3
+    # distFromStraitWeight = 0
 
 seperationScale = 1
 seperationWeight = .3
 # seperationWeight = 0
 
 # nextCovarianceScale = 1e16
-nextCovarianceScale = 1e13
+nextCovarianceScale = 1e15
 # nextCovarianceScale = 1e15
 # nextCovarianceScale = 1e22
 nextCovarianceWeight = .3

@@ -12,6 +12,7 @@ import os
 import re
 import importlib
 import traceback
+import sys
 
 
 import matplotlib.pyplot as plt
@@ -261,7 +262,7 @@ class HighPriorityPathPlanner:
 
         opt.options['hsllib'] = '/home/' + username + '/packages/ThirdParty-HSL/.libs/libcoinhsl.so'
         opt.options['linear_solver'] = 'ma97'
-        opt.options['print_level'] = 0
+        opt.options['print_level'] = 5
         opt.options['max_iter'] = 1000
         opt.options['tol'] = 1e-8
         sol = opt(optProb, sens = sens)
@@ -364,6 +365,9 @@ class HighPriorityPathPlanner:
         # controlPoints = self.create_control_points(sol.xStar['control_points'], params.highPriorityStart, params.highPriorityEnd, params.splineOrder, knotPoints)
         controlPoints = sol.xStar['control_points'].reshape((self.params.numControlPoints,2))
         self.spline = self.spline_seg(controlPoints, knotPoints)
+        if sol.optInform['value'] != 0 and sol.optInform['value'] != 1:
+            print("Optimization did not converge",sol.optInform['value'])
+            return None
         return sol.fStar
 
     def find_radius_from_radar_pd(self,radar, pd):
@@ -1112,24 +1116,25 @@ def get_highest_data_file_number(directory):
     return highest_number
 
 
-def test_high_priority_path_planner(seeds):
+def test_high_priority_path_planner(seeds,lowPriorityPathPlanner):
     largeStep = 100
     optimalTime = None
+    maxPathSafety = 0.2
     for seed in seeds:
-        importDir = "saved_data.mc_runs."+str(seed)+".params"
+        importDir = "saved_data.mc_runs."+str(seed)+"."+lowPriorityPathPlanner+".params"
         params = importlib.import_module(importDir)
-        dataFilePath = "saved_data/mc_runs/"+str(seed)+"/lawnmower/"
+        dataFilePath = "saved_data/mc_runs/"+str(seed)+"/"+lowPriorityPathPlanner+"/"
+        print("dataFilePath", dataFilePath)
 
         agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
         pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=','),np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=','),np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')]
         # # pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
         # print("max ground truth pd", np.max(groundTruthPD))
         numFiles = get_highest_data_file_number(dataFilePath+"radar_12/estimated_params/")
-        print("numFiles", numFiles)
         
-        for i in range(1,numFiles//largeStep):
-            print("i", i*largeStep)
-            dataIndex = i*largeStep
+        for i in range(1,numFiles,largeStep):
+            print("i", i)
+            dataIndex = i
             # dataIndex = 2280
 
             
@@ -1146,11 +1151,22 @@ def test_high_priority_path_planner(seeds):
                 pathHistoryListTemp = [pathHistory[0:numPathHistory] for pathHistory in pathHistoryList]
                 pathSafety = hpp.evaluate_path_sefety(hpp.spline,pathHistoryListTemp)
                 print("max path safety", np.max(pathSafety))
-                if np.max(pathSafety) < 0.05:
+                if np.max(pathSafety) < maxPathSafety:
                     print("path safety below threshold")
                     break
             else:
                 print("no path found")
+            if i > numFiles-largeStep:
+                print("NO PATH FOUND THROUGH ALL DATA")
+                fig,ax = plt.subplots()
+                Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGain,0, params.radarWavelength,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperature,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarm,params.radarProbabilityOfFalseAlarmPriorVariance) 
+                ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints),alpha=1)
+                ax.scatter(pathHistoryList[0][:,0], pathHistoryList[0][:,1],c='r',marker='x',s = 1)
+                ax.scatter(pathHistoryList[1][:,0], pathHistoryList[1][:,1],c='g',marker='x',s = 1)
+                ax.scatter(pathHistoryList[2][:,0], pathHistoryList[2][:,1],c='b',marker='x',s = 1)
+                ax.scatter(radarParams[:,0],radarParams[:,1],c='r',marker='x',s=100)
+                plt.show()
+                return
         
         print("dataIndex", dataIndex)
         smallStep = 10
@@ -1172,7 +1188,7 @@ def test_high_priority_path_planner(seeds):
                 pathHistoryListTemp = [pathHistory[0:numPathHistory] for pathHistory in pathHistoryList]
                 pathSafety = hpp.evaluate_path_sefety(hpp.spline,pathHistoryListTemp)
                 print("max path safety", np.max(pathSafety))
-                if np.max(pathSafety) < 0.05:
+                if np.max(pathSafety) < maxPathSafety:
                     print("path safety below threshold")
                 else:
                     print("path safety above threshold")
@@ -1201,7 +1217,7 @@ def test_high_priority_path_planner(seeds):
                 pathHistoryListTemp = [pathHistory[0:numPathHistory] for pathHistory in pathHistoryList]
                 pathSafety = hpp.evaluate_path_sefety(hpp.spline,pathHistoryListTemp)
                 print("max path safety", np.max(pathSafety))
-                if np.max(pathSafety) < 0.05:
+                if np.max(pathSafety) < maxPathSafety:
                     print("path safety below threshold")
                     break
                 else:
@@ -1227,15 +1243,19 @@ def test_high_priority_path_planner(seeds):
         
         
 
-        fig,ax = plt.subplots()
-        Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGain,0, params.radarWavelength,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperature,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarm,params.radarProbabilityOfFalseAlarmPriorVariance) 
-        ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints),alpha=1)
-        ax.scatter(radarParams[:,0],radarParams[:,1],c='r',marker='x',s=100)
-        hpp.plot_spline(hpp.spline,ax,c='magenta')
-        for radar in radarList:
-            ax.scatter(radar.position[0],radar.position[1],c='b',marker='o',s=100)
+        plot =True 
+        if plot:
+            fig,ax = plt.subplots()
+            Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(params.X_test,params.probabilityOfDetectionThreshold, params.thresholdConfidence, radarParams, radarParamsCov,params.radarRecieveGain,0, params.radarWavelength,params.radarWavelengthPriorVariance, params.agentRadarCrossSection, params.radarPulseWidth,params.radarPulseWidthPriorVariance, params.radarSystemTemperature,params.radarSystemTemperaturePriorVariance, params.radarProbabilityOfFalseAlarm,params.radarProbabilityOfFalseAlarmPriorVariance) 
+            ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),Z.reshape(params.numTestPoints,params.numTestPoints),alpha=1)
+            ax.scatter(radarParams[:,0],radarParams[:,1],c='r',marker='x',s=100)
+            hpp.plot_spline(hpp.spline,ax,c='magenta')
+            for radar in radarList:
+                ax.scatter(radar.position[0],radar.position[1],c='b',marker='o',s=100)
+            ax.scatter(np.array(pathHistoryListTemp)[:,:,0],np.array(pathHistoryListTemp)[:,:,1],c='r',marker='x',s=1)
+            plt.savefig(dataFilePath+"high_priority_path/spline.png")
 
-        plt.show()
+            # plt.show()
         
 
         
@@ -1258,11 +1278,20 @@ def test_high_priority_path_planner(seeds):
     
         
 def main():
-    # randomSeed = 100103
-    # importDir = "saved_data."+str(randomSeed)+".params"
-    # params = importlib.import_module(importDir)
-    seeds = [1000002]
-    test_high_priority_path_planner(seeds)
+    # seed = 1307125
+    # seed = int(sys.argv[1])
+    seed = 143202793
+    print("seed", seed)
+    # pathPlanner = sys.argv[2]
+    # # pathPlanner = "lawnmower"
+    pathPlanner = "optimization"
+    # print("pathPlanner", pathPlanner)
+    seeds = [seed]
+    test_high_priority_path_planner(seeds,pathPlanner)
+
+    # lowPriorityPathPlanner = "optimization"
+    # test_high_priority_path_planner(seeds,lowPriorityPathPlanner)
+    
     # radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
 
     # useUncertainRadars = True
