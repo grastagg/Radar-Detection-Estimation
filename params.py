@@ -20,7 +20,8 @@ print("in params.py")
 # np.random.seed(1241)
 
 randomSeed = 100
-np.random.seed(randomSeed)
+rng = jax.random.defualt_rng(randomSeed)
+# np.random.seed(randomSeed)
 
         
 def db_to_amplitude(db):
@@ -264,7 +265,7 @@ useDistToGoal = True
 if useDistToGoal:
     distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)
     # distFromStraitWeight = 1
-    distFromStraitWeight = .05
+    distFromStraitWeight = .025
     # distFromStraitWeight = 0
 else:
     distFromStraitScale = np.sqrt(bounds[0]**2 + bounds[1]**2)/2
@@ -276,12 +277,8 @@ seperationScale = 1
 seperationWeight = .3
 # seperationWeight = 0
 
-# nextCovarianceScale = 1e16
-nextCovarianceScale = 1e15
-# nextCovarianceScale = 1e15
-# nextCovarianceScale = 1e22
+nextCovarianceScale = 1e14
 nextCovarianceWeight = .3
-# nextCovarianceWeight = 0
 
 # pathOptTime = 50
 pathOptTime = 20

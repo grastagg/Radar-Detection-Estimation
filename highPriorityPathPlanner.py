@@ -358,7 +358,7 @@ class HighPriorityPathPlanner:
         opt.options['linear_solver'] = 'ma97'
         opt.options['print_level'] = 0
         opt.options['max_iter'] = 1000
-        opt.options['tol'] = 1e-8
+        opt.options['tol'] = 1e-6
         sol = opt(optProb, sens = sens)
         # sol = opt(optProb, sens = 'FD')
         knotPoints = create_unclamped_knot_points(0, sol.xStar['tf'], self.params.numControlPoints,self.params.splineOrder)
@@ -366,7 +366,10 @@ class HighPriorityPathPlanner:
         controlPoints = sol.xStar['control_points'].reshape((self.params.numControlPoints,2))
         self.spline = self.spline_seg(controlPoints, knotPoints)
         if sol.optInform['value'] != 0 and sol.optInform['value'] != 1:
-            print("Optimization did not converge",sol.optInform['value'])
+            print("Optimization did not converge",sol.optInform)
+            opt.options['max_iter'] = 0
+            sol = opt(optProb, sens = sens)
+            print(sol)
             return None
         return sol.fStar
 
@@ -946,7 +949,6 @@ class HighPriorityPathPlanner:
 
     def get_initial_guess_voronoi(self,radarList,bounds,radarParams = None, radarParamsCov = None, plot=False,ax=None,params=None):
 
-
 #################### this code is for unwieghted voronoi
         if not self.useWeightedVoronoi:
             startTime = time.time()
@@ -994,14 +996,16 @@ class HighPriorityPathPlanner:
         
         startTime = time.time()
         knotPoints = create_unclamped_knot_points(0,1, self.params.numControlPoints,self.params.splineOrder)
-        knotPoints,tf = self.assure_velocity_constraint(radarList, controlPoints.reshape((-1,)), knotPoints,self.params.numControlPoints)
-        print("tf", tf)
         print("Time to assure velocity constraint", time.time()-startTime)
 
         controlPoints = self.move_first_control_point_so_spline_passes_through_start(controlPoints,knotPoints,self.params.highPriorityStart,[10,10])
         controlPoints = self.move_last_control_point_so_spline_passes_through_end(controlPoints,knotPoints,self.params.highPriorityEnd,[10,10])
+        knotPoints,tf = self.assure_velocity_constraint(radarList, controlPoints.reshape((-1,)), knotPoints,self.params.numControlPoints)
+        print("tf", tf)
 
         spline = self.spline_seg(controlPoints, knotPoints)
+
+
 
         
 
@@ -1014,6 +1018,7 @@ class HighPriorityPathPlanner:
             self.plot_spline(tmpSpline,ax)
 
             self.plot_constraints(spline, tuple(radarList),radarParams,radarParamsCov)
+            plt.show()
         
         return controlPoints,tf
         
@@ -1125,6 +1130,8 @@ def test_high_priority_path_planner(seeds,lowPriorityPathPlanner):
         params = importlib.import_module(importDir)
         dataFilePath = "saved_data/mc_runs/"+str(seed)+"/"+lowPriorityPathPlanner+"/"
         print("dataFilePath", dataFilePath)
+        radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
+        radarPositions = np.array([radar.position for radar in radarList])
 
         agent1PathHistory = np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')
         pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=','),np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=','),np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')]
@@ -1132,7 +1139,7 @@ def test_high_priority_path_planner(seeds,lowPriorityPathPlanner):
         # print("max ground truth pd", np.max(groundTruthPD))
         numFiles = get_highest_data_file_number(dataFilePath+"radar_12/estimated_params/")
         
-        for i in range(1,numFiles,largeStep):
+        for i in range(600,numFiles,largeStep):
             print("i", i)
             dataIndex = i
             # dataIndex = 2280
@@ -1164,7 +1171,11 @@ def test_high_priority_path_planner(seeds,lowPriorityPathPlanner):
                 ax.scatter(pathHistoryList[0][:,0], pathHistoryList[0][:,1],c='r',marker='x',s = 1)
                 ax.scatter(pathHistoryList[1][:,0], pathHistoryList[1][:,1],c='g',marker='x',s = 1)
                 ax.scatter(pathHistoryList[2][:,0], pathHistoryList[2][:,1],c='b',marker='x',s = 1)
+                ax.scatter(radarPositions[:,0],radarPositions[:,1],s=100)
+
                 ax.scatter(radarParams[:,0],radarParams[:,1],c='r',marker='x',s=100)
+
+                plt.title(str(seed) + " " + lowPriorityPathPlanner)
                 plt.show()
                 return
         
@@ -1279,12 +1290,12 @@ def test_high_priority_path_planner(seeds,lowPriorityPathPlanner):
         
 def main():
     # seed = 1307125
-    # seed = int(sys.argv[1])
-    seed = 143202793
+    seed = int(sys.argv[1])
+    # seed =4052005650 
     print("seed", seed)
-    # pathPlanner = sys.argv[2]
+    pathPlanner = sys.argv[2]
     # # pathPlanner = "lawnmower"
-    pathPlanner = "optimization"
+    # pathPlanner = "optimization"
     # print("pathPlanner", pathPlanner)
     seeds = [seed]
     test_high_priority_path_planner(seeds,pathPlanner)
@@ -1292,7 +1303,6 @@ def main():
     # lowPriorityPathPlanner = "optimization"
     # test_high_priority_path_planner(seeds,lowPriorityPathPlanner)
     
-    # radarList = create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm)
 
     # useUncertainRadars = True
     

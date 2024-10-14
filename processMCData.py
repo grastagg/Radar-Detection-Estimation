@@ -13,49 +13,54 @@ def processMCData(dataFile):
     averageOptimizedTimeToFindPath = 0
     averageLawnmowerDiffDeterministic = 0
     averageOptimizedDiffDeterministic = 0
-    count = 0
+    countOpt = 0
+    countLawn = 0
     for file in os.listdir(dataFile):
         print(file)
 
 
-        lawnmowerMaxPD = np.genfromtxt(dataFile + "/" + file + "/lawnmower/high_priority_path/groundTruthPdAlongSplines.txt", delimiter=",")
+        if os.path.isfile(dataFile + "/" + file + "/lawnmower/high_priority_path/groundTruthPdAlongSplines.txt"):
+            lawnmowerMaxPD = np.genfromtxt(dataFile + "/" + file + "/lawnmower/high_priority_path/groundTruthPdAlongSplines.txt", delimiter=",")
+            averageLawnmowerMaxPD += np.max(lawnmowerMaxPD)
+            lawnmowerMaxProbUndiscovered = np.genfromtxt(dataFile + "/" + file + "/lawnmower/high_priority_path/maxProbUndiscoveredRadar.txt", delimiter=",")
+            averageLawnmowerMaxProbUndiscovered += np.max(lawnmowerMaxProbUndiscovered)
+            lawnmowerTimeToFindPath = np.genfromtxt(dataFile + "/" + file + "/lawnmower/high_priority_path/lpFindPathTime.txt", delimiter=",")
+            averageLawnmowerTimeToFindPath += np.sum(lawnmowerTimeToFindPath)
+            optimalPathTime = np.genfromtxt(dataFile + "/" + file + "/lawnmower/high_priority_path/deterministic_path_time.txt", delimiter=",")
+            lawnmowerOptimalPathTime = np.genfromtxt(dataFile + "/" + file + "/lawnmower/high_priority_path/optimalTime.txt", delimiter=",")
+            averageLawnmowerDiffDeterministic += np.abs(optimalPathTime - lawnmowerOptimalPathTime)/optimalPathTime
+            countLawn += 1
+            
         optimizedMaxPD = np.genfromtxt(dataFile + "/" + file + "/optimization/high_priority_path//groundTruthPdAlongSplines.txt", delimiter=",")
-        averageLawnmowerMaxPD += np.max(lawnmowerMaxPD)
         averageOptimizedMaxPD += np.max(optimizedMaxPD)
         # print("Lawnmower Max PD: ", np.max(lawnmowerMaxPD))
         # print("Optimized Max PD: ", np.max(optimizedMaxPD))
 
-        lawnmowerMaxProbUndiscovered = np.genfromtxt(dataFile + "/" + file + "/lawnmower/high_priority_path/maxProbUndiscoveredRadar.txt", delimiter=",")
         optimizedMaxProbUndiscovered = np.genfromtxt(dataFile + "/" + file + "/optimization/high_priority_path/maxProbUndiscoveredRadar.txt", delimiter=",")
         # print("Lawnmower Max Prob Undiscovered: ", np.max(lawnmowerMaxProbUndiscovered))
         # print("Optimized Max Prob Undiscovered: ", np.max(optimizedMaxProbUndiscovered))
         averageOptimizedMaxProbUndiscovered += np.max(optimizedMaxProbUndiscovered)
-        averageLawnmowerMaxProbUndiscovered += np.max(lawnmowerMaxProbUndiscovered)
 
-        lawnmowerTimeToFindPath = np.genfromtxt(dataFile + "/" + file + "/lawnmower/high_priority_path/lpFindPathTime.txt", delimiter=",")
         optimizedTimeToFindPath = np.genfromtxt(dataFile + "/" + file + "/optimization/high_priority_path/lpFindPathTime.txt", delimiter=",")
         # print("Lawnmower Time To Find Path: ", np.sum(lawnmowerTimeToFindPath))
         # print("Optimized Time To Find Path: ", np.sum(optimizedTimeToFindPath))
-        averageLawnmowerTimeToFindPath += np.sum(lawnmowerTimeToFindPath)
         averageOptimizedTimeToFindPath += np.sum(optimizedTimeToFindPath)
         
         optimalPathTime = np.genfromtxt(dataFile + "/" + file + "/lawnmower/high_priority_path/deterministic_path_time.txt", delimiter=",")
-        lawnmowerOptimalPathTime = np.genfromtxt(dataFile + "/" + file + "/lawnmower/high_priority_path/optimalTime.txt", delimiter=",")
         optimizedOptimalPathTime = np.genfromtxt(dataFile + "/" + file + "/optimization/high_priority_path/optimalTime.txt", delimiter=",")
         
-        averageLawnmowerDiffDeterministic += np.abs(optimalPathTime - lawnmowerOptimalPathTime)/optimalPathTime
         averageOptimizedDiffDeterministic += np.abs(optimalPathTime - optimizedOptimalPathTime)/optimalPathTime
         
-        count += 1
+        countOpt += 1
     
-    averageLawnmowerMaxPD /= count
-    averageOptimizedMaxPD /= count
-    averageOptimizedMaxProbUndiscovered /= count
-    averageLawnmowerMaxProbUndiscovered /= count
-    averageOptimizedTimeToFindPath /= count
-    averageLawnmowerTimeToFindPath /= count
-    averageLawnmowerDiffDeterministic /= count
-    averageOptimizedDiffDeterministic /= count
+    averageLawnmowerMaxPD /= countLawn
+    averageOptimizedMaxPD /= countOpt
+    averageOptimizedMaxProbUndiscovered /= countOpt
+    averageLawnmowerMaxProbUndiscovered /= countLawn
+    averageOptimizedTimeToFindPath /= countOpt
+    averageLawnmowerTimeToFindPath /= countLawn
+    averageLawnmowerDiffDeterministic /= countLawn
+    averageOptimizedDiffDeterministic /= countOpt
     print("Average Lawnmower Max PD: ", averageLawnmowerMaxPD)
     print("Average Optimized Max PD: ", averageOptimizedMaxPD)
     print("Average Lawnmower Max Prob Undiscovered: ", averageLawnmowerMaxProbUndiscovered)
@@ -64,12 +69,13 @@ def processMCData(dataFile):
     print("Average Optimized Time To Find Path: ", averageOptimizedTimeToFindPath)
     print("Average Lawnmower Diff Deterministic: ", averageLawnmowerDiffDeterministic)
     print("Average Optimized Diff Deterministic: ", averageOptimizedDiffDeterministic)
-    print("Count: ", count)
 
+    print("Count Lawn: ", countLawn)
+    print("Count Opt: ", countOpt)
 
 
 if __name__ == "__main__":
-    processMCData("./saved_data/mc_runs/processed4")
+    processMCData("./saved_data/mc_runs/processed")
     
     
 

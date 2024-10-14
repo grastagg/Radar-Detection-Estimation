@@ -199,6 +199,8 @@ def main(params):
     tEnd = params.simulationEndTime
     if params.lowPriorityPathPlanner == "lawnmower":
         tEnd*=2
+    else:
+        tEnd*=2
     dt = params.simulationTimestep
     tCurrent = 0
     plotIndex = 0
@@ -318,12 +320,13 @@ def run_mc_simulation(startSeed, numSeeds,lowPriorityPathPlanner):
 if __name__ == '__main__':
     # randomSeed = 10000001
     # numSeeds = 1
-    randomSeed = int(sys.argv[1])
-    numSeeds = int(sys.argv[2])
-    pathPlanner = sys.argv[3]
-    # randomSeed = 1232127
-    # numSeeds = 1
+    # randomSeed = int(sys.argv[1])
+    # numSeeds = int(sys.argv[2])
+    # pathPlanner = sys.argv[3]
+    randomSeed = 1232127
+    numSeeds = 1
     # pathPlanner = "lawnmower"
+    pathPlanner = "optimization"
 
     run_mc_simulation(randomSeed, numSeeds, pathPlanner)
     # do_profile = False 

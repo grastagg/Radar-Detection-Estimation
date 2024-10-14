@@ -25,8 +25,8 @@ for folder in "$directory"/*/; do
     echo "Processing folder: $folder_name"
     # python3 "$python_script" "$folder_name"
 
-    pathPlanner='lawnmower'
-    nohup python3 -u "$python_script" "$folder_name" "$pathPlanner" > outputsMC/lawnmower/$folder_name.log 2>&1 & 
+    # pathPlanner='lawnmower'
+    # nohup python3 -u "$python_script" "$folder_name" "$pathPlanner" > outputsMC/lawnmower/$folder_name.log 2>&1 & 
     pathPlanner='optimization'
     nohup python3 -u "$python_script" "$folder_name" "$pathPlanner" > outputsMC/optimization/$folder_name.log 2>&1 & 
     

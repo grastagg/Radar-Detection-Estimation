@@ -245,11 +245,18 @@ def find_contour_points(cellAssignment,index,bounds,numTestPoints):
     # ax.pcolormesh(params.X_test[:,0].reshape(params.numTestPoints,params.numTestPoints),params.X_test[:,1].reshape(params.numTestPoints,params.numTestPoints),cellI.reshape(params.numTestPoints,params.numTestPoints))
     # # ax.plot(contours.squeeze()[:,0]*pixelDist,contours.squeeze()[:,1]*pixelDist)
     # plt.show()
-    points = contours[0].squeeze()*pixelDist
+    # points = contours[0].squeeze()*pixelDist
+    points = contours[0].reshape((-1,2))*pixelDist
     for i in range(1,len(contours)):
-        points = np.append(points,contours[i].squeeze()*pixelDist,axis=0)
+        # points = np.append(points,contours[i].squeeze()*pixelDist,axis=0)
+        points = np.append(points,contours[i].reshape((-1,2))*pixelDist,axis=0)
+
+        
+    if len(points) == 1:
+        print("ERROR")
     
     return points
+
 
 def cluster_points_and_find_centroids(points):
     # Perform clustering to find the centroids
@@ -725,6 +732,12 @@ def resample_points(points, spacing):
     
     return resampled_points
 
+def contours_to_points(contours,pixelDist):
+    points = contours[0].reshape((-1,2))*pixelDist
+    for i in range(1,len(contours)):
+        points = np.append(points,contours[i].reshape((-1,2))*pixelDist,axis=0)
+    return points
+
 def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParams,radarParamsCovDeterminants,allVertecies,vertex1Index,vertex2Index,bounds,params=None):
 
     i,j = ridgeNeighborIndecies
@@ -758,14 +771,14 @@ def find_ridge_line(cellAssign, ridgeNeighborIndecies,vertex1,vertex2,radarParam
 
     centroid = None
     for c in contour:
+        if len(c) < 3:
+            continue
         M = cv2.moments(c)
         cX = int(M["m10"] / M["m00"])*pixelDist
         cY = int(M["m01"] / M["m00"])*pixelDist
         centroid = np.array([cX,cY])
 
-    points = contour[0].squeeze()*pixelDist
-    for i in range(1,len(contour)):
-        points = np.append(points,contour[i].squeeze()*pixelDist,axis=0)
+    points = contours_to_points(contour,pixelDist)
     
     # referencePoint = np.mean(points,axis=0)
 
@@ -944,7 +957,8 @@ def find_exterior_points(contourList,bounds):
 def find_edge_points(cellAssignment,bounds,numTestPoints):
     contour,_ = cv2.findContours(cellAssignment.astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     pixelDist = bounds[0]/numTestPoints
-    points = contour[-1].squeeze()*pixelDist
+    points = contours_to_points(contour,pixelDist)
+
     # upperBound = np.max(points)
     # lowerBound = np.min(points)
     upperBound = bounds[0]
@@ -1031,10 +1045,7 @@ def find_possible_edge_vertex(prob_list,i,j,bounds,numTestPoints):
     contour,_ = cv2.findContours(cellAssignment.astype(np.uint8).T, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     pixelDist = bounds[0]/numTestPoints
 
-    points = contour[0].squeeze()*pixelDist
-    for i in range(1,len(contour)):
-        con = contour[i]
-        points = np.vstack((points,con.squeeze()*pixelDist))
+    points = contours_to_points(contour,pixelDist)
     upperBound = np.max(points)
     lowerBound = np.min(points)
     corners = np.array([[lowerBound,lowerBound],[lowerBound,upperBound],[upperBound,upperBound],[upperBound,lowerBound]])
@@ -1334,16 +1345,16 @@ def load_estimated_params(dataFilePath,dataIndex,numRadar):
     
 
 def main():
-    dataFilePath = "saved_data/mc_runs/143101536/optimization/"
+    dataFilePath = "saved_data/mc_runs/4052005650/optimization/"
 
-    importDir = "saved_data.mc_runs.143101536.optimization.params"
+    importDir = "saved_data.mc_runs.4052005650.optimization.params"
     params = importlib.import_module(importDir)
 
     radarList = tuple(create_radar_list(params.radarPositions, params.radarPhases, params.radarAngularRates, params.radarOutputPowerList, params.radarTransmitGainList, params.radarRecieveGainList, params.radarWavelength, params.radarPulseWidth, params.radarSystemTemperature, params.radarProbabilityOfFalseAlarm))
 
 
     numFiles = 2161
-    dataIndex = 701
+    dataIndex = 1800
 
     radarParams, radarParamsCov = load_estimated_params(dataFilePath,dataIndex,len(radarList))
 
