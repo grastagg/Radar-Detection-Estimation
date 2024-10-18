@@ -13,10 +13,10 @@ def create_radar_list(radarPositions, radarPhases, radarAngularRates, radarOutpu
     return radarList
 
 
-def create_agent_list(agentInitialStates, numRadar, agentSensingRange, agentPowerMeasurementStdDev, agentAngleMeasurementStdDev, agentELINTAnteneaGain, agentELINTSystemLoss, radarWavelength, radarCrossSection,agentColors,pathHistorydt,dataFile):
+def create_agent_list(agentInitialStates, numRadar, agentSensingRange, agentPowerMeasurementStdDev, agentAngleMeasurementStdDev, agentELINTAnteneaGain, agentELINTSystemLoss, radarWavelength, radarCrossSection,agentColors,pathHistorydt,dataFile,params):
     agentList =[]
     for i in range(len(agentInitialStates)):
-        agentList.append(Agent(initialPosition=agentInitialStates[i], numRadar = numRadar, sensingRange = agentSensingRange, powerMeasurementStdDev=agentPowerMeasurementStdDev,angleMeasurementStdDev=agentAngleMeasurementStdDev, elintAntenneaGain=agentELINTAnteneaGain, elintSystemLoss=agentELINTSystemLoss, emittorWavelength=radarWavelength, radarCrossSection = radarCrossSection, agentId = i, plotColor = agentColors[i], pathHistorydt = pathHistorydt, dataFile = dataFile))
+        agentList.append(Agent(initialPosition=agentInitialStates[i], numRadar = numRadar, sensingRange = agentSensingRange, powerMeasurementStdDev=agentPowerMeasurementStdDev,angleMeasurementStdDev=agentAngleMeasurementStdDev, elintAntenneaGain=agentELINTAnteneaGain, elintSystemLoss=agentELINTSystemLoss, emittorWavelength=radarWavelength, radarCrossSection = radarCrossSection, agentId = i, plotColor = agentColors[i], pathHistorydt = pathHistorydt, dataFile = dataFile, params = params))
     
     return agentList
 
