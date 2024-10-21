@@ -453,10 +453,10 @@ if __name__ == "__main__":
     randomSeed = int(sys.argv[1])
     numSeeds = int(sys.argv[2])
     pathPlanner = sys.argv[3]
-    # randomSeed = 46454232
+    # randomSeed = 56854448
     # numSeeds = 1
     # pathPlanner = "optimization"
-    # # pathPlanner = "lawnmower"
+    # pathPlanner = "lawnmower"
 
     run_mc_simulation(randomSeed, numSeeds, pathPlanner)
     # do_profile = False

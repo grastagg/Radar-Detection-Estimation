@@ -1,4 +1,5 @@
 import numpy as np
+import importlib
 
 import os
 
@@ -14,8 +15,21 @@ def processMCData(dataFile):
     averageOptimizedDiffDeterministic = 0
     countOpt = 0
     countLawn = 1
+    totalCount = 0
+    countDistToGoal = 0
     for file in os.listdir(dataFile):
+        totalCount += 1
         print(file)
+        # importDir = (
+        #     "saved_data.mc_runs.processed."
+        #     + str(file)
+        #     + "."
+        #     + "optimization"
+        #     + ".params"
+        # )
+        # params = importlib.import_module(importDir)
+        # if params.useDistToGoal:
+        #     countDistToGoal += 1
 
         if os.path.isfile(
             dataFile
@@ -115,8 +129,9 @@ def processMCData(dataFile):
             )
 
             countOpt += 1
-        # else:
-        #     print("Optimized path not found for: ", file)
+            print("lpFindPathTime: ", optimizedTimeToFindPath)
+        else:
+            print("Optimized path not found for: ", file)
 
     averageLawnmowerMaxPD /= countLawn
     averageOptimizedMaxPD /= countOpt
@@ -141,6 +156,8 @@ def processMCData(dataFile):
 
     print("Count Lawn: ", countLawn)
     print("Count Opt: ", countOpt)
+    print("Total Count: ", totalCount)
+    print("Count DistToGoal: ", countDistToGoal)
 
 
 if __name__ == "__main__":

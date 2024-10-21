@@ -76,7 +76,10 @@ def next_measurement_covariance(
     return nextCovariances
 
 
-# @jit
+import jax
+import jax.numpy as jnp
+
+
 def compute_objective_jax(
     pos,
     estimatedRadarParams,
@@ -105,8 +108,77 @@ def compute_objective_jax(
     distFromStraitWeight,
     distFromStraitScale,
 ):
-    # Extract current test position
+    # Compute the distance between pos and agentPos
+    dist_to_agent = jnp.linalg.norm(jnp.array(pos) - jnp.array(agentPos)[0:2])
 
+    # Use jax.lax.cond to handle conditional logic
+    distanceThreshold = 500
+    obj = jax.lax.cond(
+        dist_to_agent
+        < distanceThreshold,  # condition: is the distance below the threshold?
+        lambda _: jnp.inf,  # if true: return infinity
+        lambda _: compute_obj(
+            pos,  # if false: compute the objective normally
+            estimatedRadarParams,
+            estimatedRadarCovariances,
+            x1,
+            y1,
+            x2,
+            y2,
+            allAgentPathHistory_temp,
+            agentPos,
+            agentSpeed,
+            agentPathHistorydt,
+            measurementCov,
+            radarMeasurementCoeff,
+            radarTransmitGain,
+            radarOutputPower,
+            agentELINTAnteneaGain,
+            radarWavelength,
+            radarSystemTemperature,
+            radarProbabilityOfFalseAlarm,
+            radarPulseWidth,
+            nextCovarianceWeight,
+            nextCovarianceScale,
+            seperationWeight,
+            seperationScale,
+            distFromStraitWeight,
+            distFromStraitScale,
+        ),
+        None,
+    )  # no extra arguments passed to the lambda functions
+
+    return obj
+
+
+def compute_obj(
+    pos,
+    estimatedRadarParams,
+    estimatedRadarCovariances,
+    x1,
+    y1,
+    x2,
+    y2,
+    allAgentPathHistory_temp,
+    agentPos,
+    agentSpeed,
+    agentPathHistorydt,
+    measurementCov,
+    radarMeasurementCoeff,
+    radarTransmitGain,
+    radarOutputPower,
+    agentELINTAnteneaGain,
+    radarWavelength,
+    radarSystemTemperature,
+    radarProbabilityOfFalseAlarm,
+    radarPulseWidth,
+    nextCovarianceWeight,
+    nextCovarianceScale,
+    seperationWeight,
+    seperationScale,
+    distFromStraitWeight,
+    distFromStraitScale,
+):
     # Vectorized covariance calculation for all radar emitters
     nextCovariances = next_measurement_covariance(
         pos,
@@ -123,18 +195,11 @@ def compute_objective_jax(
     covObj = jnp.mean(covDets)
 
     # Distance from the goal
-    # dist = distance_from_goal(pos[0], pos[1], x2, y2)
-    dist = distance_from_line(pos[0], pos[1], x1, y1, x2, y2)
+    dist = distance_from_goal(pos[0], pos[1], x2, y2)
 
     # Calculate the agent's future path
     num_future_points = 10
     futurePath_temp = jnp.linspace(jnp.array(agentPos[0:2]), pos, num_future_points)
-    # futurePath_temp = get_agent_future_path_waypoint(
-    #     pos,
-    #     jnp.array(agentPos[0:2]),
-    #     agentSpeed,
-    #     agentPathHistorydt,
-    # )
 
     # Calculate the safety probability for the path
     explore = path_safety_prob(
@@ -159,6 +224,95 @@ def compute_objective_jax(
     )
 
     return obj
+
+
+# # @jit
+# def compute_objective_jax(
+#     pos,
+#     estimatedRadarParams,
+#     estimatedRadarCovariances,
+#     x1,
+#     y1,
+#     x2,
+#     y2,
+#     allAgentPathHistory_temp,
+#     agentPos,
+#     agentSpeed,
+#     agentPathHistorydt,
+#     measurementCov,
+#     radarMeasurementCoeff,
+#     radarTransmitGain,
+#     radarOutputPower,
+#     agentELINTAnteneaGain,
+#     radarWavelength,
+#     radarSystemTemperature,
+#     radarProbabilityOfFalseAlarm,
+#     radarPulseWidth,
+#     nextCovarianceWeight,
+#     nextCovarianceScale,
+#     seperationWeight,
+#     seperationScale,
+#     distFromStraitWeight,
+#     distFromStraitScale,
+# ):
+#     # Extract current test position
+#     dist_to_agent = jnp.linalg.norm(jnp.array(agentPos)[0:2] - pos)
+#     print("dist_to_agent", dist_to_agent)
+#     if jnp.any(dist_to_agent < 100):
+#         return jnp.inf
+#
+#     # Vectorized covariance calculation for all radar emitters
+#     nextCovariances = next_measurement_covariance(
+#         pos,
+#         estimatedRadarParams,
+#         estimatedRadarCovariances,
+#         measurementCov,
+#         radarMeasurementCoeff,
+#     )
+#
+#     # Compute the determinant of each covariance matrix
+#     covDets = jnp.linalg.det(nextCovariances)
+#
+#     # Objective: take the mean determinant of all covariance matrices
+#     covObj = jnp.mean(covDets)
+#
+#     # Distance from the goal
+#     dist = distance_from_goal(pos[0], pos[1], x2, y2)
+#     # dist = distance_from_line(pos[0], pos[1], x1, y1, x2, y2)
+#
+#     # Calculate the agent's future path
+#     num_future_points = 10
+#     futurePath_temp = jnp.linspace(jnp.array(agentPos[0:2]), pos, num_future_points)
+#     # futurePath_temp = get_agent_future_path_waypoint(
+#     #     pos,
+#     #     jnp.array(agentPos[0:2]),
+#     #     agentSpeed,
+#     #     agentPathHistorydt,
+#     # )
+#
+#     # Calculate the safety probability for the path
+#     explore = path_safety_prob(
+#         allAgentPathHistory_temp,
+#         futurePath_temp,
+#         radarTransmitGain,
+#         radarOutputPower,
+#         agentELINTAnteneaGain,
+#         radarWavelength,
+#         radarSystemTemperature,
+#         radarProbabilityOfFalseAlarm,
+#         radarPulseWidth,
+#     )
+#
+#     exploreMean = jnp.mean(explore)
+#
+#     # Objective function calculation
+#     obj = (
+#         nextCovarianceWeight * covObj / nextCovarianceScale
+#         - seperationWeight * exploreMean / 0.5
+#         + distFromStraitWeight * dist / distFromStraitScale
+#     )
+#
+#     return obj
 
 
 # Vectorized version using vmap

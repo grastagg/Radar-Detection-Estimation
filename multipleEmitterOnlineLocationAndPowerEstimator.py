@@ -65,7 +65,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         # these will be used to make sure aoa are different enough before starting estimate
         self.min_aoa_measurement = None
         self.max_aoa_measurement = None
-        self.min_aoa_diff_to_start = 0.8
+        self.min_aoa_diff_to_start = 1.0
         # self.minDistBetweenModels = params.minInterRadarDist
         self.minDistBetweenModels = np.average([self.params.minInterRadarDistList])
 
@@ -443,7 +443,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.group_lists[radarId].append(len(self.measurement_values) - 1)
         # self.group_lists[radarId] = np.append(self.group_lists[radarId],(len(self.measurement_values)-1),dtype=int)
 
-        numMeasurementsNeeded = 10
+        numMeasurementsNeeded = 15
         # if len(self.group_lists[radarId]) > numMeasurementsNeeded:
         aoaDiff = self.compute_inlier_aoa_diff(
             np.array(self.measurement_values)[self.group_lists[radarId]]
@@ -460,6 +460,14 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             )
             if estimated_emmiter_param[2] < 0:
                 print("estimated power level too small")
+                updated_using_ekf = False
+            elif (
+                estimated_emmiter_param[0] < 0
+                or estimated_emmiter_param[1] < 0
+                or estimated_emmiter_param[0] > self.params.bounds[0]
+                or estimated_emmiter_param[1] > self.params.bounds[1]
+            ):
+                print("estimated location out of bounds")
                 updated_using_ekf = False
             else:
                 self.estimated_emmiter_params[radarId] = estimated_emmiter_param

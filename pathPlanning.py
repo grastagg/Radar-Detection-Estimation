@@ -1088,7 +1088,7 @@ class SplinePathPlanningLowPriority:
         estimatedRadarParamsCov_temp = estimatedRadarParamsCov.copy()
         allAgentPathHistory_temp = allAgentPathHistory.copy()
 
-        showPlot = True
+        showPlot = False
         if showPlot:
             fig, axs = plt.subplots(1, len(agentList))
 
@@ -1177,6 +1177,11 @@ class SplinePathPlanningLowPriority:
         print("discrete search time", time.time() - start)
 
         if showPlot:
+            ax.scatter(
+                np.array(estimatedRadarParams)[:, 0],
+                np.array(estimatedRadarParams)[:, 1],
+                color="red",
+            )
             file_name = (
                 "/home/ggs24/repos/magiccvs/radar_detection_estimation/images/objective_function/"
                 + str(self.objectiveFunctionPlotIndex)

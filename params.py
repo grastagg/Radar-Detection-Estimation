@@ -355,12 +355,11 @@ numConstraintSamples = numSamplesPerInterval * (numControlPoints - 2) - 2
 # numConstraintSamples = 22
 splineOrder = 3
 
-useDistToGoal = False
+useDistToGoal = True
 
 if useDistToGoal:
     distFromStraitScale = np.sqrt(bounds[0] ** 2 + bounds[1] ** 2)
-    # distFromStraitWeight = 0.025
-    distFromStraitWeight = 0
+    distFromStraitWeight = 0.05
 else:
     distFromStraitScale = np.sqrt(bounds[0] ** 2 + bounds[1] ** 2) / 2
     # distFromStraitWeight = 1

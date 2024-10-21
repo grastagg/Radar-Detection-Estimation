@@ -1660,10 +1660,10 @@ class HighPriorityPathPlanner:
         print("Time to assure velocity constraint", time.time() - startTime)
 
         controlPoints = self.move_first_control_point_so_spline_passes_through_start(
-            controlPoints, knotPoints, self.params.highPriorityStart, [10, 10]
+            controlPoints, knotPoints, self.params.highPriorityStart, [0.1, 0.1]
         )
         controlPoints = self.move_last_control_point_so_spline_passes_through_end(
-            controlPoints, knotPoints, self.params.highPriorityEnd, [10, 10]
+            controlPoints, knotPoints, self.params.highPriorityEnd, [0.1, 0.1]
         )
         knotPoints, tf = self.assure_velocity_constraint(
             radarList,
@@ -2123,13 +2123,11 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
 
 def main():
     seed = int(sys.argv[1])
-    # seed = 46754318
-    print("seed", seed)
     pathPlanner = sys.argv[2]
-    # pathPlanner = "optimization"
 
-    # pathPlanner = "lawnmower"
+    # seed = 56854448
     # pathPlanner = "optimization"
+    # pathPlanner = "lawnmower"
     print("pathPlanner", pathPlanner)
     seeds = [seed]
     test_high_priority_path_planner(seeds, pathPlanner)
