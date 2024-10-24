@@ -359,19 +359,35 @@ useDistToGoal = True
 
 if useDistToGoal:
     distFromStraitScale = np.sqrt(bounds[0] ** 2 + bounds[1] ** 2)
-    distFromStraitWeight = 0.05
+    # distFromStraitWeight = 0.025
 else:
     distFromStraitScale = np.sqrt(bounds[0] ** 2 + bounds[1] ** 2) / 2
     # distFromStraitWeight = 1
     distFromStraitWeight = 0.025
     # distFromStraitWeight = 0
 
-seperationScale = 1
-seperationWeight = 0.3
-# seperationWeight = 0
+seperationScale = 0.5
+# seperationWeight = 0.3
+
 
 nextCovarianceScale = 1e15
-nextCovarianceWeight = 0.3
+# nextCovarianceWeight = 0.3
+
+sepUncertaintyRatio = 1
+sepDistRatio = 2
+
+paramArray = np.array([[1, 1, 1], [1, -sepUncertaintyRatio, 0], [1, 0, -sepDistRatio]])
+b = np.array([[1], [0], [0]])
+hyperparameters = np.linalg.solve(paramArray, b)
+seperationWeight = hyperparameters[0][0]
+nextCovarianceWeight = hyperparameters[1][0]
+distFromStraitWeight = hyperparameters[2][0]
+print("seperation uncertainty ratio", sepUncertaintyRatio)
+print("seperation distance ratio", sepDistRatio)
+print("seperationWeight", seperationWeight)
+print("nextCovarianceWeight", nextCovarianceWeight)
+print("distFromStraitWeight", distFromStraitWeight)
+
 
 # pathOptTime = 50
 pathOptTime = 20

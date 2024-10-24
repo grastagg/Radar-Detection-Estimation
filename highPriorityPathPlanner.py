@@ -1660,10 +1660,10 @@ class HighPriorityPathPlanner:
         print("Time to assure velocity constraint", time.time() - startTime)
 
         controlPoints = self.move_first_control_point_so_spline_passes_through_start(
-            controlPoints, knotPoints, self.params.highPriorityStart, [0.1, 0.1]
+            controlPoints, knotPoints, self.params.highPriorityStart, [100, 100]
         )
         controlPoints = self.move_last_control_point_so_spline_passes_through_end(
-            controlPoints, knotPoints, self.params.highPriorityEnd, [0.1, 0.1]
+            controlPoints, knotPoints, self.params.highPriorityEnd, [100, 100]
         )
         knotPoints, tf = self.assure_velocity_constraint(
             radarList,
@@ -1827,10 +1827,55 @@ def get_highest_data_file_number(directory):
     return highest_number
 
 
+def get_path_history_index(timestamp, pathHistoryDt):
+    return timestamp // pathHistoryDt
+
+
+def evaluate_path_safety(hpp, pathHistoryList, i, params, radarTimeStamp):
+    print("i", i)
+    hpp.evaluate_path_sefety(hpp.spline, pathHistoryList)
+    # numPathHistory = int(dataIndex / numFiles * len(agent1PathHistory))
+    print("radarTimeStamp[i]", radarTimeStamp[i])
+    numPathHistory = int(radarTimeStamp[i] // params.agentPathHistorydt)
+    print("numPathHistory", numPathHistory)
+    pathHistoryListTemp = [
+        pathHistory[0:numPathHistory] for pathHistory in pathHistoryList
+    ]
+    pathSafety = hpp.evaluate_path_sefety(hpp.spline, pathHistoryListTemp)
+    print("max path safety", np.max(pathSafety))
+    plot = False
+    if plot:
+        fig, ax = plt.subplots()
+        ax.scatter(
+            pathHistoryListTemp[0][:, 0],
+            pathHistoryListTemp[0][:, 1],
+            c="r",
+            marker="x",
+            s=1,
+        )
+        ax.scatter(
+            pathHistoryListTemp[1][:, 0],
+            pathHistoryListTemp[1][:, 1],
+            c="g",
+            marker="x",
+            s=1,
+        )
+        ax.scatter(
+            pathHistoryListTemp[2][:, 0],
+            pathHistoryListTemp[2][:, 1],
+            c="b",
+            marker="x",
+            s=1,
+        )
+        hpp.plot_spline(hpp.spline, ax)
+        plt.show()
+    return np.max(pathSafety)
+
+
 def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
     largeStep = 100
     optimalTime = None
-    maxPathSafety = 0.2
+    maxPathSafetyThreshold = 0.2
     for seed in seeds:
         importDir = (
             "saved_data.mc_runs." + str(seed) + "." + lowPriorityPathPlanner + ".params"
@@ -1862,6 +1907,9 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
             np.genfromtxt(dataFilePath + "/agent1PathHistory.txt", delimiter=","),
             np.genfromtxt(dataFilePath + "/agent2PathHistory.txt", delimiter=","),
         ]
+        radarTimeStamp = np.genfromtxt(
+            dataFilePath + "/radarEstimateTimestamps.txt", delimiter=","
+        )
         # # pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
         # print("max ground truth pd", np.max(groundTruthPD))
         numFiles = get_highest_data_file_number(
@@ -1885,14 +1933,20 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
             )
             if optimalTime is not None:
                 print("optimal time", optimalTime)
-                hpp.evaluate_path_sefety(hpp.spline, pathHistoryList)
-                numPathHistory = int(dataIndex / numFiles * len(agent1PathHistory))
-                pathHistoryListTemp = [
-                    pathHistory[0:numPathHistory] for pathHistory in pathHistoryList
-                ]
-                pathSafety = hpp.evaluate_path_sefety(hpp.spline, pathHistoryListTemp)
-                print("max path safety", np.max(pathSafety))
-                if np.max(pathSafety) < maxPathSafety:
+                # hpp.evaluate_path_sefety(hpp.spline, pathHistoryList)
+                # # numPathHistory = int(dataIndex / numFiles * len(agent1PathHistory))
+                # numPathHistory = int(radarTimeStamp[i] // params.agentPathHistorydt)
+                # pathHistoryListTemp = [
+                #     pathHistory[0:numPathHistory] for pathHistory in pathHistoryList
+                # ]
+                # pathSafety = hpp.evaluate_path_sefety(hpp.spline, pathHistoryListTemp)
+                maxPathSafety = evaluate_path_safety(
+                    hpp, pathHistoryList, i, params, radarTimeStamp
+                )
+                print("max path safety", maxPathSafety)
+                # print("max path safety", np.max(pathSafety))
+                # if np.max(pathSafety) < maxPathSafety:
+                if maxPathSafety < maxPathSafetyThreshold:
                     print("path safety below threshold")
                     break
             else:
@@ -1954,6 +2008,14 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
                 ax.scatter(
                     radarParams[:, 0], radarParams[:, 1], c="r", marker="x", s=100
                 )
+                for i, radar in enumerate(radarList):
+                    ax.text(
+                        radar.position[0],
+                        radar.position[1],
+                        str(i),
+                        fontsize=12,
+                        color="green",
+                    )
                 for i, radarParam in enumerate(radarParams):
                     print("i", i)
                     print(
@@ -1963,6 +2025,11 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
                     ax.text(
                         radarParam[0], radarParam[1], str(i), fontsize=12, color="green"
                     )
+
+                print(radarParams)
+                for radar in radarList:
+                    print(radar.position)
+                    print(radar.outputPower * radar.transmitGain)
 
                 plt.title(str(seed) + " " + lowPriorityPathPlanner)
                 plt.show()
@@ -1986,14 +2053,19 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
             )
             if optimalTime is not None:
                 print("optimal time", optimalTime)
+                maxPathSafety = evaluate_path_safety(
+                    hpp, pathHistoryList, i, params, radarTimeStamp
+                )
                 hpp.evaluate_path_sefety(hpp.spline, pathHistoryList)
-                numPathHistory = int(dataIndex / numFiles * len(agent1PathHistory))
-                pathHistoryListTemp = [
-                    pathHistory[0:numPathHistory] for pathHistory in pathHistoryList
-                ]
-                pathSafety = hpp.evaluate_path_sefety(hpp.spline, pathHistoryListTemp)
-                print("max path safety", np.max(pathSafety))
-                if np.max(pathSafety) < maxPathSafety:
+                # numPathHistory = int(dataIndex / numFiles * len(agent1PathHistory))
+                # numPathHistory = int(radarTimeStamp[i] // params.agentPathHistorydt)
+                # pathHistoryListTemp = [
+                #     pathHistory[0:numPathHistory] for pathHistory in pathHistoryList
+                # ]
+                # pathSafety = hpp.evaluate_path_sefety(hpp.spline, pathHistoryListTemp)
+                # print("max path safety", np.max(pathSafety))
+                # if np.max(pathSafety) < maxPathSafety:
+                if maxPathSafety < maxPathSafetyThreshold:
                     print("path safety below threshold")
                 else:
                     print("path safety above threshold")
@@ -2019,14 +2091,19 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
             )
             if optimalTime is not None:
                 print("optimal time", optimalTime)
-                hpp.evaluate_path_sefety(hpp.spline, pathHistoryList)
-                numPathHistory = int(dataIndex / numFiles * len(agent1PathHistory))
-                pathHistoryListTemp = [
-                    pathHistory[0:numPathHistory] for pathHistory in pathHistoryList
-                ]
-                pathSafety = hpp.evaluate_path_sefety(hpp.spline, pathHistoryListTemp)
-                print("max path safety", np.max(pathSafety))
-                if np.max(pathSafety) < maxPathSafety:
+                maxPathSafety = evaluate_path_safety(
+                    hpp, pathHistoryList, i, params, radarTimeStamp
+                )
+                # hpp.evaluate_path_sefety(hpp.spline, pathHistoryList)
+                # # numPathHistory = int(dataIndex / numFiles * len(agent1PathHistory))
+                # numPathHistory = int(radarTimeStamp[i] // params.agentPathHistorydt)
+                # pathHistoryListTemp = [
+                #     pathHistory[0:numPathHistory] for pathHistory in pathHistoryList
+                # ]
+                # pathSafety = hpp.evaluate_path_sefety(hpp.spline, pathHistoryListTemp)
+                # print("max path safety", np.max(pathSafety))
+                # if np.max(pathSafety) < maxPathSafety:
+                if maxPathSafety < maxPathSafetyThreshold:
                     print("path safety below threshold")
                     break
                 else:
@@ -2035,7 +2112,8 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
                 print("no path found")
 
         print("first safe path found at", i)
-        lpFindPathTime = numPathHistory * params.agentPathHistorydt
+        # lpFindPathTime = numPathHistory * params.agentPathHistorydt
+        lpFindPathTime = radarTimeStamp[i]
         print("time for low priority agents to find path", lpFindPathTime)
         radarList = create_radar_list(
             params.radarPositions,
@@ -2070,11 +2148,16 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
         )
         np.savetxt(
             dataFilePath + "high_priority_path/maxProbUndiscoveredRadar.txt",
-            np.array([np.max(pathSafety)]),
+            # np.array([np.max(pathSafety)]),
+            np.array([maxPathSafety]),
         )
 
         plot = True
         if plot:
+            numPathHistory = int(radarTimeStamp[i] // params.agentPathHistorydt)
+            pathHistoryListTemp = [
+                pathHistory[0:numPathHistory] for pathHistory in pathHistoryList
+            ]
             fig, ax = plt.subplots()
             Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(
                 params.X_test,
@@ -2126,6 +2209,7 @@ def main():
     pathPlanner = sys.argv[2]
 
     # seed = 56854448
+    # seed = 66854281
     # pathPlanner = "optimization"
     # pathPlanner = "lawnmower"
     print("pathPlanner", pathPlanner)

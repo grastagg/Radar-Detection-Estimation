@@ -526,7 +526,6 @@ class SplinePathPlanningLowPriority:
             )
 
         agentOrder = numpy.argsort(distToMostUncertain, axis=0)
-        print("agentOrder", agentOrder)
         return agentOrder
 
     def get_agent_future_path(self, heading, agent, time):

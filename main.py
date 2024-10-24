@@ -27,7 +27,10 @@ from pathPlanning import SplinePathPlanningLowPriority
 
 from main_helper import create_agent_list, create_radar_list
 
-from highPriorityPathPlanner import HighPriorityPathPlanner
+from highPriorityPathPlanner import (
+    HighPriorityPathPlanner,
+    test_high_priority_path_planner,
+)
 
 from utils import change_random_seed, copy_params, create_data_file, set_path_planner
 
@@ -247,6 +250,7 @@ def main(params):
             X_test=X_test,
             radar_measurement_coeff=params.radarMeasurementCoeff,
             params=params,
+            radarList=radarList,
         )
     )
     probabilityOfDetectionMap = ProbabilityOfDetectionMap(
@@ -334,6 +338,7 @@ def main(params):
                         agent.measurementPowerValues[-1],
                     ],
                     agent.radarMeasurementIdx[-1],
+                    tCurrent,
                 )
                 # estimator_total_time += time.time()-start_e
                 currentNumberOfMeasurements += 1
@@ -418,16 +423,24 @@ def run_mc_simulation(startSeed, numSeeds, lowPriorityPathPlanner):
             params.radarSystemTemperature,
             params.radarProbabilityOfFalseAlarm,
         )
-
-        hpp = HighPriorityPathPlanner(radarList=radarList, params=params)
-        try:
-            optPathTime = hpp.plan_deterministic_path(tuple(radarList))
-            print("Optimal path time:", optPathTime)
-        except:
-            print("Optimal path not found, skipping seed:", seed)
-            os.system("rm -r " + dataFile)
-            seed += 1
-            continue
+        loadHPPDataFromFile = True
+        loadHPPDataFile = (
+            "saved_data/ratioData/expCov1/expDist3/"
+            + str(seed)
+            + "/optimization/high_priority_path/deterministic_path_time.txt"
+        )
+        if loadHPPDataFromFile:
+            optPathTime = np.genfromtxt(loadHPPDataFile)
+        else:
+            hpp = HighPriorityPathPlanner(radarList=radarList, params=params)
+            try:
+                optPathTime = hpp.plan_deterministic_path(tuple(radarList))
+                print("Optimal path time:", optPathTime)
+            except:
+                print("Optimal path not found, skipping seed:", seed)
+                os.system("rm -r " + dataFile)
+                seed += 1
+                continue
         np.savetxt(
             params.dataFile + "/high_priority_path/deterministic_path_time.txt",
             np.array([optPathTime]),
@@ -453,12 +466,16 @@ if __name__ == "__main__":
     randomSeed = int(sys.argv[1])
     numSeeds = int(sys.argv[2])
     pathPlanner = sys.argv[3]
-    # randomSeed = 56854448
+
+    # expCocRatio = sys.argv[4]
+    # expDist = sys.argv[5]
+    # randomSeed = 66054256
     # numSeeds = 1
     # pathPlanner = "optimization"
     # pathPlanner = "lawnmower"
 
     run_mc_simulation(randomSeed, numSeeds, pathPlanner)
+    test_high_priority_path_planner([randomSeed], pathPlanner)
     # do_profile = False
     # if do_profile:
     #     with cProfile.Profile() as pr:

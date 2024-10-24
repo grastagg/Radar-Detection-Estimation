@@ -5,6 +5,8 @@ import os
 
 
 def processMCData(dataFile):
+    print()
+    print("Processing data from: ", dataFile)
     averageLawnmowerMaxPD = 0
     averageOptimizedMaxPD = 0
     averageLawnmowerMaxProbUndiscovered = 0
@@ -18,8 +20,8 @@ def processMCData(dataFile):
     totalCount = 0
     countDistToGoal = 0
     for file in os.listdir(dataFile):
-        totalCount += 1
         print(file)
+        totalCount += 1
         # importDir = (
         #     "saved_data.mc_runs.processed."
         #     + str(file)
@@ -89,6 +91,7 @@ def processMCData(dataFile):
                 + "/optimization/high_priority_path//groundTruthPdAlongSplines.txt",
                 delimiter=",",
             )
+            print("Optimized Max PD: ", np.max(optimizedMaxPD))
             averageOptimizedMaxPD += np.max(optimizedMaxPD)
 
             optimizedMaxProbUndiscovered = np.genfromtxt(
@@ -129,9 +132,8 @@ def processMCData(dataFile):
             )
 
             countOpt += 1
-            print("lpFindPathTime: ", optimizedTimeToFindPath)
-        else:
-            print("Optimized path not found for: ", file)
+        # else:
+        #     print("Optimized path not found for: ", file)
 
     averageLawnmowerMaxPD /= countLawn
     averageOptimizedMaxPD /= countOpt
@@ -161,5 +163,8 @@ def processMCData(dataFile):
 
 
 if __name__ == "__main__":
-    # processMCData("./saved_data/mc_runs/processed/")
-    processMCData("./saved_data/mc_runs/")
+    # processMCData("./saved_data/mc_runs/")
+    # processMCData("./saved_data/ratioData/expCov1/expDist1/")
+    processMCData("./saved_data/ratioData/expCov1/expDist2/")
+    processMCData("./saved_data/ratioData/expCov1/expDist3/")
+    # processMCData("./saved_data/ratioData/expCov1/expDist4/")
