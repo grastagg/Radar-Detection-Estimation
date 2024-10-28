@@ -725,7 +725,7 @@ class HighPriorityPathPlanner:
         opt.options["linear_solver"] = "ma97"
         opt.options["print_level"] = 0
         opt.options["max_iter"] = 1000
-        opt.options["tol"] = 1e-6
+        opt.options["tol"] = 1e-5
         sol = opt(optProb, sens=sens)
         # sol = opt(optProb, sens = 'FD')
         knotPoints = create_unclamped_knot_points(
@@ -1657,13 +1657,22 @@ class HighPriorityPathPlanner:
         knotPoints = create_unclamped_knot_points(
             0, 1, self.params.numControlPoints, self.params.splineOrder
         )
-        print("Time to assure velocity constraint", time.time() - startTime)
+
+        knotPoints, tf = self.assure_velocity_constraint(
+            radarList,
+            controlPoints.reshape((-1,)),
+            knotPoints,
+            self.params.numControlPoints,
+        )
+        velocity = self.evaluate_spline_derivative(0, controlPoints, knotPoints, 3, 1)
+        # print("velocity", velocity[0])
+        # print("velocity", velocity[-1])
 
         controlPoints = self.move_first_control_point_so_spline_passes_through_start(
-            controlPoints, knotPoints, self.params.highPriorityStart, [100, 100]
+            controlPoints, knotPoints, self.params.highPriorityStart, velocity[0]
         )
         controlPoints = self.move_last_control_point_so_spline_passes_through_end(
-            controlPoints, knotPoints, self.params.highPriorityEnd, [100, 100]
+            controlPoints, knotPoints, self.params.highPriorityEnd, velocity[-1]
         )
         knotPoints, tf = self.assure_velocity_constraint(
             radarList,
@@ -1671,6 +1680,7 @@ class HighPriorityPathPlanner:
             knotPoints,
             self.params.numControlPoints,
         )
+        print("Time to assure velocity constraint", time.time() - startTime)
         print("tf", tf)
 
         spline = self.spline_seg(controlPoints, knotPoints)
@@ -2032,7 +2042,7 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
                     print(radar.outputPower * radar.transmitGain)
 
                 plt.title(str(seed) + " " + lowPriorityPathPlanner)
-                plt.show()
+                plt.savefig(dataFilePath + "/high_priority_path/" "noPathFound.png")
                 return
 
         print("dataIndex", dataIndex)
@@ -2205,12 +2215,13 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
 
 
 def main():
-    seed = int(sys.argv[1])
-    pathPlanner = sys.argv[2]
+    # seed = int(sys.argv[1])
+    # pathPlanner = sys.argv[2]
 
     # seed = 56854448
     # seed = 66854281
-    # pathPlanner = "optimization"
+    seed = 56654547
+    pathPlanner = "optimization"
     # pathPlanner = "lawnmower"
     print("pathPlanner", pathPlanner)
     seeds = [seed]

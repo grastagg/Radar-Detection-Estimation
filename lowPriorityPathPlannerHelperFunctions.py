@@ -112,7 +112,7 @@ def compute_objective_jax(
     dist_to_agent = jnp.linalg.norm(jnp.array(pos) - jnp.array(agentPos)[0:2])
 
     # Use jax.lax.cond to handle conditional logic
-    distanceThreshold = 500
+    distanceThreshold = 2000
     obj = jax.lax.cond(
         dist_to_agent
         < distanceThreshold,  # condition: is the distance below the threshold?

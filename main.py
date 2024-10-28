@@ -32,7 +32,13 @@ from highPriorityPathPlanner import (
     test_high_priority_path_planner,
 )
 
-from utils import change_random_seed, copy_params, create_data_file, set_path_planner
+from utils import (
+    change_random_seed,
+    copy_params,
+    create_data_file,
+    set_path_planner,
+    change_parameter_ratios,
+)
 
 from lawn_mower_control import LawnMowerControlAllAgents
 
@@ -373,7 +379,9 @@ def main(params):
         tCurrent += dt
 
 
-def run_mc_simulation(startSeed, numSeeds, lowPriorityPathPlanner):
+def run_mc_simulation(
+    startSeed, numSeeds, lowPriorityPathPlanner, expCovRatio, expDistRatio
+):
     currentNumSeeds = 0
     numRadar = 13
     username = getpass.getuser()
@@ -391,6 +399,7 @@ def run_mc_simulation(startSeed, numSeeds, lowPriorityPathPlanner):
         )
         create_data_file(dataFile, numRadar, lowPriorityPathPlanner)
         copy_params(dataFile + lowPriorityPathPlanner + "/")
+        paramsFile = dataFile + "/" + lowPriorityPathPlanner + "/" + "params.py"
         change_random_seed(
             dataFile + "/" + lowPriorityPathPlanner + "/" + "params.py", seed
         )
@@ -398,6 +407,7 @@ def run_mc_simulation(startSeed, numSeeds, lowPriorityPathPlanner):
             dataFile + "/" + lowPriorityPathPlanner + "/" + "params.py",
             lowPriorityPathPlanner,
         )
+        change_parameter_ratios(paramsFile, expCovRatio, expDistRatio)
 
         # set_path_planner("params.py", lowPriorityPathPlanner)
         importDir = (
@@ -425,7 +435,7 @@ def run_mc_simulation(startSeed, numSeeds, lowPriorityPathPlanner):
         )
         loadHPPDataFromFile = True
         loadHPPDataFile = (
-            "saved_data/ratioData/expCov1/expDist3/"
+            "saved_data/ratioDataOld/expCov1/expDist3/"
             + str(seed)
             + "/optimization/high_priority_path/deterministic_path_time.txt"
         )
@@ -466,15 +476,17 @@ if __name__ == "__main__":
     randomSeed = int(sys.argv[1])
     numSeeds = int(sys.argv[2])
     pathPlanner = sys.argv[3]
+    expCovRatio = sys.argv[4]
+    expDist = sys.argv[5]
 
-    # expCocRatio = sys.argv[4]
-    # expDist = sys.argv[5]
-    # randomSeed = 66054256
+    # randomSeed = 66354230
     # numSeeds = 1
     # pathPlanner = "optimization"
+    # expCovRatio = 1
+    # expDist = 1
     # pathPlanner = "lawnmower"
 
-    run_mc_simulation(randomSeed, numSeeds, pathPlanner)
+    run_mc_simulation(randomSeed, numSeeds, pathPlanner, expCovRatio, expDist)
     test_high_priority_path_planner([randomSeed], pathPlanner)
     # do_profile = False
     # if do_profile:

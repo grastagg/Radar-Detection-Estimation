@@ -1,16 +1,25 @@
 import os
+import matplotlib.pyplot as plt
 
 
-def move_files_excluding_lawnmower(parent_directory):
-    for item in os.listdir(parent_directory):
-        item_path = os.path.join(parent_directory, item)
-        if os.path.isdir(item_path):
-            new_folder_path = os.path.join(item_path, 'optimization')
-            os.makedirs(new_folder_path, exist_ok=True)
-            for sub_item in os.listdir(item_path):
-                sub_item_path = os.path.join(item_path, sub_item)
-                if sub_item != 'lawnmower' and sub_item != 'optimization':
-                    os.rename(sub_item_path, os.path.join(new_folder_path, sub_item))
+folder = "./saved_data/ratioData/expCov1/expDist10"
+print("Files in", folder)
+for dir in os.listdir(folder):
+    print(dir)
 
-
-move_files_excluding_lawnmower("./saved_data/mc_runs/")
+    file = folder + "/" + dir + "/optimization/high_priority_path/noPathFound.png"
+    if os.path.isfile(file):
+        img = plt.imread(
+            folder + "/" + dir + "/optimization/high_priority_path/noPathFound.png"
+        )
+        plt.imshow(img)
+        plt.show()
+    elif os.path.isfile(
+        folder + "/" + dir + "/optimization/high_priority_path/spline.png"
+    ):
+        file = folder + "/" + dir + "/optimization/high_priority_path/spline.png"
+        img = plt.imread(file)
+        plt.imshow(img)
+        plt.show()
+    else:
+        print("neither found")

@@ -489,21 +489,6 @@ class SplinePathPlanningLowPriority:
             / numpy.linalg.norm(agentBestMeausrementLocList - pos)
         ).reshape((1, 2))
 
-    ############# NEW TEST PATH PLANNER ####################
-
-    # def find_closest_emitter(self, pos, estimatedRadarParams):
-    #     closetEmittorIndex = np.argmin(np.linalg.norm(np.array(estimatedRadarParams)[:,0:2]-np.array(pos), axis=1))
-    #     # if len(estimatedRadarParams) == 2:
-    #     #     print()
-    #     # # closetEmittorIndex = np.argmin(np.linalg.norm(estimatedRadarParams[:,0:2]-pos, axis=1))
-    #     # # print("closetEmittorIndex TEST",closetEmittorIndex)
-    #     # closetEmittorIndex = 0
-    #     # for i in range(len(estimatedRadarParams)):
-    #     #     if np.linalg.norm(estimatedRadarParams[i][0:2]-pos) < np.linalg.norm(estimatedRadarParams[closetEmittorIndex][0:2]-pos):
-    #     #         closetEmittorIndex = i
-    #     # print("closetEmittorIndex",closetEmittorIndex)
-    #     return closetEmittorIndex
-
     def find_most_uncertain_emitter(self, estimatedRadarParamsCov):
         mostUncertainIndex = 0
         for i in range(len(estimatedRadarParamsCov)):
@@ -535,7 +520,6 @@ class SplinePathPlanningLowPriority:
             agent.position[0:2]
         ) + time * self.params.agentSpeed * np.array([np.cos(heading), np.sin(heading)])
         points = np.linspace(first_point, last_point, num_future_points)
-        # print("points",points)
         return points
 
     def objective_function_for_best_measurement_dist_constrained(
@@ -658,7 +642,6 @@ class SplinePathPlanningLowPriority:
     #     time = dist/params.agentSpeed
     #     num_future_points = time//params.agentPathHistorydt
     #     points = np.linspace(pos, waypoint, num_future_points.astype(int))
-    #     # print("points",points)
     #     return points
 
     # def find_closest_emitter(self, pos, estimatedRadarParams):
@@ -753,14 +736,6 @@ class SplinePathPlanningLowPriority:
             )
             exploreMean = np.mean(explore)
             exploreObj += exploreMean
-            if test:
-                print("agent index", index)
-                print("exploreMean", exploreMean)
-                print(
-                    "cov",
-                    np.linalg.det(estimatedRadarParamsCov_temp[closest_emitter_index]),
-                )
-                print("dist", distance_from_line(x0, y0, x1, y1, x2, y2))
 
             if self.plotTest:
                 numTestPoints = 25
@@ -770,7 +745,6 @@ class SplinePathPlanningLowPriority:
                 objF = numpy.zeros((numTestPoints, numTestPoints))
 
                 for i in range(numTestPoints):
-                    # print("i",i)
                     for j in range(numTestPoints):
                         closest_emitter_index = find_closest_emitter(
                             np.array([testX[i, j], testY[i, j]]),
@@ -818,7 +792,6 @@ class SplinePathPlanningLowPriority:
                 tempOptIndex = numpy.nanargmin(objF)
                 tempOptLocations.append(testX.flat[tempOptIndex])
                 tempOptLocations.append(testY.flat[tempOptIndex])
-                print("opt obj", objF.flat[tempOptIndex])
 
                 futurePathTempPlot = get_agent_future_path_waypoint(
                     np.array([testX.flat[tempOptIndex], testY.flat[tempOptIndex]]),
@@ -911,7 +884,6 @@ class SplinePathPlanningLowPriority:
             )
         else:
             agentOrder = range(len(agentList))
-        print("agentOrder", agentOrder)
         # agentOrder = range(len(agentList))
 
         if self.gridSearch:
@@ -924,7 +896,7 @@ class SplinePathPlanningLowPriority:
             )
             bestMeasurementLocList = []
             for k in range(len(agentList)):
-                index = agentOrder[k]
+                index = k
                 bestMeasurementLocList.append(optWaypoints[2 * index : 2 * index + 2])
             return bestMeasurementLocList
 
@@ -1003,12 +975,10 @@ class SplinePathPlanningLowPriority:
                 objective_function, sens, agentList, initialWaypoint
             )
 
-            print("fStar", fStar)
             numOptimization += 1
             totalTime += time.time() - start
             if fStar is not None:
                 if fStar < bestOptVal:
-                    print("new best", fStar)
                     bestOptVal = fStar
                     optWaypoints = waypoints
         print("totalTime", totalTime)
@@ -1031,7 +1001,6 @@ class SplinePathPlanningLowPriority:
         )
         print("discrete search time", time.time() - start)
         self.plotTest = False
-        print("tempOptLocations", tempOptLocations)
         tempOptLocations = numpy.array(tempOptLocations).squeeze()
         tempObjectiveFunctionVal = (
             self.objective_function_for_best_measurement_waypoints(
@@ -1057,8 +1026,6 @@ class SplinePathPlanningLowPriority:
                 agentOrder,
             )
         )
-        print("optimal objective function value", optObjectiveFunctionVal)
-        print("tempObjectiveFunctionVal", tempObjectiveFunctionVal)
         fig, ax = plt.subplots()
         ax.scatter(
             tempOptLocations[0::2], tempOptLocations[1::2], label="discrete search"
@@ -1163,7 +1130,12 @@ class SplinePathPlanningLowPriority:
                     allAgentPathHistory_temp[:, 0], allAgentPathHistory_temp[:, 1]
                 )
                 ax.scatter(tempOptLocations[-2], tempOptLocations[-1], marker="x")
-                ax.scatter(agentList[index].position[0], agentList[index].position[1])
+                ax.scatter(
+                    agentList[index].position[0],
+                    agentList[index].position[1],
+                    marker="o",
+                    color="green",
+                )
 
             futurePath = get_agent_future_path_waypoint(
                 np.array([testX.flat[tempOptIndex], testY.flat[tempOptIndex]]),
@@ -1174,6 +1146,15 @@ class SplinePathPlanningLowPriority:
 
             allAgentPathHistory_temp = np.vstack((allAgentPathHistory_temp, futurePath))
         print("discrete search time", time.time() - start)
+
+        agentWaypoints = []
+
+        for i in range(len(agentList)):
+            for j in range(len(agentOrder)):
+                if agentOrder[j] == i:
+                    agentWaypoints.append(tempOptLocations[2 * j])
+                    agentWaypoints.append(tempOptLocations[2 * j + 1])
+                    break
 
         if showPlot:
             ax.scatter(
@@ -1186,10 +1167,11 @@ class SplinePathPlanningLowPriority:
                 + str(self.objectiveFunctionPlotIndex)
                 + ".png"
             )
-            plt.savefig(file_name)
+            # plt.savefig(file_name)
+            plt.show()
             self.objectiveFunctionPlotIndex += 1
 
-        return tempOptLocations
+        return agentWaypoints
 
     def run_optimization_waypoints(
         self, objective_function, sens, agentList, initialWaypoints

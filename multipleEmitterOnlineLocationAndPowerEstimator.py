@@ -224,7 +224,17 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         y = measurement_pos[1]
 
         H = self.measurement_jacobian(xem, yem, erp, x, y)
-        K = sigma_prev @ H.T @ np.linalg.inv(H @ sigma_prev @ H.T + measurement_cov)
+        # K = sigma_prev @ H.T @ np.linalg.inv(H @ sigma_prev @ H.T + measurement_cov)
+        regularization = 0.0 * np.eye(measurement_cov.shape[0])
+        K = (
+            sigma_prev
+            @ H.T
+            @ np.linalg.solve(
+                H @ sigma_prev @ H.T + regularization + measurement_cov,
+                np.eye(H.shape[0]),
+            )
+        )
+
         # zHat = self.measurement_model(xem, yem, erp, x, y)
         zHat = self.measurement_model(xem, yem, erp, x, y)
         inovation = np.zeros_like(zHat)
@@ -441,7 +451,14 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         )
 
         x0 = [x_0, y_0, erp_0]
-        print("x0", x0)
+        # if radarId == 3:
+        #     print("x0", x0)
+        #     print(
+        #         "true value",
+        #         self.radarList[radarId].position,
+        #         self.radarList[radarId].outputPower
+        #         * self.radarList[radarId].transmitGain,
+        #     )
 
         # x0 = [
         #     self.radarList[radarId].position[0],
@@ -506,6 +523,13 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.measurement_locations.append(measurement_location)
         self.measurement_values.append(measurement_value)
         self.group_lists[radarId].append(len(self.measurement_values) - 1)
+        if measurement_value[1] > 0.0001:
+            return
+
+        # if radarId == 3:
+        #     print("measurement value", measurement_value)
+        #     print("measurement location", measurement_location)
+
         # self.group_lists[radarId] = np.append(self.group_lists[radarId],(len(self.measurement_values)-1),dtype=int)
 
         numMeasurementsNeeded = 10
@@ -593,8 +617,8 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                     self.estimated_emmiter_params_covariances[radarId],
                 )
 
-            # np.save(params.dataFile+"/estimated_params/"+str(self.fileCounter), self.estimated_emmiter_params)
-            # np.save(params.dataFile+"/estimated_params_cov/"+str(self.fileCounter), self.estimated_emmiter_params_covariances)
+        # np.save(params.dataFile+"/estimated_params/"+str(self.fileCounter), self.estimated_emmiter_params)
+        # np.save(params.dataFile+"/estimated_params_cov/"+str(self.fileCounter), self.estimated_emmiter_params_covariances)
 
     ##########################code for known data association############################################
 
