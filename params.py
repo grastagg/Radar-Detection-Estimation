@@ -381,6 +381,9 @@ hyperparameters = np.linalg.solve(paramArray, b)
 seperationWeight = hyperparameters[0][0]
 nextCovarianceWeight = hyperparameters[1][0]
 distFromStraitWeight = hyperparameters[2][0]
+seperationWeight = 0.5
+distFromStraitWeight = 0.0
+nextCovarianceWeight = 0.5
 print("seperation uncertainty ratio", sepUncertaintyRatio)
 print("seperation distance ratio", sepDistRatio)
 print("seperationWeight", seperationWeight)

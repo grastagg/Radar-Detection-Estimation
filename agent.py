@@ -77,6 +77,7 @@ class Agent:
         self.pathHistoryFileName = (
             dataFile + "/agent" + str(self.agentId) + "PathHistory.txt"
         )
+        print("agent path history file name", self.pathHistoryFileName)
 
         if os.path.isfile(self.pathHistoryFileName):
             print("agent path history file already exists, deleting")

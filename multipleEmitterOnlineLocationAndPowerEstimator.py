@@ -27,7 +27,9 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         radar_measurement_coeff,
         params,
         radarList,
+        dataFile,
     ):
+        self.dataFile = dataFile
         self.params = params
         self.radarList = radarList
 
@@ -604,12 +606,12 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         # )
         if self.saveRadarData:
             self.fileCounter += 1
-            file = open(self.params.dataFile + "radarEstimateTimestamps.txt", "a")
+            file = open(self.dataFile + "radarEstimateTimestamps.txt", "a")
             file.write(str(timestep) + "\n")
             file.close()
             for radarId in range(self.params.numRadar):
                 np.save(
-                    self.params.dataFile
+                    self.dataFile
                     + "/radar_"
                     + str(radarId)
                     + "/estimated_params/"
@@ -617,7 +619,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                     self.estimated_emmiter_params[radarId],
                 )
                 np.save(
-                    self.params.dataFile
+                    self.dataFile
                     + "/radar_"
                     + str(radarId)
                     + "/estimated_params_cov/"

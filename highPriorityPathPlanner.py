@@ -1889,16 +1889,19 @@ def test_high_priority_path_planner(
     optimalTime = None
     maxPathSafetyThreshold = 0.2
     for seed in seeds:
+        # importDir = (
+        #     "saved_data.ratioData.expCov"
+        #     + str(expCovRatio)
+        #     + ".expDist"
+        #     + str(expDistRatio)
+        #     + "."
+        #     + str(seed)
+        #     + "."
+        #     + lowPriorityPathPlanner
+        #     + ".params"
+        # )
         importDir = (
-            "saved_data.mc_runs." + str(seed) + "." + lowPriorityPathPlanner + ".params"
-        )
-        # importDir =
-        importDir = (
-            "saved_data.ratioData.expCov"
-            + str(expCovRatio)
-            + ".expDist"
-            + str(expDistRatio)
-            + "."
+            "saved_data.ratioData.dist0."
             + str(seed)
             + "."
             + lowPriorityPathPlanner
@@ -1910,13 +1913,23 @@ def test_high_priority_path_planner(
         # # )
         # # username = os.environ["USER"]
         username = getpass.getuser()
+        # dataFilePath = (
+        #     "/home/"
+        #     + username
+        #     + "/repos/magiccvs/radar_detection_estimation/saved_data/ratioData/expCov"
+        #     + str(expCovRatio)
+        #     + "/expDist"
+        #     + str(expDistRatio)
+        #     + "/"
+        #     + str(seed)
+        #     + "/"
+        #     + lowPriorityPathPlanner
+        #     + "/"
+        # )
         dataFilePath = (
             "/home/"
             + username
-            + "/repos/magiccvs/radar_detection_estimation/saved_data/ratioData/expCov"
-            + str(expCovRatio)
-            + "/expDist"
-            + str(expDistRatio)
+            + "/repos/magiccvs/radar_detection_estimation/saved_data/ratioData/dist0"
             + "/"
             + str(seed)
             + "/"

@@ -205,7 +205,7 @@ def remove_empty_lists(paramsList):
     return newParamsList
 
 
-def main(params):
+def main(params, dataFile):
     plot = False
     if plot:
         fig, ax = plt.subplots()
@@ -241,7 +241,7 @@ def main(params):
         params.agentRadarCrossSection,
         params.agentColors,
         params.agentPathHistorydt,
-        params.dataFile,
+        dataFile,
         params,
     )
 
@@ -257,6 +257,7 @@ def main(params):
             radar_measurement_coeff=params.radarMeasurementCoeff,
             params=params,
             radarList=radarList,
+            dataFile=dataFile,
         )
     )
     probabilityOfDetectionMap = ProbabilityOfDetectionMap(
@@ -401,6 +402,14 @@ def run_mc_simulation(
             + str(randomSeed)
             + "/"
         )
+        dataFile = (
+            "/home/"
+            + username
+            + "/repos/magiccvs/radar_detection_estimation/saved_data/ratioData/dist0"
+            + "/"
+            + str(randomSeed)
+            + "/"
+        )
         print("dataFile:", dataFile)
         # dataFile = (
         #     "/home/"
@@ -428,6 +437,13 @@ def run_mc_simulation(
             + ".expDist"
             + str(expDistRatio)
             + "."
+            + str(seed)
+            + "."
+            + lowPriorityPathPlanner
+            + ".params"
+        )
+        importDir = (
+            "saved_data.ratioData.dist0."
             + str(seed)
             + "."
             + lowPriorityPathPlanner
@@ -477,10 +493,12 @@ def run_mc_simulation(
                 seed += 1
                 continue
         np.savetxt(
-            params.dataFile + "/high_priority_path/deterministic_path_time.txt",
+            dataFile
+            + lowPriorityPathPlanner
+            + "/high_priority_path/deterministic_path_time.txt",
             np.array([optPathTime]),
         )
-        main(params)
+        main(params, dataFile + lowPriorityPathPlanner + "/")
 
         ##uncomment to run optimization path planner
         # lowPriorityPathPlanner = "optimization"

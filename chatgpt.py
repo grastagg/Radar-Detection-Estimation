@@ -1,28 +1,36 @@
 import numpy as np
-from scipy.spatial import Voronoi, voronoi_plot_2d
-from matplotlib import pyplot as plt
 
-points = np.array([[0,0],[1,0],[0,1],[1,1],[0.5,0.5]])
-vor = Voronoi(points)
+# Number of points along each axis
+n_points = 10
 
-fig,ax = plt.subplots()
-voronoi_plot_2d(vor,ax)
+# Generate evenly spaced points along the parameterization of the surface x + y + z = 1
+x = np.linspace(0, 1, n_points)
+points = []
+for xi in x:
+    for yi in np.linspace(0, 1 - xi, n_points):
+        zi = 1 - xi - yi
+        points.append((xi, yi, zi))
 
-print("vor.points",vor.points)
-print("vor.point_region",vor.point_region)
-print("vor.regions",vor.regions)
+# Convert to numpy array for easier manipulation
+points = np.array(points)
 
-for i,point in enumerate(vor.vertices):
-    ax.text(point[0],point[1],str(i))
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
-for i in range(len(points)):
-    point = points[i]
-    ax.text(point[0],point[1],str(i))
-    ax.scatter(point[0],point[1])
-    
-# for i in vor.point_region:
-    
-#     point = vor.points[i-1]
-#     # ax.scatter(point[0],point[1])
-#     ax.text(point[0],point[1],str(i))
+# Prepare points for plotting
+x = points[:, 0]
+y = points[:, 1]
+z = points[:, 2]
+
+# Create a 3D scatter plot
+fig = plt.figure()
+ax = fig.add_subplot(111, projection="3d")
+ax.scatter(x, y, z, c="b", marker="o", s=20)
+
+ax.set_xlabel("X Label")
+ax.set_ylabel("Y Label")
+ax.set_zlabel("Z Label")
+ax.set_title("Evenly Spaced Points on Surface x + y + z = 1")
+
 plt.show()
+
