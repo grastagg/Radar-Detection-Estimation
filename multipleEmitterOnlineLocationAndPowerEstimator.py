@@ -392,7 +392,9 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         yem = np.tan(theta1) * (xem - x1) + y1
         return xem, yem
 
-    def compute_initial_location_estimate(self, measurementLocations, measurements):
+    def compute_initial_location_estimate(
+        self, measurementLocations, measurements, radarId
+    ):
         count = 0
         x_0Sum = 0
         y_0Sum = 0
@@ -413,6 +415,18 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                     x_0Sum += x_0
                     y_0Sum += y_0
                     count += 1
+        # if radarId == 0:
+        #     fig, ax = plt.subplots()
+        #     for i in range(len(measurementLocations)):
+        #         loc = measurementLocations[i]
+        #
+        #         ax.plot(
+        #             [loc[0], loc[0] + 10000 * np.cos(measurements[i][0])],
+        #             [loc[1], loc[1] + 10000 * np.sin(measurements[i][0])],
+        #             color="blue",
+        #         )
+        #     ax.scatter([x_0Sum / count], [y_0Sum / count], color="red", zorder=10)
+        #     plt.show()
         return x_0Sum / count, y_0Sum / count
 
     def compute_initial_erp_estimate(
@@ -444,14 +458,16 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self, measurement_locations, measurement_values, measurement_cov, radarId
     ):
         x_0, y_0 = self.compute_initial_location_estimate(
-            measurement_locations, measurement_values
+            measurement_locations, measurement_values, radarId
         )
         erp_0 = self.compute_initial_erp_estimate(
             measurement_locations, measurement_values, x_0, y_0
         )
 
+        x_0 = self.radarList[radarId].position[0]
+        y_0 = self.radarList[radarId].position[1]
         x0 = [x_0, y_0, erp_0]
-        # if radarId == 3:
+        # if radarId == 0:
         #     print("x0", x0)
         #     print(
         #         "true value",
@@ -459,7 +475,6 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         #         self.radarList[radarId].outputPower
         #         * self.radarList[radarId].transmitGain,
         #     )
-
         # x0 = [
         #     self.radarList[radarId].position[0],
         #     self.radarList[radarId].position[1],
@@ -472,9 +487,14 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             jac=self.stack_measurement_jacobian,
             args=(measurement_values, measurement_locations),
             bounds=(
-                [0, 0, 10],
-                [self.params.bounds[0], self.params.bounds[1], 20 * self.params.erp],
+                [x0[0] - 5000, x0[1] - 5000, 10],
+                [x0[0] + 5000, x0[1] + 5000, 20 * self.params.erp],
             ),
+            loss="soft_l1",
+            # bounds=(
+            #     [0, 0, 10],
+            #     [self.params.bounds[0], self.params.bounds[1], 20 * self.params.erp],
+            # ),
         )
         estimated_emmiter_params = sol.x
         jacobians = self.stack_measurement_jacobian(
@@ -523,16 +543,10 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.measurement_locations.append(measurement_location)
         self.measurement_values.append(measurement_value)
         self.group_lists[radarId].append(len(self.measurement_values) - 1)
-        if measurement_value[1] > 0.0001:
+        if measurement_value[1] > 1e-3:
             return
 
-        # if radarId == 3:
-        #     print("measurement value", measurement_value)
-        #     print("measurement location", measurement_location)
-
-        # self.group_lists[radarId] = np.append(self.group_lists[radarId],(len(self.measurement_values)-1),dtype=int)
-
-        numMeasurementsNeeded = 10
+        numMeasurementsNeeded = 21
         # if len(self.group_lists[radarId]) > numMeasurementsNeeded:
         aoaDiff = self.compute_inlier_aoa_diff(
             np.array(self.measurement_values)[self.group_lists[radarId]]
@@ -580,20 +594,14 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
                 estimated_emmiter_params_covariances
             )
 
-        # if len(self.estimated_emmiter_params[radarId]) > 0:
-        #     if radarId == 5:
-        #         print("radarId", radarId)
-        #         print("estimate erp", self.estimated_emmiter_params[radarId][2])
-        #         print(
-        #             "true erp",
-        #             self.params.radarOutputPowerList[radarId]
-        #             * self.params.radarTransmitGainList[radarId],
-        #         )
-        # print("ransac prediction", self.estimated_emmiter_params)
-        # print("covariance", self.estimated_emmiter_params_covariances)
-        # print("group lists", self.group_lists)
-        # print("outliers", self.outlier_indicies)
-        # print()
+        # if radarId == 0:
+        #     print("estimated location", self.estimated_emmiter_params[radarId])
+        #     print(
+        #         "true location",
+        #         self.radarList[radarId].position,
+        #         self.radarList[radarId].outputPower
+        #         * self.radarList[radarId].transmitGain,
+        # )
         if self.saveRadarData:
             self.fileCounter += 1
             file = open(self.params.dataFile + "radarEstimateTimestamps.txt", "a")

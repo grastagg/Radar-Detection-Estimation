@@ -1,5 +1,6 @@
 import numpy as np
 import importlib
+import matplotlib.pyplot as plt
 
 import os
 
@@ -141,34 +142,154 @@ def processMCData(dataFile):
     averageLawnmowerTimeToFindPath /= countLawn
     averageLawnmowerDiffDeterministic /= countLawn
     averageOptimizedDiffDeterministic /= countOpt
-    print("Average Lawnmower Max PD: ", averageLawnmowerMaxPD)
-    print("Average Optimized Max PD: ", averageOptimizedMaxPD)
-    print(
-        "Average Lawnmower Max Prob Undiscovered: ", averageLawnmowerMaxProbUndiscovered
-    )
-    print(
-        "Average Optimized Max Prob Undiscovered: ", averageOptimizedMaxProbUndiscovered
-    )
-    print("Average Lawnmower Time To Find Path: ", averageLawnmowerTimeToFindPath)
-    print("Average Optimized Time To Find Path: ", averageOptimizedTimeToFindPath)
-    print("Average Lawnmower Diff Deterministic: ", averageLawnmowerDiffDeterministic)
-    print("Average Optimized Diff Deterministic: ", averageOptimizedDiffDeterministic)
+    percentFoundOptimized = countOpt / totalCount
+    print("countOpt: ", countOpt)
+    # print("Average Lawnmower Max PD: ", averageLawnmowerMaxPD)
+    # print("Average Optimized Max PD: ", averageOptimizedMaxPD)
+    # print(
+    #     "Average Lawnmower Max Prob Undiscovered: ", averageLawnmowerMaxProbUndiscovered
+    # )
+    # print(
+    #     "Average Optimized Max Prob Undiscovered: ", averageOptimizedMaxProbUndiscovered
+    # )
+    # print("Average Lawnmower Time To Find Path: ", averageLawnmowerTimeToFindPath)
+    # print("Average Optimized Time To Find Path: ", averageOptimizedTimeToFindPath)
+    # print("Average Lawnmower Diff Deterministic: ", averageLawnmowerDiffDeterministic)
+    # print("Average Optimized Diff Deterministic: ", averageOptimizedDiffDeterministic)
+    #
+    # print("Count Lawn: ", countLawn)
+    # print("Count Opt: ", countOpt)
+    # print("Total Count: ", totalCount)
+    # print("Count DistToGoal: ", countDistToGoal)
 
-    print("Count Lawn: ", countLawn)
-    print("Count Opt: ", countOpt)
-    print("Total Count: ", totalCount)
-    print("Count DistToGoal: ", countDistToGoal)
+    return np.array(
+        [
+            averageOptimizedTimeToFindPath,
+            averageOptimizedMaxPD,
+            averageOptimizedMaxProbUndiscovered,
+            averageOptimizedDiffDeterministic,
+            percentFoundOptimized,
+        ]
+    )
+
+
+def get_sorted_expCovRatios(dataFile):
+    expCovRatios = []
+    for expCovFolder in os.listdir(dataFile):
+        if expCovFolder[-2] == "v":
+            expCovRatio = float(expCovFolder[-1])
+        else:
+            expCovRatio = float(expCovFolder[-2:])
+
+        expCovRatios.append(expCovRatio)
+
+    expCovRatios = np.array(expCovRatios)
+    return np.sort(expCovRatios)
+
+
+def get_sorted_expDistRatios(dataFile):
+    expDistRatios = []
+    for expCovFolder in os.listdir(dataFile):
+        if expCovFolder[-2] == "t":
+            expDistRatio = float(expCovFolder[-1])
+        else:
+            expDistRatio = float(expCovFolder[-2:])
+        expDistRatios.append(expDistRatio)
+    expDistRatios = np.array(expDistRatios)
+    return np.sort(expDistRatios)
+
+
+def create_heatmap(dataFile, parameterIndex, title):
+    expCoverageRatios = get_sorted_expCovRatios(dataFile)
+    valOuterArray = []
+    expCovRatiosOuterArray = []
+    expDistRatiosOuterArray = []
+
+    for expCovRatio in expCoverageRatios:
+        valInnerArray = []
+        expCovRatiosInnerArray = []
+        expDistRatiosInnerArray = []
+        expCovFolder = dataFile + "expCov" + str(int(expCovRatio))
+        expDistRatios = get_sorted_expDistRatios(expCovFolder)
+        for expDistRatio in expDistRatios:
+            expDistFolder = expCovFolder + "/expDist" + str(int(expDistRatio))
+            parameter = processMCData(expDistFolder)[parameterIndex]
+            valInnerArray.append(parameter)
+            expCovRatiosInnerArray.append(expCovRatio)
+            expDistRatiosInnerArray.append(expDistRatio)
+        valOuterArray.append(valInnerArray)
+        expCovRatiosOuterArray.append(expCovRatiosInnerArray)
+        expDistRatiosOuterArray.append(expDistRatiosInnerArray)
+
+    values = np.array(valOuterArray)
+    expDistRatios = np.array(expDistRatiosOuterArray)
+    expCovRatios = np.array(expCovRatiosOuterArray)
+    print(values)
+
+    fig, ax = plt.subplots()
+    ax.pcolormesh(expDistRatios, expCovRatios, values, cmap="Blues")
+    ax.set_xlabel("expDistRatio")
+    ax.set_ylabel("expCovRatio")
+    ax.set_xticks(expDistRatios[0])
+    ax.set_yticks(expCovRatios[:, 0])
+    ax.set_aspect("equal")
+    ax.set_title(title)
+    for i in range(len(expCovRatios)):
+        for j in range(len(expDistRatios[0])):
+            ax.text(
+                expDistRatios[i, j],
+                expCovRatios[i, j],
+                round(values[i, j], 4),
+                ha="center",
+                va="center",
+                color="black",
+            )
+
+    # for expCovFolder in os.listdir(dataFile):
+    #     if expCovFolder[-2] == "v":
+    #         expCovRatio = float(expCovFolder[-1])
+    #     else:
+    #         expCovRatio = float(expCovFolder[-2:])
+    #
+    #     if expCovRatio > maxExpCovRatio:
+    #         maxExpCovRatio = expCovRatio
+    # print("Max ExpCovRatio: ", maxExpCovRatio)
+    #
+    # for expCovFolder in os.listdir(dataFile):
+    #     print(expCovFolder)
+    #     if expCovFolder[-2] == "v":
+    #         expCovRatio = float(expCovFolder[-1])
+    #     else:
+    #         expCovRatio = float(expCovFolder[-2:])
+    #     expCovRatio = float(expCovFolder[-1])
+    #     print("expCovRatio: ", expCovRatio)
+    #     for expDistFolder in os.listdir(dataFile + expCovFolder):
+    #         print(expDistFolder)
+    #
+    #         if expDistFolder[-2] == "t":
+    #             expDistRatio = float(expDistFolder[-1])
+    #         else:
+    #             expDistRatio = float(expDistFolder[-2:])
+    #         print("expDistRatio: ", expDistRatio)
+    #         (
+    #             averageOptimizedTimeToFindPath,
+    #             averageOptimizedMaxPD,
+    #             averageOptimizedMaxProbUndiscovered,
+    #             averageOptimizedDiffDeterministic,
+    #             percentFoundOptimized,
+    #         ) = processMCData(dataFile + expCovFolder + "/" + expDistFolder)
+    #
 
 
 if __name__ == "__main__":
-    # processMCData("./saved_data/mc_runs/")
-    processMCData("./saved_data/ratioData/expCov1/expDist1/")
-    processMCData("./saved_data/ratioData/expCov1/expDist2/")
-    processMCData("./saved_data/ratioData/expCov1/expDist3/")
-    processMCData("./saved_data/ratioData/expCov1/expDist4/")
-    processMCData("./saved_data/ratioData/expCov1/expDist5/")
-    processMCData("./saved_data/ratioData/expCov1/expDist6/")
-    processMCData("./saved_data/ratioData/expCov1/expDist7/")
-    processMCData("./saved_data/ratioData/expCov1/expDist8/")
-    processMCData("./saved_data/ratioData/expCov1/expDist9/")
-    processMCData("./saved_data/ratioData/expCov1/expDist10/")
+    parameterNames = [
+        "Average Time To Find Path",
+        "Average Max PD",
+        "Average Max Prob Undiscovered",
+        "Average Diff Deterministic",
+        "Percent Found Optimized",
+    ]
+    parameterIndex = 0
+    for i, title in enumerate(parameterNames):
+        create_heatmap("./saved_data/ratioData/", i, title)
+    plt.show()

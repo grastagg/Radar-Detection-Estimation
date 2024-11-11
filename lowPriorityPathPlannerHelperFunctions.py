@@ -110,12 +110,22 @@ def compute_objective_jax(
 ):
     # Compute the distance between pos and agentPos
     dist_to_agent = jnp.linalg.norm(jnp.array(pos) - jnp.array(agentPos)[0:2])
+    dist_to_radar = jnp.array(
+        [
+            jnp.linalg.norm(jnp.array(pos) - radarPos[0:2])
+            for radarPos in estimatedRadarParams
+        ]
+    )
+    minDistToRadar = jnp.min(dist_to_radar)
 
     # Use jax.lax.cond to handle conditional logic
-    distanceThreshold = 2000
+    distanceThresholdAgent = 1000
+    distanceThresholdRadar = 0
+    condition = jnp.logical_or(
+        dist_to_agent < distanceThresholdAgent, minDistToRadar < distanceThresholdRadar
+    )
     obj = jax.lax.cond(
-        dist_to_agent
-        < distanceThreshold,  # condition: is the distance below the threshold?
+        condition,  # condition: is the distance below the threshold?
         lambda _: jnp.inf,  # if true: return infinity
         lambda _: compute_obj(
             pos,  # if false: compute the objective normally

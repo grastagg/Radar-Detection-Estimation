@@ -79,7 +79,7 @@ def copy_params(dataFile):
 def create_data_file(filepath, numRadar, pathPlanner):
     print("creating data file: ", filepath)
     if not os.path.exists(filepath):
-        os.mkdir(filepath)
+        os.makedirs(filepath)
     print("creating subdirectories")
     if not os.path.exists(filepath + "/" + pathPlanner + "/"):
         filepath = filepath + "/" + pathPlanner + "/"
@@ -96,4 +96,3 @@ def create_data_file(filepath, numRadar, pathPlanner):
         #     return
         # else:
         #     exit()
-

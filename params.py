@@ -46,9 +46,8 @@ numTestPoints = 500
 
 # numTestPoints = 1
 # numTestPoints =30
-# simulationEndTime = 1500
-simulationEndTime = 1150
-# simulationEndTime = 6
+# simulationEndTime = 1150
+simulationEndTime = 600
 simulationTimestep = 0.1
 plotTimeStep = 0.5
 
@@ -370,11 +369,11 @@ seperationScale = 0.5
 # seperationWeight = 0.3
 
 
-nextCovarianceScale = 1e15
+nextCovarianceScale = 1e14
 # nextCovarianceWeight = 0.3
 
-sepUncertaintyRatio = 1
-sepDistRatio = 2
+sepUncertaintyRatio = 3
+sepDistRatio = 5
 
 paramArray = np.array([[1, 1, 1], [1, -sepUncertaintyRatio, 0], [1, 0, -sepDistRatio]])
 b = np.array([[1], [0], [0]])
@@ -424,10 +423,23 @@ lowPriorityPathPlanner = "lawnmower"
 # pathPlanner = "optimization"
 
 username = getpass.getuser()
+# dataFile = (
+#     "/home/"
+#     + username
+#     + "/repos/magiccvs/radar_detection_estimation/saved_data/mc_runs/"
+#     + str(randomSeed)
+#     + "/"
+#     + lowPriorityPathPlanner
+#     + "/"
+# )
 dataFile = (
     "/home/"
     + username
-    + "/repos/magiccvs/radar_detection_estimation/saved_data/mc_runs/"
+    + "/repos/magiccvs/radar_detection_estimation/saved_data/ratioData/expCov"
+    + str(sepUncertaintyRatio)
+    + "/expDist"
+    + str(sepDistRatio)
+    + "/"
     + str(randomSeed)
     + "/"
     + lowPriorityPathPlanner

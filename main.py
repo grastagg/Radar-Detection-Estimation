@@ -393,10 +393,22 @@ def run_mc_simulation(
         dataFile = (
             "/home/"
             + username
-            + "/repos/magiccvs/radar_detection_estimation/saved_data/mc_runs/"
-            + str(seed)
+            + "/repos/magiccvs/radar_detection_estimation/saved_data/ratioData/expCov"
+            + str(expCovRatio)
+            + "/expDist"
+            + str(expDistRatio)
+            + "/"
+            + str(randomSeed)
             + "/"
         )
+        print("dataFile:", dataFile)
+        # dataFile = (
+        #     "/home/"
+        #     + username
+        #     + "/repos/magiccvs/radar_detection_estimation/saved_data/mc_runs/"
+        #     + str(seed)
+        #     + "/"
+        # )
         create_data_file(dataFile, numRadar, lowPriorityPathPlanner)
         copy_params(dataFile + lowPriorityPathPlanner + "/")
         paramsFile = dataFile + "/" + lowPriorityPathPlanner + "/" + "params.py"
@@ -411,8 +423,21 @@ def run_mc_simulation(
 
         # set_path_planner("params.py", lowPriorityPathPlanner)
         importDir = (
-            "saved_data.mc_runs." + str(seed) + "." + lowPriorityPathPlanner + ".params"
+            "saved_data.ratioData.expCov"
+            + str(expCovRatio)
+            + ".expDist"
+            + str(expDistRatio)
+            + "."
+            + str(seed)
+            + "."
+            + lowPriorityPathPlanner
+            + ".params"
         )
+        print("importDir:", importDir)
+
+        # importDir = (
+        #     "saved_data.mc_runs." + str(seed) + "." + lowPriorityPathPlanner + ".params"
+        # )
         # importDir = "saved_data.mc_runs."+str(seed)+".params"
         params = importlib.import_module(importDir)
         if not params.radarPositionsFound:
@@ -435,7 +460,7 @@ def run_mc_simulation(
         )
         loadHPPDataFromFile = True
         loadHPPDataFile = (
-            "saved_data/ratioDataOld/expCov1/expDist3/"
+            "saved_data/ratioData/expCov2/expDist3/"
             + str(seed)
             + "/optimization/high_priority_path/deterministic_path_time.txt"
         )
@@ -478,16 +503,17 @@ if __name__ == "__main__":
     pathPlanner = sys.argv[3]
     expCovRatio = sys.argv[4]
     expDist = sys.argv[5]
-
-    # randomSeed = 66354230
+    #
+    # randomSeed = 66654257
     # numSeeds = 1
     # pathPlanner = "optimization"
-    # expCovRatio = 1
-    # expDist = 1
+    # expCovRatio = 4
+    # expDist = 10
+
     # pathPlanner = "lawnmower"
 
     run_mc_simulation(randomSeed, numSeeds, pathPlanner, expCovRatio, expDist)
-    test_high_priority_path_planner([randomSeed], pathPlanner)
+    test_high_priority_path_planner([randomSeed], pathPlanner, expCovRatio, expDist)
     # do_profile = False
     # if do_profile:
     #     with cProfile.Profile() as pr:

@@ -1312,7 +1312,7 @@ class HighPriorityPathPlanner:
             # ax.set_ylim([-1000,params.bounds[1]+1000])
             for seg in segments:
                 plt.plot([seg[0][0], seg[1][0]], [seg[0][1], seg[1][1]], "g--")
-            plt.show()
+            # plt.show()
 
         return segments, ax
 
@@ -1692,7 +1692,7 @@ class HighPriorityPathPlanner:
             self.plot_spline(tmpSpline, ax)
 
             self.plot_constraints(spline, tuple(radarList), radarParams, radarParamsCov)
-            plt.show()
+            # plt.show()
 
         return controlPoints, tf
 
@@ -1878,11 +1878,13 @@ def evaluate_path_safety(hpp, pathHistoryList, i, params, radarTimeStamp):
             s=1,
         )
         hpp.plot_spline(hpp.spline, ax)
-        plt.show()
+        # plt.show()
     return np.max(pathSafety)
 
 
-def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
+def test_high_priority_path_planner(
+    seeds, lowPriorityPathPlanner, expCovRatio, expDistRatio
+):
     largeStep = 100
     optimalTime = None
     maxPathSafetyThreshold = 0.2
@@ -1890,9 +1892,36 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
         importDir = (
             "saved_data.mc_runs." + str(seed) + "." + lowPriorityPathPlanner + ".params"
         )
+        # importDir =
+        importDir = (
+            "saved_data.ratioData.expCov"
+            + str(expCovRatio)
+            + ".expDist"
+            + str(expDistRatio)
+            + "."
+            + str(seed)
+            + "."
+            + lowPriorityPathPlanner
+            + ".params"
+        )
         params = importlib.import_module(importDir)
+        # # dataFilePath = (
+        # #     "saved_data/mc_runs/" + str(seed) + "/" + lowPriorityPathPlanner + "/"
+        # # )
+        # # username = os.environ["USER"]
+        username = getpass.getuser()
         dataFilePath = (
-            "saved_data/mc_runs/" + str(seed) + "/" + lowPriorityPathPlanner + "/"
+            "/home/"
+            + username
+            + "/repos/magiccvs/radar_detection_estimation/saved_data/ratioData/expCov"
+            + str(expCovRatio)
+            + "/expDist"
+            + str(expDistRatio)
+            + "/"
+            + str(seed)
+            + "/"
+            + lowPriorityPathPlanner
+            + "/"
         )
         print("dataFilePath", dataFilePath)
         radarList = create_radar_list(
@@ -1926,7 +1955,7 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
             dataFilePath + "radar_12/estimated_params/"
         )
 
-        for i in range(600, numFiles, largeStep):
+        for i in range(400, numFiles, largeStep):
             print("i", i)
             dataIndex = i
             # dataIndex = 2280
@@ -2043,6 +2072,7 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
 
                 plt.title(str(seed) + " " + lowPriorityPathPlanner)
                 plt.savefig(dataFilePath + "/high_priority_path/" "noPathFound.png")
+                # plt.show()
                 return
 
         print("dataIndex", dataIndex)
@@ -2206,26 +2236,32 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner):
                 marker="x",
                 s=1,
             )
-            plt.savefig(dataFilePath + "high_priority_path/spline.png")
-
             # plt.show()
+            plt.savefig(dataFilePath + "high_priority_path/spline.png")
 
             # hpp.evaluate_path_sefety(hpp.spline,pathHistoryList)
             # groundTruthPD = pdMap.ground_truth_probability_of_detection(hpp.spline(np.linspace(0,hpp.spline.t[-1],1000)),tuple(radarList))
 
 
 def main():
-    # seed = int(sys.argv[1])
-    # pathPlanner = sys.argv[2]
+    seed = int(sys.argv[1])
+    pathPlanner = sys.argv[2]
+    expCovRatio = float(sys.argv[3])
+    expDistRatio = float(sys.argv[4])
 
     # seed = 56854448
     # seed = 66854281
-    seed = 56654547
-    pathPlanner = "optimization"
+    # seed = 56854448
+    # pathPlanner = "optimization"
     # pathPlanner = "lawnmower"
     print("pathPlanner", pathPlanner)
     seeds = [seed]
-    test_high_priority_path_planner(seeds, pathPlanner)
+    test_high_priority_path_planner(
+        seeds,
+        pathPlanner,
+        expCovRatio,
+        expDistRatio,
+    )
 
 
 if __name__ == "__main__":
