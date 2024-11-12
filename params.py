@@ -46,8 +46,8 @@ numTestPoints = 500
 
 # numTestPoints = 1
 # numTestPoints =30
-# simulationEndTime = 1150
 simulationEndTime = 600
+# simulationEndTime = 10
 simulationTimestep = 0.1
 plotTimeStep = 0.5
 
@@ -358,12 +358,9 @@ useDistToGoal = True
 
 if useDistToGoal:
     distFromStraitScale = np.sqrt(bounds[0] ** 2 + bounds[1] ** 2)
-    # distFromStraitWeight = 0.025
 else:
     distFromStraitScale = np.sqrt(bounds[0] ** 2 + bounds[1] ** 2) / 2
-    # distFromStraitWeight = 1
     distFromStraitWeight = 0.025
-    # distFromStraitWeight = 0
 
 seperationScale = 0.5
 # seperationWeight = 0.3
@@ -372,20 +369,9 @@ seperationScale = 0.5
 nextCovarianceScale = 1e14
 # nextCovarianceWeight = 0.3
 
-sepUncertaintyRatio = 3
-sepDistRatio = 5
-
-paramArray = np.array([[1, 1, 1], [1, -sepUncertaintyRatio, 0], [1, 0, -sepDistRatio]])
-b = np.array([[1], [0], [0]])
-hyperparameters = np.linalg.solve(paramArray, b)
-seperationWeight = hyperparameters[0][0]
-nextCovarianceWeight = hyperparameters[1][0]
-distFromStraitWeight = hyperparameters[2][0]
 seperationWeight = 0.5
 distFromStraitWeight = 0.0
 nextCovarianceWeight = 0.5
-print("seperation uncertainty ratio", sepUncertaintyRatio)
-print("seperation distance ratio", sepDistRatio)
 print("seperationWeight", seperationWeight)
 print("nextCovarianceWeight", nextCovarianceWeight)
 print("distFromStraitWeight", distFromStraitWeight)
@@ -435,20 +421,19 @@ username = getpass.getuser()
 #     + lowPriorityPathPlanner
 #     + "/"
 # )
-dataFile = (
-    "/home/"
-    + username
-    + "/repos/magiccvs/radar_detection_estimation/saved_data/ratioData/expCov"
-    + str(sepUncertaintyRatio)
-    + "/expDist"
-    + str(sepDistRatio)
-    + "/"
-    + str(randomSeed)
-    + "/"
-    + lowPriorityPathPlanner
-    + "/"
-)
-print("TEST", dataFile)
+# dataFile = (
+#     "/home/"
+#     + username
+#     + "/repos/magiccvs/radar_detection_estimation/saved_data/ratioData/expCov"
+#     + str(sepUncertaintyRatio)
+#     + "/expDist"
+#     + str(sepDistRatio)
+#     + "/"
+#     + str(randomSeed)
+#     + "/"
+#     + lowPriorityPathPlanner
+#     + "/"
+# )
 agentColors = ["b", "g", "c", "m", "y", "k"]
 
 

@@ -1882,60 +1882,14 @@ def evaluate_path_safety(hpp, pathHistoryList, i, params, radarTimeStamp):
     return np.max(pathSafety)
 
 
-def test_high_priority_path_planner(
-    seeds, lowPriorityPathPlanner, expCovRatio, expDistRatio
-):
+def test_high_priority_path_planner(seeds, lowPriorityPathPlanner, dataFilePath):
     largeStep = 100
     optimalTime = None
     maxPathSafetyThreshold = 0.2
     for seed in seeds:
-        # importDir = (
-        #     "saved_data.ratioData.expCov"
-        #     + str(expCovRatio)
-        #     + ".expDist"
-        #     + str(expDistRatio)
-        #     + "."
-        #     + str(seed)
-        #     + "."
-        #     + lowPriorityPathPlanner
-        #     + ".params"
-        # )
-        importDir = (
-            "saved_data.ratioData.dist0."
-            + str(seed)
-            + "."
-            + lowPriorityPathPlanner
-            + ".params"
-        )
+        importDir = dataFilePath.replace("/", ".") + "params"
+        print("importDir", importDir)
         params = importlib.import_module(importDir)
-        # # dataFilePath = (
-        # #     "saved_data/mc_runs/" + str(seed) + "/" + lowPriorityPathPlanner + "/"
-        # # )
-        # # username = os.environ["USER"]
-        username = getpass.getuser()
-        # dataFilePath = (
-        #     "/home/"
-        #     + username
-        #     + "/repos/magiccvs/radar_detection_estimation/saved_data/ratioData/expCov"
-        #     + str(expCovRatio)
-        #     + "/expDist"
-        #     + str(expDistRatio)
-        #     + "/"
-        #     + str(seed)
-        #     + "/"
-        #     + lowPriorityPathPlanner
-        #     + "/"
-        # )
-        dataFilePath = (
-            "/home/"
-            + username
-            + "/repos/magiccvs/radar_detection_estimation/saved_data/ratioData/dist0"
-            + "/"
-            + str(seed)
-            + "/"
-            + lowPriorityPathPlanner
-            + "/"
-        )
         print("dataFilePath", dataFilePath)
         radarList = create_radar_list(
             params.radarPositions,

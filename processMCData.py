@@ -248,92 +248,32 @@ def create_heatmap(dataFile, parameterIndex, title):
 
 
 def create_simplex(dataFile, parameterIndex, title):
-    expCoverageRatios = get_sorted_expCovRatios(dataFile)
-    valOuterArray = []
-    distWeightOuterArray = []
-    covWeightOuterArray = []
-    expWeightOuterArray = []
+    distWeightArray = []
+    covWeightArray = []
+    expWeightArray = []
+    valueArray = []
 
-    valTempArray = []
-    distWeightTempArray = []
-    covWeightTempArray = []
-    expWeightTempArray = []
+    for folder in os.listdir(dataFile):
+        # parameter = processMCData(dataFile + folder)[parameterIndex]
+        # valueArray.append(parameter)
+        importDir = (
+            (dataFile + folder).replace("/", ".")
+            + "."
+            + str(56054251)
+            + ".optimization"
+            + ".params"
+        )
+        print("importDir: ", importDir)
+        params = importlib.import_module(importDir)
+        distWeightArray.append(params.distFromStraitWeight)
+        covWeightArray.append(params.nextCovarianceWeight)
+        expWeightArray.append(params.seperationWeight)
 
-    for expCovRatio in expCoverageRatios:
-        valInnerArray = []
-        distWeightInnerArray = []
-        covWeightInnerArray = []
-        expWeightInnerArray = []
-        expCovFolder = dataFile + "expCov" + str(int(expCovRatio))
-        expDistRatios = get_sorted_expDistRatios(expCovFolder)
-        for expDistRatio in expDistRatios:
-            expDistFolder = expCovFolder + "/expDist" + str(int(expDistRatio))
-            parameter = processMCData(expDistFolder)[parameterIndex]
-            valInnerArray.append(parameter)
-            print(expCovRatio, expDistRatios)
-            importDir = (
-                "saved_data.ratioData.expCov"
-                + str(int(expCovRatio))
-                + ".expDist"
-                + str(int(expDistRatio))
-                + "."
-                + str(56054251)
-                + "."
-                + "optimization"
-                + ".params"
-            )
-            params = importlib.import_module(importDir)
-            distWeightInnerArray.append(params.distFromStraitWeight)
-            covWeightInnerArray.append(params.nextCovarianceWeight)
-            expWeightInnerArray.append(params.seperationWeight)
-
-            valTempArray.append(parameter)
-            distWeightTempArray.append(params.distFromStraitWeight)
-            covWeightTempArray.append(params.nextCovarianceWeight)
-            expWeightTempArray.append(params.seperationWeight)
-        valOuterArray.append(valInnerArray)
-        distWeightOuterArray.append(distWeightInnerArray)
-        covWeightOuterArray.append(covWeightInnerArray)
-        expWeightOuterArray.append(expWeightInnerArray)
-
-    values = np.array(valOuterArray)
-    print(values)
-    distWeightOuterArray = np.array(distWeightOuterArray)
-    covWeightOuterArray = np.array(covWeightOuterArray)
-    expWeightOuterArray = np.array(expWeightOuterArray)
-    # Create a figure and a 3D axis
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection="3d")
-    #
-    # # Define the range for x and y
-    # x = np.linspace(0, 1, 100)
-    # y = np.linspace(0, 1, 100)
-    #
-    # # Meshgrid for x and y
-    # X, Y = np.meshgrid(x, y)
-    #
-    # # Calculate Z based on x + y + z = 1 => z = 1 - x - y
-    # Z = 1 - X - Y
-    #
-    # # Mask values outside the range 0 < z < 1
-    # Z = np.where((Z > 0) & (Z < 1), Z, np.nan)
-    #
-    # # Plot the surface
-    # ax.plot_surface(X, Y, Z, color="cyan", edgecolor="gray", alpha=0.7)
-    #
-    # # Set labels and title
-    # ax.set_xlabel("X")
-    # ax.set_ylabel("Y")
-    # ax.set_zlabel("Z")
-    # ax.set_title("Surface plot of x + y + z = 1")
-    #
-    # plt.show()
-    #
-    # Normalize V for color mapping
-    valuesTemp = np.array(valTempArray)
-    distWeightTemp = np.array(distWeightTempArray)
-    covWeightTemp = np.array(covWeightTempArray)
-    expWeightTemp = np.array(expWeightTempArray)
+    # valuesTemp = np.array(valTempArray)
+    distWeightTemp = np.array(distWeightArray)
+    covWeightTemp = np.array(covWeightArray)
+    expWeightTemp = np.array(expWeightArray)
+    valuesTemp = np.ones_like(distWeightTemp)
     norm = matplotlib.colors.Normalize(vmin=valuesTemp.min(), vmax=valuesTemp.max())
     colors = plt.cm.viridis(norm(valuesTemp))
     fig = plt.figure()
@@ -342,23 +282,6 @@ def create_simplex(dataFile, parameterIndex, title):
     mappable = plt.cm.ScalarMappable(norm=norm, cmap=plt.cm.viridis)
     cbar = fig.colorbar(mappable, ax=ax, shrink=0.6, aspect=10)
 
-    print("test", values.shape)
-    norm = matplotlib.colors.Normalize(vmin=values.min(), vmax=values.max())
-    colors = plt.cm.viridis(norm(values))
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection="3d")
-    ax.plot_surface(
-        distWeightOuterArray,
-        covWeightOuterArray,
-        expWeightOuterArray,
-        facecolors=colors,
-        edgecolor="k",
-        alpha=0.7,
-        cmap="Blues",
-    )
-    mappable = plt.cm.ScalarMappable(norm=norm, cmap=plt.cm.viridis)
-    mappable.set_array(values)
-    cbar = fig.colorbar(mappable, ax=ax, shrink=0.6, aspect=10)
     plt.show()
     #
     # for expCovFolder in os.listdir(dataFile):
@@ -408,6 +331,6 @@ if __name__ == "__main__":
     parameterIndex = 0
     for i, title in enumerate(parameterNames):
         # create_heatmap("./saved_data/ratioData/", i, title)
-        create_simplex("./saved_data/ratioData/", i, title)
+        create_simplex("saved_data/new_data/", i, title)
     plt.show()
     # processMCData("./saved_data/ratioData/dist0")

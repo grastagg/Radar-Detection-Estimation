@@ -1,26 +1,23 @@
-from matplotlib import  pyplot as plt
+from matplotlib import pyplot as plt
 import numpy as np
 import math
 import time
-import params
+
 
 class LawnMowerControlAllAgents:
-    def __init__(self, numAgents,boundary,params):
+    def __init__(self, numAgents, boundary, params):
         self.agents = []
         self.params = params
         for i in range(numAgents):
-            self.agents.append(LawnMowerControl(i,boundary,numAgents))
-    
+            self.agents.append(LawnMowerControl(i, boundary, numAgents))
+
     def get_control(self, dt, agentPosition, agent_id):
-        v = (self.params.velocityBounds[0]+self.params.velocityBounds[1])/2
-        return self.agents[agent_id].get_u(agentPosition),v
-            
-            
-            
-            
-            
+        v = (self.params.velocityBounds[0] + self.params.velocityBounds[1]) / 2
+        return self.agents[agent_id].get_u(agentPosition), v
+
+
 class LawnMowerControl:
-    def __init__(self, agent_id,boundary,numAgents):
+    def __init__(self, agent_id, boundary, numAgents):
         self.agent_id = agent_id
         numTestPoints = 200
         self.boundary = boundary
@@ -31,24 +28,20 @@ class LawnMowerControl:
         # self.waypoints = self.get_waypoints_ladder_horizontal(self.p['num_part'], agent_id, 22)
         left_col = self.waypoints.real.reshape(-1, 1)
         right_col = self.waypoints.imag.reshape(-1, 1)
-        right_col = np.append(right_col,[boundary,boundary]).reshape(-1,1)
-        left_col = np.append(left_col,[left_col[-1],left_col[-2]]).reshape(-1,1)
+        right_col = np.append(right_col, [boundary, boundary]).reshape(-1, 1)
+        left_col = np.append(left_col, [left_col[-1], left_col[-2]]).reshape(-1, 1)
         self.waypoints = np.concatenate((left_col, right_col), axis=1)
 
-
-
         self.current_waypoint = 0
-        self.kp = .5  # Proportional Gain
-        self.kd = .2  # Derivative Gain
-        self.ki = 0   # Integral Gain
+        self.kp = 0.5  # Proportional Gain
+        self.kd = 0.2  # Derivative Gain
+        self.ki = 0  # Integral Gain
         self.prev_error = 0
-        self. pre_integral = 0
+        self.pre_integral = 0
         self.past_alpha_angles = []
         self.past_beta_angles = []
         self.past_angles = []
         self.waypoint = None
-
-        
 
         # print(self.waypoints)
         self.first = True
@@ -58,14 +51,16 @@ class LawnMowerControl:
 
         for r in range(num_points_real):
             for i in range(num_points_imag):
-                temp[r,i] = complex(r*(self.boundary / (num_points_real-1)), i*(self.boundary / (num_points_imag - 1)))
+                temp[r, i] = complex(
+                    r * (self.boundary / (num_points_real - 1)),
+                    i * (self.boundary / (num_points_imag - 1)),
+                )
         return temp
 
     def get_sub_section(self, num_sections, section_number):
-
         if self.test_points.shape[0] % num_sections == 0:
-            start = (section_number) * int(self.test_points.shape[0]/num_sections)
-            end = start  + int(self.test_points.shape[0]/num_sections)
+            start = (section_number) * int(self.test_points.shape[0] / num_sections)
+            end = start + int(self.test_points.shape[0] / num_sections)
             return self.test_points[start:end, :]
         else:
             len_subsection = int(self.test_points.shape[0] / num_sections)
@@ -79,6 +74,7 @@ class LawnMowerControl:
 
             end = start + len_subsection + extra
             return self.test_points[start:end, :]
+
     # def get_waypoints_ladder_horizontal(self,num_agents, agent_id, step_size):
     #     # Dummy function to represent get_sub_section
 
@@ -93,7 +89,7 @@ class LawnMowerControl:
     #     waypoints = np.zeros(num_waypoints * 2, dtype=complex)
     #     r_list = [0, 1]
     #     i = 0
-        
+
     #     # Generate waypoints in one direction
     #     r_index = 0
     #     for k in range(num_waypoints):
@@ -119,10 +115,10 @@ class LawnMowerControl:
         while temp < sub_section.shape[1]:
             temp_count += 1
             temp += step_size
-        num_waypoints =  2 * temp_count
+        num_waypoints = 2 * temp_count
         # print("num_waypoints",num_waypoints)
-        waypoints = np.zeros(num_waypoints,dtype=complex)
-        r_list = [0, sub_section.shape[0]-1]
+        waypoints = np.zeros(num_waypoints, dtype=complex)
+        r_list = [0, sub_section.shape[0] - 1]
         # print(sub_section)
         r = 0
         i = 0
@@ -130,7 +126,7 @@ class LawnMowerControl:
         for k in range(num_waypoints):
             # print(r, i)
             waypoints[k] = sub_section[r, i]
-            if k%2 == 1:
+            if k % 2 == 1:
                 i = i + step_size
             switch = True
             if k % 2 == 0:
@@ -155,27 +151,27 @@ class LawnMowerControl:
         # Reconstruct the array by updating the real part
         waypointsFlipped = real_parts + 1j * waypointsFlipped.imag
 
-        waypointsFlipped = waypointsFlipped[:-2] + 1j*(waypointsFlipped.imag[2] - waypointsFlipped.imag[0])/2.0
+        waypointsFlipped = (
+            waypointsFlipped[:-2]
+            + 1j * (waypointsFlipped.imag[2] - waypointsFlipped.imag[0]) / 2.0
+        )
         # waypointsFlipped -= 1j*(waypointsFlipped.imag[1] - waypointsFlipped.imag[0])/2.0
         waypointsFlipped = np.flip(waypointsFlipped)
-        waypoints = np.concatenate((waypoints,waypointsFlipped))
+        waypoints = np.concatenate((waypoints, waypointsFlipped))
 
         fig, ax = plt.subplots()
-        ax.set_xlim([-1000, self.boundary+1000])
-        ax.set_ylim([-1000, self.boundary+1000])
-        ax.set_aspect('equal')
+        ax.set_xlim([-1000, self.boundary + 1000])
+        ax.set_ylim([-1000, self.boundary + 1000])
+        ax.set_aspect("equal")
         ax.plot(waypoints.real, waypoints.imag)
 
         # ax.plot(waypointsFlipped.real, waypointsFlipped.imag)
-        ax.scatter(waypointsFlipped.real[0], waypointsFlipped.imag[0], c='red')
-        ax.scatter(waypointsFlipped.real[-1], waypointsFlipped.imag[-1], c='red')
+        ax.scatter(waypointsFlipped.real[0], waypointsFlipped.imag[0], c="red")
+        ax.scatter(waypointsFlipped.real[-1], waypointsFlipped.imag[-1], c="red")
         # ax.scatter(waypoints.real[0], waypoints.imag[0], c='blue')
-        ax.scatter(waypoints.real[-1], waypoints.imag[-1], c='blue')
-        
-        
-        
-        return waypoints
+        ax.scatter(waypoints.real[-1], waypoints.imag[-1], c="blue")
 
+        return waypoints
 
     def get_waypoints_ladder(self, num_agents, agent_id, step_size):
         sub_section = self.get_sub_section(num_agents, agent_id)
@@ -187,7 +183,7 @@ class LawnMowerControl:
         num_waypoints = 2 * temp_count
 
         waypoints = np.zeros(num_waypoints, dtype=complex)
-        i_list = [0, sub_section.shape[1]-1]
+        i_list = [0, sub_section.shape[1] - 1]
         # print(sub_section)
         r = 0
         i = 0
@@ -196,14 +192,14 @@ class LawnMowerControl:
             print(r, i)
             waypoints[k] = sub_section[r, i]
             if k % 2 == 1:
-                r = r+step_size
+                r = r + step_size
             switch = True
             if k % 2 == 0:
                 switch = True
             else:
                 switch = False
             if switch:
-                i_index = i_index +1
+                i_index = i_index + 1
             i = i_list[i_index % 2]
         return waypoints
 
@@ -259,50 +255,68 @@ class LawnMowerControl:
         return waypoints
 
     def get_distance_complex(self, p1, p2):
-        return math.sqrt((p1.real-p2.real)**2+(p1.imag-p2.imag)**2)
+        return math.sqrt((p1.real - p2.real) ** 2 + (p1.imag - p2.imag) ** 2)
+
     def get_distance_coords(self, p1, p2):
-        return math.sqrt((p1[0]-p2[0])**2+(p1[1]-p2[1])**2)
+        return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
 
     def get_distance(self, p1, p2):
         # temp = []
         # temp.append(p1.real)
         # temp.append(p1.imag)
         # p1 = temp
-        
+
         # print("P1",p1)
         # print("P2",p2)
         temp = 0
         for i in range(len(p1)):
-            temp += (p1[i]-p2[i])**2
+            temp += (p1[i] - p2[i]) ** 2
         # print(math.sqrt(temp))
         return math.sqrt(temp)
 
     def check_reached_targ(self, current_pos):
-        #print("current position",current_pos)
+        # print("current position",current_pos)
         # print(self.waypoints[self.current_waypoint])
         if self.get_distance(self.waypoints[self.current_waypoint], current_pos) < 20:
             self.current_waypoint += 1
             if self.current_waypoint >= self.waypoints.shape[0]:
                 self.current_waypoint = 0
-                
+
         self.waypoint = self.waypoints[self.current_waypoint]
 
     def calculate_desired_heading_coords(self, current_pos):
-        return math.atan2((self.waypoints[self.current_waypoint][1] - current_pos[1]), (self.waypoints[self.current_waypoint][0] - current_pos[0]))
+        return math.atan2(
+            (self.waypoints[self.current_waypoint][1] - current_pos[1]),
+            (self.waypoints[self.current_waypoint][0] - current_pos[0]),
+        )
 
-    def calculate_desired_heading3d(self,current_pos):
-        alpha = math.atan2((self.waypoints[self.current_waypoint][1] - current_pos[1]), (self.waypoints[self.current_waypoint][0] - current_pos[0]))
-        temp_dist = math.sqrt(((self.waypoints[self.current_waypoint][1] - current_pos[1])**2+(self.waypoints[self.current_waypoint][0] - current_pos[0])**2))
-        beta = math.atan2(temp_dist,(self.waypoints[self.current_waypoint][2] - current_pos[2]))
-        return alpha,beta
-
+    def calculate_desired_heading3d(self, current_pos):
+        alpha = math.atan2(
+            (self.waypoints[self.current_waypoint][1] - current_pos[1]),
+            (self.waypoints[self.current_waypoint][0] - current_pos[0]),
+        )
+        temp_dist = math.sqrt(
+            (
+                (self.waypoints[self.current_waypoint][1] - current_pos[1]) ** 2
+                + (self.waypoints[self.current_waypoint][0] - current_pos[0]) ** 2
+            )
+        )
+        beta = math.atan2(
+            temp_dist, (self.waypoints[self.current_waypoint][2] - current_pos[2])
+        )
+        return alpha, beta
 
     def calculate_desired_heading(self, current_pos):
-        return math.atan2((self.waypoints[self.current_waypoint][1] - current_pos[1]), (self.waypoints[self.current_waypoint][0] - current_pos[0]))
+        return math.atan2(
+            (self.waypoints[self.current_waypoint][1] - current_pos[1]),
+            (self.waypoints[self.current_waypoint][0] - current_pos[0]),
+        )
         # return math.atan2((self.waypoints[self.current_waypoint].imag - current_pos.imag), (self.waypoints[self.current_waypoint].real - current_pos.real))
         # return math.atan2((self.waypoints[self.current_waypoint].real - current_pos.real), (self.waypoints[self.current_waypoint].imag - current_pos.imag))
 
-    def get_u(self, current_position):  # TODO Maybe delete some parts of the list self.past_angles if too big
+    def get_u(
+        self, current_position
+    ):  # TODO Maybe delete some parts of the list self.past_angles if too big
         self.check_reached_targ(current_position)
 
         # # theta_desired = self.calculate_desired_heading(current_position)
@@ -312,7 +326,7 @@ class LawnMowerControl:
         # latest = unwrapped[-1]
         theta_desired = self.calculate_desired_heading(current_position)
         self.past_angles.append(theta_desired)
-        unwrapped = np.unwrap( self.past_angles )
+        unwrapped = np.unwrap(self.past_angles)
         latest = unwrapped[-1]
         return latest
         # error = theta_desired - theta
@@ -326,23 +340,24 @@ class LawnMowerControl:
 
 #
 
-def main():
 
+def main():
     fig, ax = plt.subplots()
-    ax.set_xlim([-1000, params.bounds[0]+1000])
-    ax.set_ylim([-1000, params.bounds[1]+1000])
-    ax.set_aspect('equal')
-    mower = LawnMowerControl(1, params.bounds[0],2)
+    ax.set_xlim([-1000, params.bounds[0] + 1000])
+    ax.set_ylim([-1000, params.bounds[1] + 1000])
+    ax.set_aspect("equal")
+    mower = LawnMowerControl(1, params.bounds[0], 2)
 
     # plt.scatter(mower.test_points.real,mower.test_points.imag)
-    #plotboundary
-    ax.plot([0,0],[0,params.bounds[1]],c='black')
-    ax.plot([0,params.bounds[0]],[params.bounds[1],params.bounds[1]],c='black')
-    ax.plot([params.bounds[0],params.bounds[0]],[params.bounds[1],0],c='black')
-    ax.plot([params.bounds[0],0],[0,0],c='black')
-    ax.plot(mower.waypoints[:,0],mower.waypoints[:,1])
+    # plotboundary
+    ax.plot([0, 0], [0, params.bounds[1]], c="black")
+    ax.plot([0, params.bounds[0]], [params.bounds[1], params.bounds[1]], c="black")
+    ax.plot([params.bounds[0], params.bounds[0]], [params.bounds[1], 0], c="black")
+    ax.plot([params.bounds[0], 0], [0, 0], c="black")
+    ax.plot(mower.waypoints[:, 0], mower.waypoints[:, 1])
 
     plt.show()
+
 
 if __name__ == "__main__":
     main()

@@ -54,6 +54,30 @@ def change_parameter_ratios(file_path, expCovRatio, expDistRatio):
     )
 
 
+def change_weights(file_path, explorationWeight, covarianceWeight, distWeight):
+    # Read the existing script
+    with open(file_path, "r") as file:
+        lines = file.readlines()
+
+    # Find and replace the line with `randomSeed`
+    for i, line in enumerate(lines):
+        if line.strip().startswith("seperationWeight ="):
+            lines[i] = f"seperationWeight = {explorationWeight}\n"
+        if line.strip().startswith("distFromStraitWeight ="):
+            lines[i] = f"distFromStraitWeight = {distWeight}\n"
+        if line.strip().startswith("nextCovarianceWeight ="):
+            lines[i] = f"nextCovarianceWeight = {covarianceWeight}\n"
+            break
+
+    # Write the updated script back to the file
+    with open(file_path, "w") as file:
+        file.writelines(lines)
+
+    print(
+        f"explorationWeight changed to{explorationWeight}, nextCovarianceWeight changed to {covarianceWeight}, distWeight changed to {distWeight} "
+    )
+
+
 def set_path_planner(file_path, pathPlanner):
     # Read the existing script
     with open(file_path, "r") as file:

@@ -38,6 +38,7 @@ from utils import (
     create_data_file,
     set_path_planner,
     change_parameter_ratios,
+    change_weights,
 )
 
 from lawn_mower_control import LawnMowerControlAllAgents
@@ -381,7 +382,13 @@ def main(params, dataFile):
 
 
 def run_mc_simulation(
-    startSeed, numSeeds, lowPriorityPathPlanner, expCovRatio, expDistRatio
+    startSeed,
+    numSeeds,
+    lowPriorityPathPlanner,
+    explorationWeight,
+    covarianceWeight,
+    distWeight,
+    dataFile,
 ):
     currentNumSeeds = 0
     numRadar = 13
@@ -391,25 +398,6 @@ def run_mc_simulation(
     while currentNumSeeds < numSeeds:
         # lowPriorityPathPlanner = "lawnmower"
         print("running seed:", seed)
-        dataFile = (
-            "/home/"
-            + username
-            + "/repos/magiccvs/radar_detection_estimation/saved_data/ratioData/expCov"
-            + str(expCovRatio)
-            + "/expDist"
-            + str(expDistRatio)
-            + "/"
-            + str(randomSeed)
-            + "/"
-        )
-        dataFile = (
-            "/home/"
-            + username
-            + "/repos/magiccvs/radar_detection_estimation/saved_data/ratioData/dist0"
-            + "/"
-            + str(randomSeed)
-            + "/"
-        )
         print("dataFile:", dataFile)
         # dataFile = (
         #     "/home/"
@@ -428,29 +416,12 @@ def run_mc_simulation(
             dataFile + "/" + lowPriorityPathPlanner + "/" + "params.py",
             lowPriorityPathPlanner,
         )
-        change_parameter_ratios(paramsFile, expCovRatio, expDistRatio)
+        change_weights(paramsFile, explorationWeight, covarianceWeight, distWeight)
 
         # set_path_planner("params.py", lowPriorityPathPlanner)
-        importDir = (
-            "saved_data.ratioData.expCov"
-            + str(expCovRatio)
-            + ".expDist"
-            + str(expDistRatio)
-            + "."
-            + str(seed)
-            + "."
-            + lowPriorityPathPlanner
-            + ".params"
-        )
-        importDir = (
-            "saved_data.ratioData.dist0."
-            + str(seed)
-            + "."
-            + lowPriorityPathPlanner
-            + ".params"
-        )
-        print("importDir:", importDir)
-
+        importDir = dataFile.replace("/", ".") + pathPlanner + ".params"
+        print(importDir)
+        #
         # importDir = (
         #     "saved_data.mc_runs." + str(seed) + "." + lowPriorityPathPlanner + ".params"
         # )
@@ -499,51 +470,50 @@ def run_mc_simulation(
             np.array([optPathTime]),
         )
         main(params, dataFile + lowPriorityPathPlanner + "/")
-
-        ##uncomment to run optimization path planner
-        # lowPriorityPathPlanner = "optimization"
-        # create_data_file(dataFile,numRadar,lowPriorityPathPlanner)
-        # copy_params(dataFile+lowPriorityPathPlanner+"/")
-        # change_random_seed(dataFile + "/"+lowPriorityPathPlanner + "/" + "params.py", seed)
-        # set_path_planner(dataFile + "/"+lowPriorityPathPlanner + "/" + "params.py", lowPriorityPathPlanner)
-        # importDir = "saved_data.mc_runs."+str(seed)+"."+lowPriorityPathPlanner+".params"
-        # params = importlib.import_module(importDir)
-        # main(params)
+        #
+        # ##uncomment to run optimization path planner
+        # # lowPriorityPathPlanner = "optimization"
+        # # create_data_file(dataFile,numRadar,lowPriorityPathPlanner)
+        # # copy_params(dataFile+lowPriorityPathPlanner+"/")
+        # # change_random_seed(dataFile + "/"+lowPriorityPathPlanner + "/" + "params.py", seed)
+        # # set_path_planner(dataFile + "/"+lowPriorityPathPlanner + "/" + "params.py", lowPriorityPathPlanner)
+        # # importDir = "saved_data.mc_runs."+str(seed)+"."+lowPriorityPathPlanner+".params"
+        # # params = importlib.import_module(importDir)
+        # # main(params)
         seed += 1
         currentNumSeeds += 1
 
 
 if __name__ == "__main__":
-    # randomSeed = 10000001
-    # numSeeds = 1
     randomSeed = int(sys.argv[1])
+    print("randomSeed", randomSeed)
     numSeeds = int(sys.argv[2])
+    print("numSeeds", numSeeds)
     pathPlanner = sys.argv[3]
-    expCovRatio = sys.argv[4]
-    expDist = sys.argv[5]
-    #
-    # randomSeed = 66654257
-    # numSeeds = 1
-    # pathPlanner = "optimization"
-    # expCovRatio = 4
-    # expDist = 10
+    print("pathPlanner", pathPlanner)
+    # expCovRatio = sys.argv[4]
+    # expDist = sys.argv[5]
+    explorationWeight = float(sys.argv[4])
+    print("explorationWeight", explorationWeight)
+    covarianceWeight = float(sys.argv[5])
+    print("covarianceWeight", covarianceWeight)
+    distWeight = float(sys.argv[6])
+    print("distWeight", distWeight)
+    dataFile = sys.argv[7]
+    print("dataFile", dataFile)
+    print("here")
 
-    # pathPlanner = "lawnmower"
+    print("Test", explorationWeight, covarianceWeight, distWeight)
 
-    run_mc_simulation(randomSeed, numSeeds, pathPlanner, expCovRatio, expDist)
-    test_high_priority_path_planner([randomSeed], pathPlanner, expCovRatio, expDist)
-    # do_profile = False
-    # if do_profile:
-    #     with cProfile.Profile() as pr:
-    #         main()
-    #     with open('profile_state.txt','w') as stream:
-    #         stats = Stats(pr,stream=stream)
-    #         stats.strip_dirs()
-    #         stats.sort_stats('cumulative')
-    #         stats.dump_stats('.prof_stats')
-    #         stats.print_stats()
-    # else:
-    #     randomSeed = 1
-    #     change_random_seed("params.py", randomSeed)
-    #     import params
-    #     main(params)
+    run_mc_simulation(
+        randomSeed,
+        numSeeds,
+        pathPlanner,
+        explorationWeight,
+        covarianceWeight,
+        distWeight,
+        dataFile,
+    )
+    test_high_priority_path_planner(
+        [randomSeed], pathPlanner, dataFile + pathPlanner + "/"
+    )

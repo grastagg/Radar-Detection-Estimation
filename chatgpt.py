@@ -1,36 +1,62 @@
 import numpy as np
-
-# Number of points along each axis
-n_points = 10
-
-# Generate evenly spaced points along the parameterization of the surface x + y + z = 1
-x = np.linspace(0, 1, n_points)
-points = []
-for xi in x:
-    for yi in np.linspace(0, 1 - xi, n_points):
-        zi = 1 - xi - yi
-        points.append((xi, yi, zi))
-
-# Convert to numpy array for easier manipulation
-points = np.array(points)
-
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+from matplotlib.colors import Normalize
 
-# Prepare points for plotting
-x = points[:, 0]
-y = points[:, 1]
-z = points[:, 2]
+n = 12
 
-# Create a 3D scatter plot
+# List to hold barycentric coordinates
+barycentric_points = []
+
+# Generate points in barycentric coordinates covering the entire triangle
+for i in range(n + 1):
+    for j in range(n + 1 - i):
+        u = i / n
+        v = j / n
+        w = 1 - u - v
+        barycentric_points.append((u, v, w))
+
+# Convert to numpy array and select only the required number of points
+barycentric_points = np.array(barycentric_points)
+x_sampled = barycentric_points[:, 0]
+y_sampled = barycentric_points[:, 1]
+z_sampled = barycentric_points[:, 2]
+
+# Define the color value (e.g., V = x + y for coloring)
+V = x_sampled + y_sampled
+norm = Normalize(vmin=V.min(), vmax=V.max())
+colors = cm.viridis(norm(V))
+print(x_sampled.shape)
+print(y_sampled.shape)
+print(z_sampled.shape)
+
+# Create a 3D plot with the surface
 fig = plt.figure()
 ax = fig.add_subplot(111, projection="3d")
-ax.scatter(x, y, z, c="b", marker="o", s=20)
+array_str = " ".join(map(str, x_sampled))
+print(array_str)
+print()
+array_str = " ".join(map(str, y_sampled))
+print(array_str)
+print()
+array_str = " ".join(map(str, z_sampled))
+print(array_str)
 
-ax.set_xlabel("X Label")
-ax.set_ylabel("Y Label")
-ax.set_zlabel("Z Label")
-ax.set_title("Evenly Spaced Points on Surface x + y + z = 1")
+
+# Plot the sampled points on the surface
+scatter = ax.scatter(x_sampled, y_sampled, z_sampled, facecolors=colors, s=50)
+
+# Add a color bar for the surface
+mappable = cm.ScalarMappable(norm=norm, cmap=cm.viridis)
+mappable.set_array(V)
+cbar = fig.colorbar(mappable, ax=ax, shrink=0.6, aspect=10)
+cbar.set_label("Color mapped to x + y")
+
+# Set labels and title
+ax.set_xlabel("X")
+ax.set_ylabel("Y")
+ax.set_zlabel("Z")
+ax.set_title("100 evenly spaced points on the surface x + y + z = 1")
 
 plt.show()
-
