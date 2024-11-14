@@ -113,8 +113,8 @@ def create_data_file(filepath, numRadar, pathPlanner):
         os.mkdir(filepath + "/high_priority_path/")
         for i in range(numRadar):
             os.mkdir(filepath + "radar_" + str(i) + "/")
-            os.mkdir(filepath + "radar_" + str(i) + "/estimated_params/")
-            os.mkdir(filepath + "radar_" + str(i) + "/estimated_params_cov/")
+            # os.mkdir(filepath + "radar_" + str(i) + "/estimated_params/")
+            # os.mkdir(filepath + "radar_" + str(i) + "/estimated_params_cov/")
         # cont = input("overwrite? y/n")
         # if cont == "y":
         #     return

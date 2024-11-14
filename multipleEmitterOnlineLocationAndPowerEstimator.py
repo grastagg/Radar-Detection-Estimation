@@ -76,6 +76,9 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         self.saveRadarData = self.params.saveDataToFile
         self.fileCounter = 0
 
+        self.estimated_params_dict_list = [{} for i in range(self.params.numRadar)]
+        self.estimated_params_cov_dict_list = [{} for i in range(self.params.numRadar)]
+
     def delete_lowest_probability_model(self):
         remove_indicies = []
         min_num_measurements = 100000
@@ -610,25 +613,42 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             file.write(str(timestep) + "\n")
             file.close()
             for radarId in range(self.params.numRadar):
-                np.save(
-                    self.dataFile
-                    + "/radar_"
-                    + str(radarId)
-                    + "/estimated_params/"
-                    + str(self.fileCounter),
-                    self.estimated_emmiter_params[radarId],
+                self.estimated_params_dict_list[radarId][str(self.fileCounter)] = (
+                    self.estimated_emmiter_params[radarId]
                 )
-                np.save(
-                    self.dataFile
-                    + "/radar_"
-                    + str(radarId)
-                    + "/estimated_params_cov/"
-                    + str(self.fileCounter),
-                    self.estimated_emmiter_params_covariances[radarId],
+                self.estimated_params_cov_dict_list[radarId][str(self.fileCounter)] = (
+                    self.estimated_emmiter_params_covariances[radarId]
                 )
+                # np.save(
+                #     self.dataFile
+                #     + "/radar_"
+                #     + str(radarId)
+                #     + "/estimated_params/"
+                #     + str(self.fileCounter),
+                #     self.estimated_emmiter_params[radarId],
+                # )
+                # np.save(
+                #     self.dataFile
+                #     + "/radar_"
+                #     + str(radarId)
+                #     + "/estimated_params_cov/"
+                #     + str(self.fileCounter),
+                #     self.estimated_emmiter_params_covariances[radarId],
+                # )
 
         # np.save(params.dataFile+"/estimated_params/"+str(self.fileCounter), self.estimated_emmiter_params)
         # np.save(params.dataFile+"/estimated_params_cov/"+str(self.fileCounter), self.estimated_emmiter_params_covariances)
+
+    def save_radar_estimates_to_file(self):
+        for radarId in range(self.params.numRadar):
+            np.savez(
+                self.dataFile + "radar_" + str(radarId) + "/estimated_params.npz",
+                **self.estimated_params_dict_list[radarId],
+            )
+            np.savez(
+                self.dataFile + "radar_" + str(radarId) + "/estimated_params_cov.npz",
+                **self.estimated_params_cov_dict_list[radarId],
+            )
 
     ##########################code for known data association############################################
 

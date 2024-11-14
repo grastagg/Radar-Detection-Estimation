@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import matplotlib
 
 import os
+from scipy.interpolate import griddata
+import ternary
 
 
 def processMCData(dataFile):
@@ -21,6 +23,9 @@ def processMCData(dataFile):
     countLawn = 1
     totalCount = 0
     countDistToGoal = 0
+
+    indcludeFailedRunsInTime = False
+
     for file in os.listdir(dataFile):
         totalCount += 1
         # importDir = (
@@ -133,6 +138,8 @@ def processMCData(dataFile):
 
             countOpt += 1
         else:
+            if indcludeFailedRunsInTime:
+                averageOptimizedTimeToFindPath += 1200
             print("Optimized path not found for: ", file)
 
     averageLawnmowerMaxPD /= countLawn
@@ -140,6 +147,8 @@ def processMCData(dataFile):
     averageOptimizedMaxProbUndiscovered /= countOpt
     averageLawnmowerMaxProbUndiscovered /= countLawn
     averageOptimizedTimeToFindPath /= countOpt
+    if indcludeFailedRunsInTime:
+        averageOptimizedTimeToFindPath /= totalCount
     averageLawnmowerTimeToFindPath /= countLawn
     averageLawnmowerDiffDeterministic /= countLawn
     averageOptimizedDiffDeterministic /= countOpt
@@ -247,90 +256,124 @@ def create_heatmap(dataFile, parameterIndex, title):
             )
 
 
-def create_simplex(dataFile, parameterIndex, title):
-    distWeightArray = []
-    covWeightArray = []
-    expWeightArray = []
-    valueArray = []
+def create_simplex_ternary_projection(
+    dataFile, parameterIndex, title, module_suffix="56054251"
+):
+    distWeights = []
+    covWeights = []
+    expWeights = []
+    values = []
 
     for folder in os.listdir(dataFile):
-        # parameter = processMCData(dataFile + folder)[parameterIndex]
-        # valueArray.append(parameter)
-        importDir = (
-            (dataFile + folder).replace("/", ".")
-            + "."
-            + str(56054251)
-            + ".optimization"
-            + ".params"
+        try:
+            import_dir = (dataFile + folder).replace(
+                "/", "."
+            ) + "." + module_suffix + ".optimization" ".params"
+            print("Importing module:", import_dir)
+            params = importlib.import_module(import_dir)
+
+            # Collect weights and values
+            distWeights.append(params.distFromStraitWeight)
+            covWeights.append(params.nextCovarianceWeight)
+            expWeights.append(params.seperationWeight)
+            values.append(processMCData(os.path.join(dataFile, folder))[parameterIndex])
+
+        except ModuleNotFoundError as e:
+            print(f"Module not found: {import_dir}. Error: {e}")
+            continue
+        except Exception as e:
+            print(f"Error processing folder {folder}: {e}")
+            continue
+
+    # Convert lists to arrays
+    dist_weights_arr = np.array(distWeights)
+    cov_weights_arr = np.array(covWeights)
+    exp_weights_arr = np.array(expWeights)
+    values_arr = np.array(values)
+
+    # Since the weights already sum to 1, no need for projection or normalization
+    projected_x = dist_weights_arr
+    projected_y = cov_weights_arr
+    projected_z = exp_weights_arr  # Just use the third weight directly
+
+    # Normalize the color values to the range [0, 1] for the colormap
+    norm = plt.Normalize(min(values_arr), max(values_arr))
+    cmap = matplotlib.cm.viridis  # Choose a colormap (e.g., viridis, plasma, etc.)
+
+    # Set up the ternary plot
+    scale = 1
+    fig, tax = ternary.figure(scale=scale)
+    tax.boundary(linewidth=2.0)
+    tax.gridlines(color="blue", multiple=0.08333333333333333)
+
+    # Plotting points in the ternary plot
+    for x, y, z, c in zip(projected_x, projected_y, projected_z, values_arr):
+        print("point: ", [x, y, z])
+        print("color: ", c)
+        point = (x, y, z)
+        tax.scatter([point], marker="o", color=cmap(norm(c)), s=1000)
+        # tax.get_axes().text(x, y, f"{values_arr[i]:.2f}", color="black", fontsize=8)
+        tax.annotate(
+            f"{c:.2f}",
+            (x, y, z),
+            fontsize=8,
+            horizontalalignment="center",
+            verticalalignment="center",
+            color="white",
         )
-        print("importDir: ", importDir)
-        params = importlib.import_module(importDir)
-        distWeightArray.append(params.distFromStraitWeight)
-        covWeightArray.append(params.nextCovarianceWeight)
-        expWeightArray.append(params.seperationWeight)
+    # scatter = tax.scatter(
+    #     np.array([projected_x, projected_y, projected_z]).T,
+    #     c=values_arr,
+    #     cmap="viridis",
+    #     edgecolors="k",
+    #     s=100,
+    # )
 
-    # valuesTemp = np.array(valTempArray)
-    distWeightTemp = np.array(distWeightArray)
-    covWeightTemp = np.array(covWeightArray)
-    expWeightTemp = np.array(expWeightArray)
-    valuesTemp = np.ones_like(distWeightTemp)
-    norm = matplotlib.colors.Normalize(vmin=valuesTemp.min(), vmax=valuesTemp.max())
-    colors = plt.cm.viridis(norm(valuesTemp))
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
-    ax.scatter(distWeightTemp, covWeightTemp, expWeightTemp, c=colors)
-    mappable = plt.cm.ScalarMappable(norm=norm, cmap=plt.cm.viridis)
-    cbar = fig.colorbar(mappable, ax=ax, shrink=0.6, aspect=10)
+    # Set the labels for the axes
+    tax.left_axis_label(r"Exploration Weight ($\alpha_e$)", fontsize=12)
+    tax.right_axis_label(r"Covariance Reduction Weight ($\alpha_u$)", fontsize=12)
+    tax.bottom_axis_label(r"Strait-Line Distance Weight ($\alpha_d$)", fontsize=12)
 
-    plt.show()
-    #
-    # for expCovFolder in os.listdir(dataFile):
-    #     if expCovFolder[-2] == "v":
-    #         expCovRatio = float(expCovFolder[-1])
-    #     else:
-    #         expCovRatio = float(expCovFolder[-2:])
-    #
-    #     if expCovRatio > maxExpCovRatio:
-    #         maxExpCovRatio = expCovRatio
-    # print("Max ExpCovRatio: ", maxExpCovRatio)
-    #
-    # for expCovFolder in os.listdir(dataFile):
-    #     print(expCovFolder)
-    #     if expCovFolder[-2] == "v":
-    #         expCovRatio = float(expCovFolder[-1])
-    #     else:
-    #         expCovRatio = float(expCovFolder[-2:])
-    #     expCovRatio = float(expCovFolder[-1])
-    #     print("expCovRatio: ", expCovRatio)
-    #     for expDistFolder in os.listdir(dataFile + expCovFolder):
-    #         print(expDistFolder)
-    #
-    #         if expDistFolder[-2] == "t":
-    #             expDistRatio = float(expDistFolder[-1])
-    #         else:
-    #             expDistRatio = float(expDistFolder[-2:])
-    #         print("expDistRatio: ", expDistRatio)
-    #         (
-    #             averageOptimizedTimeToFindPath,
-    #             averageOptimizedMaxPD,
-    #             averageOptimizedMaxProbUndiscovered,
-    #             averageOptimizedDiffDeterministic,
-    #             percentFoundOptimized,
-    #         ) = processMCData(dataFile + expCovFolder + "/" + expDistFolder)
-    #
+    # Adjust ticks to display correctly
+    # 0.0 0.08333333333333333 0.16666666666666666 0.25 0.3333333333333333 0.4166666666666667 0.5 0.5833333333333334 0.6666666666666666 0.75 0.8333333333333334 0.9166666666666666 1.0
+    tax.ticks(
+        axis="lbr", multiple=0.08333333333333333, linewidth=1, tick_formats="%.3f"
+    )
+
+    # Add a colorbar
+    sm = plt.cm.ScalarMappable(
+        cmap="viridis", norm=plt.Normalize(vmin=values_arr.min(), vmax=values_arr.max())
+    )
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=tax.get_axes(), orientation="vertical")
+    if parameterIndex == 0:
+        cbar.set_label("Seconds", fontsize=12)
+    elif parameterIndex == 4:
+        cbar.set_label("%", fontsize=12)
+    tax.clear_matplotlib_ticks()
+    plt.box(False)
+
+    # Add a title
+    plt.title(f"{title}", fontsize=14)
+
+
+#
 
 
 if __name__ == "__main__":
     parameterNames = [
-        "Average Time To Find Path",
+        "Average Time To Find Path (Only Successful Runs)",
         "Average Max PD",
         "Average Max Prob Undiscovered",
         "Average Diff Deterministic",
         "Percent Found Optimized",
     ]
-    parameterIndex = 0
-    for i, title in enumerate(parameterNames):
+    parameterIndecies = [0, 4]
+    # create_simplex(
+    #     "saved_data/ratioData/", parameterIndex, parameterNames[parameterIndex]
+    # )
+    for i in parameterIndecies:
         # create_heatmap("./saved_data/ratioData/", i, title)
-        create_simplex("saved_data/new_data/", i, title)
+        create_simplex_ternary_projection("saved_data/new_data/", i, parameterNames[i])
     plt.show()
     # processMCData("./saved_data/ratioData/dist0")

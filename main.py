@@ -379,6 +379,7 @@ def main(params, dataFile):
 
         timeSinceLastPlot += dt
         tCurrent += dt
+    multipleEmitterOnlineLocationAndPowerEstimator.save_radar_estimates_to_file()
 
 
 def run_mc_simulation(
@@ -447,7 +448,7 @@ def run_mc_simulation(
         )
         loadHPPDataFromFile = True
         loadHPPDataFile = (
-            "saved_data/ratioData/expCov2/expDist3/"
+            "saved_data/new_data/run0/"
             + str(seed)
             + "/optimization/high_priority_path/deterministic_path_time.txt"
         )

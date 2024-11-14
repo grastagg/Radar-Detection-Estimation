@@ -1,62 +1,55 @@
-import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
-from matplotlib.colors import Normalize
+import ternary
+import matplotlib.cm as cm
+import numpy as np
 
-n = 12
+# Sample data (three components that sum to 1) and a fourth variable for color
+data = [
+    (0.2, 0.3, 0.5, 0.7),
+    (0.1, 0.7, 0.2, 0.3),
+    (0.4, 0.4, 0.2, 0.9),
+    (0.3, 0.3, 0.4, 0.4),
+]
 
-# List to hold barycentric coordinates
-barycentric_points = []
+# Verify that each tuple (x1, x2, x3) sums to 1, or normalize if needed
+coordinates = [(x1, x2, x3) for x1, x2, x3, _ in data]
+coordinates = [
+    (x1 / (x1 + x2 + x3), x2 / (x1 + x2 + x3), x3 / (x1 + x2 + x3))
+    for x1, x2, x3 in coordinates
+]
+color_values = [c for _, _, _, c in data]
 
-# Generate points in barycentric coordinates covering the entire triangle
-for i in range(n + 1):
-    for j in range(n + 1 - i):
-        u = i / n
-        v = j / n
-        w = 1 - u - v
-        barycentric_points.append((u, v, w))
+# Normalize the color values to the range [0, 1] for the colormap
+norm = plt.Normalize(min(color_values), max(color_values))
+cmap = cm.viridis  # Choose a colormap (e.g., viridis, plasma, etc.)
 
-# Convert to numpy array and select only the required number of points
-barycentric_points = np.array(barycentric_points)
-x_sampled = barycentric_points[:, 0]
-y_sampled = barycentric_points[:, 1]
-z_sampled = barycentric_points[:, 2]
+# Initialize the ternary plot with a scale of 1 (since x1 + x2 + x3 = 1)
+scale = 1
+fig, tax = ternary.figure(scale=scale)
+tax.boundary(linewidth=2.0)
+tax.gridlines(color="blue", multiple=0.1)
 
-# Define the color value (e.g., V = x + y for coloring)
-V = x_sampled + y_sampled
-norm = Normalize(vmin=V.min(), vmax=V.max())
-colors = cm.viridis(norm(V))
-print(x_sampled.shape)
-print(y_sampled.shape)
-print(z_sampled.shape)
+# Plot each point in the data with color mapped to the fourth variable
+for point, color in zip(coordinates, color_values):
+    print("point: ", point)
+    tax.scatter([point], marker="o", color=cmap(norm(color)), s=100)
 
-# Create a 3D plot with the surface
-fig = plt.figure()
-ax = fig.add_subplot(111, projection="3d")
-array_str = " ".join(map(str, x_sampled))
-print(array_str)
-print()
-array_str = " ".join(map(str, y_sampled))
-print(array_str)
-print()
-array_str = " ".join(map(str, z_sampled))
-print(array_str)
+# Set labels for each corner of the ternary plot
+tax.left_axis_label("x3", fontsize=12)
+tax.right_axis_label("x2", fontsize=12)
+tax.bottom_axis_label("x1", fontsize=12)
 
+# Adjust ticks to display correctly
+tax.ticks(axis="lbr", multiple=0.1, linewidth=1, tick_formats="%.1f")
 
-# Plot the sampled points on the surface
-scatter = ax.scatter(x_sampled, y_sampled, z_sampled, facecolors=colors, s=50)
+# Add a colorbar to indicate the scale of the fourth variable
+sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])
+cbar = plt.colorbar(sm, ax=tax.get_axes(), orientation="vertical")
+cbar.set_label("Fourth Variable", fontsize=12)
 
-# Add a color bar for the surface
-mappable = cm.ScalarMappable(norm=norm, cmap=cm.viridis)
-mappable.set_array(V)
-cbar = fig.colorbar(mappable, ax=ax, shrink=0.6, aspect=10)
-cbar.set_label("Color mapped to x + y")
-
-# Set labels and title
-ax.set_xlabel("X")
-ax.set_ylabel("Y")
-ax.set_zlabel("Z")
-ax.set_title("100 evenly spaced points on the surface x + y + z = 1")
-
+# Set plot title and show
+plt.title("Barycentric Coordinates Plot with Color Mapping")
+tax.clear_matplotlib_ticks()
 plt.show()
+

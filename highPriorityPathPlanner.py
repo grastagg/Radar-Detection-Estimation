@@ -1800,26 +1800,14 @@ class HighPriorityPathPlanner:
         return pathSafety
 
 
-def load_estimated_params(dataFilePath, dataIndex, numRadar):
+def load_estimated_params(
+    estimatedParamsList, estimatedParamsCovList, dataIndex, numRadar
+):
     radarParamsAll = []
     radarParamsCovAll = []
     for i in range(numRadar):
-        radarParams = np.load(
-            dataFilePath
-            + "/radar_"
-            + str(i)
-            + "/estimated_params/"
-            + str(dataIndex)
-            + ".npy"
-        )
-        radarParamsCov = np.load(
-            dataFilePath
-            + "/radar_"
-            + str(i)
-            + "/estimated_params_cov/"
-            + str(dataIndex)
-            + ".npy"
-        )
+        radarParams = estimatedParamsList[i][str(dataIndex)]
+        radarParamsCov = estimatedParamsCovList[i][str(dataIndex)]
         if len(radarParams) != 0:
             radarParamsAll.append(radarParams)
             radarParamsCovAll.append(radarParamsCov)
@@ -1828,12 +1816,9 @@ def load_estimated_params(dataFilePath, dataIndex, numRadar):
 
 
 def get_highest_data_file_number(directory):
-    # Get all .npy files in the directory
-    files = [f for f in os.listdir(directory) if f.endswith(".npy")]
-
-    # Extract numbers from filenames and find the highest number
-    numbers = [int(re.findall(r"\d+", f)[0]) for f in files]
-    highest_number = max(numbers)
+    estimateParams = np.load(directory + "estimated_params.npz")
+    keys = estimateParams.files
+    highest_number = int(keys[-1])
     return highest_number
 
 
@@ -1916,11 +1901,18 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner, dataFilePath)
         radarTimeStamp = np.genfromtxt(
             dataFilePath + "/radarEstimateTimestamps.txt", delimiter=","
         )
-        # # pathHistoryList = [np.genfromtxt(dataFilePath+"/agent0PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent1PathHistory.txt",delimiter=',')[0:numPathHistory],np.genfromtxt(dataFilePath+"/agent2PathHistory.txt",delimiter=',')[0:numPathHistory]]
-        # print("max ground truth pd", np.max(groundTruthPD))
-        numFiles = get_highest_data_file_number(
-            dataFilePath + "radar_12/estimated_params/"
-        )
+
+        print("dataFilePath", dataFilePath)
+        numFiles = get_highest_data_file_number(dataFilePath + "radar_0/")
+
+        estimatedParamsList = [
+            np.load(dataFilePath + "radar_" + str(i) + "/estimated_params.npz")
+            for i in range(params.numRadar)
+        ]
+        estimatedParamsCovList = [
+            np.load(dataFilePath + "radar_" + str(i) + "/estimated_params_cov.npz")
+            for i in range(params.numRadar)
+        ]
 
         for i in range(400, numFiles, largeStep):
             print("i", i)
@@ -1928,7 +1920,7 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner, dataFilePath)
             # dataIndex = 2280
 
             radarParams, radarParamsCov = load_estimated_params(
-                dataFilePath, dataIndex, params.numRadar
+                estimatedParamsList, estimatedParamsCovList, dataIndex, params.numRadar
             )
 
             hpp = HighPriorityPathPlanner(params=params)
@@ -2049,7 +2041,7 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner, dataFilePath)
             dataIndex = i
 
             radarParams, radarParamsCov = load_estimated_params(
-                dataFilePath, dataIndex, params.numRadar
+                estimatedParamsList, estimatedParamsCovList, dataIndex, params.numRadar
             )
 
             hpp = HighPriorityPathPlanner(params=params)
@@ -2087,7 +2079,7 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner, dataFilePath)
             dataIndex = i
 
             radarParams, radarParamsCov = load_estimated_params(
-                dataFilePath, dataIndex, params.numRadar
+                estimatedParamsList, estimatedParamsCovList, dataIndex, params.numRadar
             )
 
             hpp = HighPriorityPathPlanner(params=params)
