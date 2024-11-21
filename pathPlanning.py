@@ -1054,7 +1054,7 @@ class SplinePathPlanningLowPriority:
         estimatedRadarParamsCov_temp = estimatedRadarParamsCov.copy()
         allAgentPathHistory_temp = allAgentPathHistory.copy()
 
-        showPlot = False
+        showPlot = True
         if showPlot:
             fig, axs = plt.subplots(1, len(agentList))
 
@@ -1115,22 +1115,148 @@ class SplinePathPlanningLowPriority:
             estimatedRadarParamsCov_temp[closestEmittorOpt] = cov
 
             if showPlot:
-                ax = axs[k]
-                ax.set_title("agent " + str(agentOrder[k]))
-                ax.set_aspect("equal")
-                c = ax.pcolormesh(testX, testY, objF.reshape(testX.shape))
+                objF1 = compute_objective_vec(
+                    pos,
+                    np.array(estimatedRadarParams),
+                    np.array(estimatedRadarParamsCov_temp),
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                    allAgentPathHistory_temp,
+                    agentList[index].position,
+                    self.params.agentSpeed,
+                    self.params.agentPathHistorydt,
+                    self.params.measurementCov,
+                    self.params.radarMeasurementCoeff,
+                    self.params.radarTransmitGain,
+                    self.params.radarOutputPower,
+                    self.params.agentELINTAnteneaGain,
+                    self.params.radarWavelength,
+                    self.params.radarSystemTemperature,
+                    self.params.radarProbabilityOfFalseAlarm,
+                    self.params.radarPulseWidth,
+                    1.0,
+                    self.params.nextCovarianceScale,
+                    0.0,
+                    self.params.seperationScale,
+                    0.0,
+                    self.params.distFromStraitScale,
+                )
+                objF2 = compute_objective_vec(
+                    pos,
+                    np.array(estimatedRadarParams),
+                    np.array(estimatedRadarParamsCov_temp),
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                    allAgentPathHistory_temp,
+                    agentList[index].position,
+                    self.params.agentSpeed,
+                    self.params.agentPathHistorydt,
+                    self.params.measurementCov,
+                    self.params.radarMeasurementCoeff,
+                    self.params.radarTransmitGain,
+                    self.params.radarOutputPower,
+                    self.params.agentELINTAnteneaGain,
+                    self.params.radarWavelength,
+                    self.params.radarSystemTemperature,
+                    self.params.radarProbabilityOfFalseAlarm,
+                    self.params.radarPulseWidth,
+                    0.0,
+                    self.params.nextCovarianceScale,
+                    1.0,
+                    self.params.seperationScale,
+                    0.0,
+                    self.params.distFromStraitScale,
+                )
+                objF3 = compute_objective_vec(
+                    pos,
+                    np.array(estimatedRadarParams),
+                    np.array(estimatedRadarParamsCov_temp),
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                    allAgentPathHistory_temp,
+                    agentList[index].position,
+                    self.params.agentSpeed,
+                    self.params.agentPathHistorydt,
+                    self.params.measurementCov,
+                    self.params.radarMeasurementCoeff,
+                    self.params.radarTransmitGain,
+                    self.params.radarOutputPower,
+                    self.params.agentELINTAnteneaGain,
+                    self.params.radarWavelength,
+                    self.params.radarSystemTemperature,
+                    self.params.radarProbabilityOfFalseAlarm,
+                    self.params.radarPulseWidth,
+                    0.0,
+                    self.params.nextCovarianceScale,
+                    0.0,
+                    self.params.seperationScale,
+                    1.0,
+                    self.params.distFromStraitScale,
+                )
+                ax1 = axs[0]
+                ax2 = axs[1]
+                ax3 = axs[2]
+                ax1.set_title("agent " + str(agentOrder[k]))
+                ax1.set_aspect("equal")
+                c = ax1.pcolormesh(testX, testY, objF.reshape(testX.shape))
                 # fig.colorbar(c, ax=ax)
-                ax.scatter(
+                ax1.scatter(
                     allAgentPathHistory_temp[:, 0], allAgentPathHistory_temp[:, 1]
                 )
-                ax.scatter(tempOptLocations[-2], tempOptLocations[-1], marker="x")
+                ax1.scatter(tempOptLocations[-2], tempOptLocations[-1], marker="x")
 
-                ax.set_aspect("equal")
-                ax.scatter(
+                ax1.set_aspect("equal")
+                ax1.scatter(
                     allAgentPathHistory_temp[:, 0], allAgentPathHistory_temp[:, 1]
                 )
-                ax.scatter(tempOptLocations[-2], tempOptLocations[-1], marker="x")
-                ax.scatter(
+                ax1.scatter(tempOptLocations[-2], tempOptLocations[-1], marker="x")
+                ax1.scatter(
+                    agentList[index].position[0],
+                    agentList[index].position[1],
+                    marker="o",
+                    color="green",
+                )
+                ax2.set_title("agent " + str(agentOrder[k]))
+                ax2.set_aspect("equal")
+                c = ax2.pcolormesh(testX, testY, objF2.reshape(testX.shape))
+                # fig.colorbar(c, ax=ax)
+                ax2.scatter(
+                    allAgentPathHistory_temp[:, 0], allAgentPathHistory_temp[:, 1]
+                )
+                ax2.scatter(tempOptLocations[-2], tempOptLocations[-1], marker="x")
+
+                ax2.set_aspect("equal")
+                ax2.scatter(
+                    allAgentPathHistory_temp[:, 0], allAgentPathHistory_temp[:, 1]
+                )
+                ax2.scatter(tempOptLocations[-2], tempOptLocations[-1], marker="x")
+                ax2.scatter(
+                    agentList[index].position[0],
+                    agentList[index].position[1],
+                    marker="o",
+                    color="green",
+                )
+                ax3.set_title("agent " + str(agentOrder[k]))
+                ax3.set_aspect("equal")
+                c = ax3.pcolormesh(testX, testY, objF3.reshape(testX.shape))
+                # fig.colorbar(c, ax=ax)
+                ax3.scatter(
+                    allAgentPathHistory_temp[:, 0], allAgentPathHistory_temp[:, 1]
+                )
+                ax3.scatter(tempOptLocations[-2], tempOptLocations[-1], marker="x")
+
+                ax3.set_aspect("equal")
+                ax3.scatter(
+                    allAgentPathHistory_temp[:, 0], allAgentPathHistory_temp[:, 1]
+                )
+                ax3.scatter(tempOptLocations[-2], tempOptLocations[-1], marker="x")
+                ax3.scatter(
                     agentList[index].position[0],
                     agentList[index].position[1],
                     marker="o",
@@ -1157,16 +1283,16 @@ class SplinePathPlanningLowPriority:
                     break
 
         if showPlot:
-            ax.scatter(
-                np.array(estimatedRadarParams)[:, 0],
-                np.array(estimatedRadarParams)[:, 1],
-                color="red",
-            )
-            file_name = (
-                "/home/ggs24/repos/magiccvs/radar_detection_estimation/images/objective_function/"
-                + str(self.objectiveFunctionPlotIndex)
-                + ".png"
-            )
+            # ax.scatter(
+            #     np.array(estimatedRadarParams)[:, 0],
+            #     np.array(estimatedRadarParams)[:, 1],
+            #     color="red",
+            # )
+            # file_name = (
+            #     "/home/ggs24/repos/magiccvs/radar_detection_estimation/images/objective_function/"
+            #     + str(self.objectiveFunctionPlotIndex)
+            #     + ".png"
+            # )
             # plt.savefig(file_name)
             plt.show()
             self.objectiveFunctionPlotIndex += 1

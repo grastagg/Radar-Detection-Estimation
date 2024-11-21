@@ -7,9 +7,10 @@ import os
 from scipy.interpolate import griddata
 import ternary
 
+failedRuns = {}
+
 
 def processMCData(dataFile):
-    print()
     print("Processing data from: ", dataFile)
     averageLawnmowerMaxPD = 0
     averageOptimizedMaxPD = 0
@@ -26,6 +27,7 @@ def processMCData(dataFile):
 
     indcludeFailedRunsInTime = False
 
+    countTest = 0
     for file in os.listdir(dataFile):
         totalCount += 1
         # importDir = (
@@ -142,6 +144,24 @@ def processMCData(dataFile):
                 averageOptimizedTimeToFindPath += 1200
             print("Optimized path not found for: ", file)
 
+            if not os.path.isfile(
+                dataFile
+                + "/"
+                + file
+                + "/optimization/high_priority_path/noPathFound.png"
+            ):
+                countTest += 1
+                if file not in failedRuns:
+                    failedRuns[file] = []
+                    failedRuns[file].append(dataFile)
+                else:
+                    failedRuns[file].append(dataFile)
+
+                print("failed for:", dataFile + "/" + file)
+
+            # if file == "86454584":
+            #     countTest += 1
+
     averageLawnmowerMaxPD /= countLawn
     averageOptimizedMaxPD /= countOpt
     averageOptimizedMaxProbUndiscovered /= countOpt
@@ -154,23 +174,24 @@ def processMCData(dataFile):
     averageOptimizedDiffDeterministic /= countOpt
     percentFoundOptimized = countOpt / totalCount
     print("countOpt: ", countOpt)
-    print("Average Lawnmower Max PD: ", averageLawnmowerMaxPD)
-    print("Average Optimized Max PD: ", averageOptimizedMaxPD)
-    print(
-        "Average Lawnmower Max Prob Undiscovered: ", averageLawnmowerMaxProbUndiscovered
-    )
-    print(
-        "Average Optimized Max Prob Undiscovered: ", averageOptimizedMaxProbUndiscovered
-    )
-    print("Average Lawnmower Time To Find Path: ", averageLawnmowerTimeToFindPath)
-    print("Average Optimized Time To Find Path: ", averageOptimizedTimeToFindPath)
-    print("Average Lawnmower Diff Deterministic: ", averageLawnmowerDiffDeterministic)
-    print("Average Optimized Diff Deterministic: ", averageOptimizedDiffDeterministic)
-
-    print("Count Lawn: ", countLawn)
-    print("Count Opt: ", countOpt)
-    print("Total Count: ", totalCount)
-    print("Count DistToGoal: ", countDistToGoal)
+    print("totalCount: ", totalCount)
+    # print("Average Lawnmower Max PD: ", averageLawnmowerMaxPD)
+    # print("Average Optimized Max PD: ", averageOptimizedMaxPD)
+    # print(
+    #     "Average Lawnmower Max Prob Undiscovered: ", averageLawnmowerMaxProbUndiscovered
+    # )
+    # print(
+    #     "Average Optimized Max Prob Undiscovered: ", averageOptimizedMaxProbUndiscovered
+    # )
+    # print("Average Lawnmower Time To Find Path: ", averageLawnmowerTimeToFindPath)
+    # print("Average Optimized Time To Find Path: ", averageOptimizedTimeToFindPath)
+    # print("Average Lawnmower Diff Deterministic: ", averageLawnmowerDiffDeterministic)
+    # print("Average Optimized Diff Deterministic: ", averageOptimizedDiffDeterministic)
+    #
+    # print("Count Lawn: ", countLawn)
+    # print("Count Opt: ", countOpt)
+    # print("Total Count: ", totalCount)
+    # print("Count DistToGoal: ", countDistToGoal)
 
     return np.array(
         [
@@ -180,7 +201,7 @@ def processMCData(dataFile):
             averageOptimizedDiffDeterministic,
             percentFoundOptimized,
         ]
-    )
+    ), countTest
 
 
 def get_sorted_expCovRatios(dataFile):
@@ -234,7 +255,6 @@ def create_heatmap(dataFile, parameterIndex, title):
     values = np.array(valOuterArray)
     expDistRatios = np.array(expDistRatiosOuterArray)
     expCovRatios = np.array(expCovRatiosOuterArray)
-    print(values)
 
     fig, ax = plt.subplots()
     ax.pcolormesh(expDistRatios, expCovRatios, values, cmap="Blues")
@@ -257,26 +277,30 @@ def create_heatmap(dataFile, parameterIndex, title):
 
 
 def create_simplex_ternary_projection(
-    dataFile, parameterIndex, title, module_suffix="56054251"
+    dataFile, parameterIndex, title, module_suffix="76854237"
 ):
     distWeights = []
     covWeights = []
     expWeights = []
     values = []
 
+    countTest = 0
     for folder in os.listdir(dataFile):
         try:
             import_dir = (dataFile + folder).replace(
                 "/", "."
             ) + "." + module_suffix + ".optimization" ".params"
-            print("Importing module:", import_dir)
             params = importlib.import_module(import_dir)
 
             # Collect weights and values
             distWeights.append(params.distFromStraitWeight)
             covWeights.append(params.nextCovarianceWeight)
             expWeights.append(params.seperationWeight)
-            values.append(processMCData(os.path.join(dataFile, folder))[parameterIndex])
+            vals, cTest = processMCData(os.path.join(dataFile, folder))
+            val = vals[parameterIndex]
+            countTest += cTest
+
+            values.append(val)
 
         except ModuleNotFoundError as e:
             print(f"Module not found: {import_dir}. Error: {e}")
@@ -284,6 +308,8 @@ def create_simplex_ternary_projection(
         except Exception as e:
             print(f"Error processing folder {folder}: {e}")
             continue
+
+    print("countTest: ", countTest)
 
     # Convert lists to arrays
     dist_weights_arr = np.array(distWeights)
@@ -308,8 +334,6 @@ def create_simplex_ternary_projection(
 
     # Plotting points in the ternary plot
     for x, y, z, c in zip(projected_x, projected_y, projected_z, values_arr):
-        print("point: ", [x, y, z])
-        print("color: ", c)
         point = (x, y, z)
         tax.scatter([point], marker="o", color=cmap(norm(c)), s=1000)
         # tax.get_axes().text(x, y, f"{values_arr[i]:.2f}", color="black", fontsize=8)
@@ -376,4 +400,7 @@ if __name__ == "__main__":
         # create_heatmap("./saved_data/ratioData/", i, title)
         create_simplex_ternary_projection("saved_data/new_data/", i, parameterNames[i])
     plt.show()
-    # processMCData("./saved_data/ratioData/dist0")
+    for key in failedRuns:
+        print(key)
+        for val in failedRuns[key]:
+            print(val)

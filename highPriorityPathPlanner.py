@@ -1914,7 +1914,8 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner, dataFilePath)
             for i in range(params.numRadar)
         ]
 
-        for i in range(400, numFiles, largeStep):
+        # for i in range(400, numFiles, largeStep):
+        for i in range(1, numFiles, largeStep):
             print("i", i)
             dataIndex = i
             # dataIndex = 2280

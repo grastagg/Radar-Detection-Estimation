@@ -29,6 +29,7 @@ def change_random_seed(file_path, new_seed):
     with open(file_path, "w") as file:
         file.writelines(lines)
 
+    print("HERE")
     print(f"randomSeed changed to {new_seed} in {file_path}")
 
 

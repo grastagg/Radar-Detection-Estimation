@@ -2,6 +2,10 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.linalg import block_diag
 from matplotlib import colors
+import matplotlib
+
+matplotlib.rcParams["pdf.fonttype"] = 42
+matplotlib.rcParams["ps.fonttype"] = 42
 # import params
 # from params import measurement_jacobian, measurement_model
 
@@ -439,9 +443,17 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
     ):
         radarLocation = np.array([x_0, y_0])
         distSquared = np.linalg.norm(measurementLocations - radarLocation, axis=1) ** 2
+        measurementsTemp = measurements.copy()
+        mask = measurementsTemp[:, 1] < 1e-5
         erp = np.mean(
-            measurements[:, 1] * distSquared / self.params.radarMeasurementCoeff
+            measurementsTemp[mask, 1]
+            * distSquared[mask]
+            / self.params.radarMeasurementCoeff
         )
+
+        # erp = np.mean(
+        #     measurements[:, 1] * distSquared / self.params.radarMeasurementCoeff
+        # )
         return erp
 
     def measurement_residual(self, emitter_params, measurements, measurement_locations):
@@ -472,6 +484,12 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         x_0 = self.radarList[radarId].position[0]
         y_0 = self.radarList[radarId].position[1]
         x0 = [x_0, y_0, erp_0]
+        print("x0", x0)
+        print(
+            "true value",
+            self.radarList[radarId].position,
+            self.radarList[radarId].outputPower,
+        )
         # if radarId == 0:
         #     print("x0", x0)
         #     print(
@@ -492,7 +510,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
             jac=self.stack_measurement_jacobian,
             args=(measurement_values, measurement_locations),
             bounds=(
-                [x0[0] - 5000, x0[1] - 5000, 10],
+                [x0[0] - 5000, x0[1] - 5000, 1],
                 [x0[0] + 5000, x0[1] + 5000, 20 * self.params.erp],
             ),
             loss="soft_l1",

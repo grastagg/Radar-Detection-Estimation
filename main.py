@@ -396,9 +396,11 @@ def run_mc_simulation(
     username = getpass.getuser()
     # for seed in seeds:
     seed = startSeed
+    dataF = dataFile
     while currentNumSeeds < numSeeds:
         # lowPriorityPathPlanner = "lawnmower"
         print("running seed:", seed)
+        dataFile = dataF + str(seed) + "/"
         print("dataFile:", dataFile)
         # dataFile = (
         #     "/home/"
@@ -428,8 +430,9 @@ def run_mc_simulation(
         # )
         # importDir = "saved_data.mc_runs."+str(seed)+".params"
         params = importlib.import_module(importDir)
+        print("test", params.randomSeed)
         if not params.radarPositionsFound:
-            print("skipping seed:", seed)
+            print("radar positions not found, skipping seed:", seed)
             os.system("rm -r " + dataFile)
             seed += 1
             continue
@@ -483,6 +486,7 @@ def run_mc_simulation(
         # # main(params)
         seed += 1
         currentNumSeeds += 1
+    return seed - 1
 
 
 if __name__ == "__main__":
@@ -506,7 +510,7 @@ if __name__ == "__main__":
 
     print("Test", explorationWeight, covarianceWeight, distWeight)
 
-    run_mc_simulation(
+    randomSeed = run_mc_simulation(
         randomSeed,
         numSeeds,
         pathPlanner,
@@ -515,6 +519,7 @@ if __name__ == "__main__":
         distWeight,
         dataFile,
     )
+    dataFile = dataFile + str(randomSeed) + "/"
     test_high_priority_path_planner(
         [randomSeed], pathPlanner, dataFile + pathPlanner + "/"
     )

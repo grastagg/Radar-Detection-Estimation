@@ -12,14 +12,6 @@ import inspect
 from utils import create_test_points
 
 
-def caller_discoverer():
-    print("Importing file is", inspect.stack()[-1][1])
-
-
-caller_discoverer()
-
-print("in params.py")
-
 # np.random.seed(1241)
 
 randomSeed = 10211230
@@ -231,7 +223,6 @@ def find_radar_position(currentRadarPositions):
 
     while notFound and numTries < maxTries:
         potentialRadarPosition = rng.uniform(0, bounds[0], 2)
-        # print("potentialRadarPosition",potentialRadarPosition)
         distToStart = np.linalg.norm(potentialRadarPosition)
         distToEnd = np.linalg.norm(potentialRadarPosition - highPriorityEnd)
         minDistToOtherRadar, radarIndex = find_min_weighted_dist_to_other_radar(
@@ -240,9 +231,6 @@ def find_radar_position(currentRadarPositions):
         minInterRadarDist = (
             minInterRadarDistList[radarIndex] + minInterRadarDistList[minRadarIndex]
         )
-        # print("mininterradardist",mininterradardist)
-        # print("disttostart",disttostart)
-        # print("disttoend",disttoend)
         # notfound = disttostart < minradardistfromstart or mindisttootherradar < mininterradardist
         notFound = (
             distToStart < minRadarDistFromStart
@@ -256,11 +244,8 @@ def find_radar_position(currentRadarPositions):
 
 radarPositionsFound = True
 for i in range(numRadar):
-    print("i", i)
     radarPos, notFound = find_radar_position(radarPositions)
-    print("radarPos", radarPos)
     if notFound:
-        print("Radar not found")
         radarPositionsFound = False
         break
     else:
@@ -345,6 +330,7 @@ numObjectiveFunctionSamples = 20
 lowPrioritySafetyBestMeasurementTradeoff = 0.1
 lowPriorityDistanceBestMeasurementTradeoff = 0.6
 agentSpeed = 134
+# agentSpeed = 50
 numControlPoints = 40
 # numControlPoints = 20
 maxTurnRate = 1
@@ -372,9 +358,6 @@ nextCovarianceScale = 1e14
 seperationWeight = 0.5
 distFromStraitWeight = 0.0
 nextCovarianceWeight = 0.5
-print("seperationWeight", seperationWeight)
-print("nextCovarianceWeight", nextCovarianceWeight)
-print("distFromStraitWeight", distFromStraitWeight)
 
 
 # pathOptTime = 50
