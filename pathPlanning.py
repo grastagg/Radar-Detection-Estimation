@@ -1054,7 +1054,7 @@ class SplinePathPlanningLowPriority:
         estimatedRadarParamsCov_temp = estimatedRadarParamsCov.copy()
         allAgentPathHistory_temp = allAgentPathHistory.copy()
 
-        numTestPoints = 50
+        numTestPoints = 200
         testX = numpy.linspace(0, self.params.bounds[0], numTestPoints)
         testY = numpy.linspace(0, self.params.bounds[1], numTestPoints)
         testX, testY = numpy.meshgrid(testX, testY)
