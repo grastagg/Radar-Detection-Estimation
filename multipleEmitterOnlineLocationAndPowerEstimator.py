@@ -569,7 +569,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         if measurement_value[1] > 1e-3:
             return
 
-        numMeasurementsNeeded = 21
+        numMeasurementsNeeded = 2
         # if len(self.group_lists[radarId]) > numMeasurementsNeeded:
         aoaDiff = self.compute_inlier_aoa_diff(
             np.array(self.measurement_values)[self.group_lists[radarId]]

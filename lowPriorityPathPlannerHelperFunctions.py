@@ -120,6 +120,7 @@ def compute_objective_jax(
 
     # Use jax.lax.cond to handle conditional logic
     distanceThresholdAgent = 1000
+    distanceThresholdAgent = 0
     distanceThresholdRadar = 0
     condition = jnp.logical_or(
         dist_to_agent < distanceThresholdAgent, minDistToRadar < distanceThresholdRadar
