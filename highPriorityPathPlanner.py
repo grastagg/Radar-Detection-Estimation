@@ -3,6 +3,10 @@ import jax.numpy as jnp
 from jax import jacfwd, grad
 from jax import jit
 import jax
+import matplotlib
+
+matplotlib.rcParams["pdf.fonttype"] = 42
+matplotlib.rcParams["ps.fonttype"] = 42
 
 jax.config.update("jax_enable_x64", True)
 jax.config.update("jax_platform_name", "cpu")  # Sets the default device to CPU
@@ -1639,7 +1643,7 @@ class HighPriorityPathPlanner:
                     spacing=500,
                     bounds=self.params.bounds,
                     params=self.params,
-                    ax=None,
+                    ax=ax,
                 )
                 print("Time to find initial trajectory", time.time() - startTime)
 
@@ -1688,13 +1692,17 @@ class HighPriorityPathPlanner:
         if plot:
             tmpSpline = self.spline_seg(controlPoints, knotPoints)
             # ax.scatter(path[:,0], path[:,1], c='r')
-            ax.plot(path[:, 0], path[:, 1], c="r", linewidth=3)
-            self.plot_spline(tmpSpline, ax)
+            ax[1, 0].plot(path[:, 0], path[:, 1], c="r", linewidth=3)
+            self.plot_spline(tmpSpline, ax[1, 0])
+            self.plot_spline(tmpSpline, ax[1, 1])
 
-            self.plot_constraints(spline, tuple(radarList), radarParams, radarParamsCov)
+            # self.plot_constraints(spline, tuple(radarList), radarParams, radarParamsCov)
             # plt.show()
 
-        return controlPoints, tf
+        return (
+            controlPoints,
+            tf,
+        )
 
     def plot_spline(self, spline, ax, c="blue"):
         controlPoints = spline.c
@@ -1778,8 +1786,7 @@ class HighPriorityPathPlanner:
         )
 
         if plot:
-            figm, axm = plt.subplots()
-            axm.scatter(
+            ax.scatter(
                 combinedPathHistory[:, 0],
                 combinedPathHistory[:, 1],
                 c="r",
@@ -1791,11 +1798,11 @@ class HighPriorityPathPlanner:
                 truePd = self.spline_constraints(
                     tuple(radarList), spline.c, spline.t, 1000
                 )[0]
-                c = axm.scatter(path[:, 0], path[:, 1], c=truePd)
-                figm.colorbar(c, ax=axm)
+                c = ax.scatter(path[:, 0], path[:, 1], c=truePd)
             else:
-                c = axm.scatter(path[:, 0], path[:, 1], c=pathSafety)
-                plt.colorbar(c)
+                c = ax.scatter(path[:, 0], path[:, 1], c=pathSafety)
+                cbar = plt.colorbar(c, shrink=0.7)
+                cbar.set_label(r"Path Safety ($\Gamma_e$)", fontsize=14)
 
         return pathSafety
 
@@ -2224,5 +2231,130 @@ def main():
     )
 
 
+def paper_plot():
+    fig, ax = plt.subplots(2, 3, layout="constrained")
+    # dataFilePath = "saved_data/new_data/run37/56054251/optimization/"
+    dataFilePath = "saved_data/new_data/run37/86654325/optimization/"
+    importDir = dataFilePath.replace("/", ".") + "params"
+    print("importDir", importDir)
+    params = importlib.import_module(importDir)
+
+    hpp = HighPriorityPathPlanner(params=params)
+    hpp.uncertainRadar = True
+
+    estimatedParamsList = [
+        np.load(dataFilePath + "radar_" + str(i) + "/estimated_params.npz")
+        for i in range(params.numRadar)
+    ]
+    estimatedParamsCovList = [
+        np.load(dataFilePath + "radar_" + str(i) + "/estimated_params_cov.npz")
+        for i in range(params.numRadar)
+    ]
+    dataIndex = 990
+    radarParams, radarParamsCov = load_estimated_params(
+        estimatedParamsList, estimatedParamsCovList, dataIndex, params.numRadar
+    )
+
+    Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(
+        params.X_test,
+        params.probabilityOfDetectionThreshold,
+        params.thresholdConfidence,
+        radarParams,
+        radarParamsCov,
+        params.radarRecieveGain,
+        0,
+        params.radarWavelength,
+        params.radarWavelengthPriorVariance,
+        params.agentRadarCrossSection,
+        params.radarPulseWidth,
+        params.radarPulseWidthPriorVariance,
+        params.radarSystemTemperature,
+        params.radarSystemTemperaturePriorVariance,
+        params.radarProbabilityOfFalseAlarm,
+        params.radarProbabilityOfFalseAlarmPriorVariance,
+    )
+    titles = [
+        "Generalized Voronoi",
+        "Trimmed",
+        "A-star Path",
+        "Initial Spline Trajectory",
+        "Optimized Spline Trajectory",
+        "Path Safety",
+    ]
+    for i, a in enumerate(ax.flatten()):
+        if i != 5:
+            c = a.pcolormesh(
+                params.X_test[:, 0].reshape(params.numTestPoints, params.numTestPoints),
+                params.X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
+                Z.reshape(params.numTestPoints, params.numTestPoints),
+                alpha=1,
+            )
+            # set colorbar of each subplot
+            cbar = fig.colorbar(c, ax=a, shrink=0.7)
+            cbar.set_label(r"$P(P_D \leq P_{D,t})$", fontsize=16)
+        a.set_aspect("equal")
+        a.scatter(radarParams[:, 0], radarParams[:, 1], c="r", marker="x", s=100)
+        # a.set_ylim([0, params.bounds[1]])
+        a.set_xlabel("East (m)", fontsize=16)
+        a.set_ylabel("North (m)", fontsize=16)
+        a.set_title(titles[i], fontsize=22)
+        a.tick_params(axis="both", which="major", labelsize=14)
+
+    optimalTime = hpp.plan_uncertain_path(
+        tuple(), radarParams, radarParamsCov, plot=True, ax=ax
+    )
+    pathHistoryList = [
+        np.genfromtxt(dataFilePath + "/agent0PathHistory.txt", delimiter=","),
+        np.genfromtxt(dataFilePath + "/agent1PathHistory.txt", delimiter=","),
+        np.genfromtxt(dataFilePath + "/agent2PathHistory.txt", delimiter=","),
+    ]
+    radarTimeStamp = np.genfromtxt(
+        dataFilePath + "/radarEstimateTimestamps.txt", delimiter=","
+    )
+    numPathHistory = int(radarTimeStamp[dataIndex] // params.agentPathHistorydt)
+    pathHistoryListTemp = [
+        pathHistory[0:numPathHistory] for pathHistory in pathHistoryList
+    ]
+
+    pathSafety = hpp.evaluate_path_sefety(
+        hpp.spline, pathHistoryListTemp, plot=True, ax=ax[1, 2]
+    )
+    print(pathSafety)
+
+    hpp.plot_spline(hpp.spline, ax[1, 1], c="magenta")
+    for a in ax.flatten():
+        a.set_xlim(-500, params.bounds[0] + 500)
+        a.set_ylim(-500, params.bounds[1] + 500)
+    plt.show()
+
+
+def paper_plot_deterministic():
+    dataFilePath = "saved_data/new_data/run37/56054251/optimization/"
+    params = importlib.import_module(dataFilePath.replace("/", ".") + "params")
+    radarList = create_radar_list(
+        params.radarPositions,
+        params.radarPhases,
+        params.radarAngularRates,
+        params.radarOutputPowerList,
+        params.radarTransmitGainList,
+        params.radarRecieveGainList,
+        params.radarWavelength,
+        params.radarPulseWidth,
+        params.radarSystemTemperature,
+        params.radarProbabilityOfFalseAlarm,
+    )
+
+    hpp = HighPriorityPathPlanner(params=params)
+    hpp.uncertainRadar = False
+    fig, ax = plt.subplots(2, 3)
+
+    hpp.plan_deterministic_path(radarList, plot=True, ax=ax)
+
+    plt.show()
+
+
 if __name__ == "__main__":
-    main()
+    # main()
+    paper_plot()
+    # paper_plot_deterministic()
+#

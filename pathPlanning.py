@@ -1054,14 +1054,14 @@ class SplinePathPlanningLowPriority:
         estimatedRadarParamsCov_temp = estimatedRadarParamsCov.copy()
         allAgentPathHistory_temp = allAgentPathHistory.copy()
 
-        numTestPoints = 200
+        numTestPoints = 50
         testX = numpy.linspace(0, self.params.bounds[0], numTestPoints)
         testY = numpy.linspace(0, self.params.bounds[1], numTestPoints)
         testX, testY = numpy.meshgrid(testX, testY)
         pos = np.vstack((testX.ravel(), testY.ravel())).T
         tempOptLocations = []
 
-        showPlot = True
+        showPlot = False
         if showPlot:
             k = 0
             index = agentOrder[k]
