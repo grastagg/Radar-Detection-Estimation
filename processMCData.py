@@ -10,93 +10,41 @@ import ternary
 failedRuns = {}
 
 
-def processMCData(dataFile):
+boxPlotPosition = 0
+
+
+def processMCData(dataFile, pathPlanner="optimization", boxPlot=False, ax=None):
+    global boxPlotPosition
     print("Processing data from: ", dataFile)
-    averageLawnmowerMaxPD = 0
     averageOptimizedMaxPD = 0
-    averageLawnmowerMaxProbUndiscovered = 0
     averageOptimizedMaxProbUndiscovered = 0
-    averageLawnmowerTimeToFindPath = 0
     averageOptimizedTimeToFindPath = 0
-    averageLawnmowerDiffDeterministic = 0
     averageOptimizedDiffDeterministic = 0
     countOpt = 0
-    countLawn = 1
     totalCount = 0
-    countDistToGoal = 0
 
     indcludeFailedRunsInTime = False
+
+    timesToFindPath = []
 
     countTest = 0
     for file in os.listdir(dataFile):
         totalCount += 1
-        # importDir = (
-        #     "saved_data.mc_runs.processed."
-        #     + str(file)
-        #     + "."
-        #     + "optimization"
-        #     + ".params"
-        # )
-        # params = importlib.import_module(importDir)
-        # if params.useDistToGoal:
-        #     countDistToGoal += 1
-
         if os.path.isfile(
             dataFile
             + "/"
             + file
-            + "/lawnmower/high_priority_path/groundTruthPdAlongSplines.txt"
-        ):
-            lawnmowerMaxPD = np.genfromtxt(
-                dataFile
-                + "/"
-                + file
-                + "/lawnmower/high_priority_path/groundTruthPdAlongSplines.txt",
-                delimiter=",",
-            )
-            averageLawnmowerMaxPD += np.max(lawnmowerMaxPD)
-            lawnmowerMaxProbUndiscovered = np.genfromtxt(
-                dataFile
-                + "/"
-                + file
-                + "/lawnmower/high_priority_path/maxProbUndiscoveredRadar.txt",
-                delimiter=",",
-            )
-            averageLawnmowerMaxProbUndiscovered += np.max(lawnmowerMaxProbUndiscovered)
-            lawnmowerTimeToFindPath = np.genfromtxt(
-                dataFile
-                + "/"
-                + file
-                + "/lawnmower/high_priority_path/lpFindPathTime.txt",
-                delimiter=",",
-            )
-            averageLawnmowerTimeToFindPath += np.sum(lawnmowerTimeToFindPath)
-            optimalPathTime = np.genfromtxt(
-                dataFile
-                + "/"
-                + file
-                + "/lawnmower/high_priority_path/deterministic_path_time.txt",
-                delimiter=",",
-            )
-            lawnmowerOptimalPathTime = np.genfromtxt(
-                dataFile + "/" + file + "/lawnmower/high_priority_path/optimalTime.txt",
-                delimiter=",",
-            )
-            averageLawnmowerDiffDeterministic += (
-                np.abs(optimalPathTime - lawnmowerOptimalPathTime) / optimalPathTime
-            )
-            countLawn += 1
-        if os.path.isfile(
-            dataFile
             + "/"
-            + file
-            + "/optimization/high_priority_path/groundTruthPdAlongSplines.txt"
+            + pathPlanner
+            + "/high_priority_path/groundTruthPdAlongSplines.txt"
         ):
             optimizedMaxPD = np.genfromtxt(
                 dataFile
                 + "/"
                 + file
-                + "/optimization/high_priority_path//groundTruthPdAlongSplines.txt",
+                + "/"
+                + pathPlanner
+                + "/high_priority_path//groundTruthPdAlongSplines.txt",
                 delimiter=",",
             )
             averageOptimizedMaxPD += np.max(optimizedMaxPD)
@@ -105,7 +53,9 @@ def processMCData(dataFile):
                 dataFile
                 + "/"
                 + file
-                + "/optimization/high_priority_path/maxProbUndiscoveredRadar.txt",
+                + "/"
+                + pathPlanner
+                + "/high_priority_path/maxProbUndiscoveredRadar.txt",
                 delimiter=",",
             )
             averageOptimizedMaxProbUndiscovered += np.max(optimizedMaxProbUndiscovered)
@@ -114,23 +64,31 @@ def processMCData(dataFile):
                 dataFile
                 + "/"
                 + file
-                + "/optimization/high_priority_path/lpFindPathTime.txt",
+                + "/"
+                + pathPlanner
+                + "/high_priority_path/lpFindPathTime.txt",
                 delimiter=",",
             )
+
+            timesToFindPath.append(optimizedTimeToFindPath)
             averageOptimizedTimeToFindPath += np.sum(optimizedTimeToFindPath)
 
             optimalPathTime = np.genfromtxt(
                 dataFile
                 + "/"
                 + file
-                + "/optimization/high_priority_path/deterministic_path_time.txt",
+                + "/"
+                + pathPlanner
+                + "/high_priority_path/deterministic_path_time.txt",
                 delimiter=",",
             )
             optimizedOptimalPathTime = np.genfromtxt(
                 dataFile
                 + "/"
                 + file
-                + "/optimization/high_priority_path/optimalTime.txt",
+                + "/"
+                + pathPlanner
+                + "/high_priority_path/optimalTime.txt",
                 delimiter=",",
             )
 
@@ -144,54 +102,26 @@ def processMCData(dataFile):
                 averageOptimizedTimeToFindPath += 1200
             print("Optimized path not found for: ", file)
 
-            if not os.path.isfile(
-                dataFile
-                + "/"
-                + file
-                + "/optimization/high_priority_path/noPathFound.png"
-            ):
-                countTest += 1
-                if file not in failedRuns:
-                    failedRuns[file] = []
-                    failedRuns[file].append(dataFile)
-                else:
-                    failedRuns[file].append(dataFile)
-
-                print("failed for:", dataFile + "/" + file)
-
             # if file == "86454584":
             #     countTest += 1
+    timesToFindPath = np.array(timesToFindPath)
+    print("mean time to find path: ", np.mean(timesToFindPath))
+    print("std time to find path: ", np.std(timesToFindPath))
+    if boxPlot:
+        ax.boxplot(timesToFindPath, positions=[boxPlotPosition])
+        boxPlotPosition += 1
 
-    averageLawnmowerMaxPD /= countLawn
     averageOptimizedMaxPD /= countOpt
     averageOptimizedMaxProbUndiscovered /= countOpt
-    averageLawnmowerMaxProbUndiscovered /= countLawn
     averageOptimizedTimeToFindPath /= countOpt
     if indcludeFailedRunsInTime:
         averageOptimizedTimeToFindPath /= totalCount
-    averageLawnmowerTimeToFindPath /= countLawn
-    averageLawnmowerDiffDeterministic /= countLawn
     averageOptimizedDiffDeterministic /= countOpt
     percentFoundOptimized = countOpt / totalCount
     print("countOpt: ", countOpt)
     print("totalCount: ", totalCount)
-    # print("Average Lawnmower Max PD: ", averageLawnmowerMaxPD)
-    # print("Average Optimized Max PD: ", averageOptimizedMaxPD)
-    # print(
-    #     "Average Lawnmower Max Prob Undiscovered: ", averageLawnmowerMaxProbUndiscovered
-    # )
-    # print(
-    #     "Average Optimized Max Prob Undiscovered: ", averageOptimizedMaxProbUndiscovered
-    # )
-    # print("Average Lawnmower Time To Find Path: ", averageLawnmowerTimeToFindPath)
-    # print("Average Optimized Time To Find Path: ", averageOptimizedTimeToFindPath)
-    # print("Average Lawnmower Diff Deterministic: ", averageLawnmowerDiffDeterministic)
-    # print("Average Optimized Diff Deterministic: ", averageOptimizedDiffDeterministic)
-    #
-    # print("Count Lawn: ", countLawn)
-    # print("Count Opt: ", countOpt)
-    # print("Total Count: ", totalCount)
-    # print("Count DistToGoal: ", countDistToGoal)
+    print("average lp time: ", averageOptimizedTimeToFindPath)
+    print("percent found: ", percentFoundOptimized)
 
     return np.array(
         [
@@ -330,17 +260,20 @@ def create_simplex_ternary_projection(
     scale = 1
     fig, tax = ternary.figure(scale=scale)
     tax.boundary(linewidth=2.0)
-    tax.gridlines(color="blue", multiple=0.08333333333333333)
+    tax.gridlines(color="black", multiple=0.08333333333333333)
 
     # Plotting points in the ternary plot
     for x, y, z, c in zip(projected_x, projected_y, projected_z, values_arr):
         point = (x, y, z)
         tax.scatter([point], marker="o", color=cmap(norm(c)), s=1000)
         # tax.get_axes().text(x, y, f"{values_arr[i]:.2f}", color="black", fontsize=8)
+        fontsize = 14
+        if parameterIndex == 0:
+            fontsize = 10
         tax.annotate(
-            f"{c:.2f}",
+            f"{c:.0f}",
             (x, y, z),
-            fontsize=8,
+            fontsize=fontsize,
             horizontalalignment="center",
             verticalalignment="center",
             color="white",
@@ -354,14 +287,21 @@ def create_simplex_ternary_projection(
     # )
 
     # Set the labels for the axes
-    tax.left_axis_label(r"Exploration Weight ($\alpha_e$)", fontsize=12)
-    tax.right_axis_label(r"Covariance Reduction Weight ($\alpha_u$)", fontsize=12)
-    tax.bottom_axis_label(r"Strait-Line Distance Weight ($\alpha_d$)", fontsize=12)
+    tax.left_axis_label(r"Exploration Weight ($\alpha_e$)", fontsize=20, offset=0.15)
+    tax.right_axis_label(
+        r"Covariance Reduction Weight ($\alpha_u$)", fontsize=20, offset=0.15
+    )
+    tax.bottom_axis_label(r"Distance to Goal Weight ($\alpha_d$)", fontsize=20)
 
     # Adjust ticks to display correctly
     # 0.0 0.08333333333333333 0.16666666666666666 0.25 0.3333333333333333 0.4166666666666667 0.5 0.5833333333333334 0.6666666666666666 0.75 0.8333333333333334 0.9166666666666666 1.0
     tax.ticks(
-        axis="lbr", multiple=0.08333333333333333, linewidth=1, tick_formats="%.3f"
+        axis="lbr",
+        multiple=0.08333333333333333,
+        linewidth=1,
+        tick_formats="%.3f",
+        offset=0.019,
+        fontsize=16,
     )
 
     # Add a colorbar
@@ -370,27 +310,32 @@ def create_simplex_ternary_projection(
     )
     sm.set_array([])
     cbar = plt.colorbar(sm, ax=tax.get_axes(), orientation="vertical")
+    cbar.ax.tick_params(labelsize=18)
     if parameterIndex == 0:
-        cbar.set_label("Seconds", fontsize=12)
+        cbar.set_label("Seconds", fontsize=18)
     elif parameterIndex == 4:
-        cbar.set_label("%", fontsize=12)
+        cbar.set_label("%", fontsize=18)
     tax.clear_matplotlib_ticks()
     plt.box(False)
 
     # Add a title
-    plt.title(f"{title}", fontsize=14)
+    plt.title(f"{title}", fontsize=24)
 
 
 #
 
 
 if __name__ == "__main__":
+    fig, ax = plt.subplots()
+    # processMCData("saved_data/new_data/run37/", "optimization", boxPlot=True, ax=ax)
+    # processMCData("saved_data/new_data/run83/", "optimization", boxPlot=True, ax=ax)
+    # plt.show()
     parameterNames = [
         "Average Time To Find Path (Only Successful Runs)",
         "Average Max PD",
         "Average Max Prob Undiscovered",
         "Average Diff Deterministic",
-        "Percent Found Optimized",
+        "Percent Successful Runs",
     ]
     parameterIndecies = [0, 4]
     # create_simplex(

@@ -24,8 +24,8 @@ class LawnMowerControl:
         self.test_points = self.get_test_points(numTestPoints, numTestPoints)
 
         # for 2 agents 22 for 4 agents
-        self.waypoints = self.get_waypoints_ladder_horizontal(numAgents, agent_id, 15)
-        # self.waypoints = self.get_waypoints_ladder_horizontal(self.p['num_part'], agent_id, 22)
+        self.waypoints = self.get_waypoints_ladder_horizontal(numAgents, agent_id, 20)
+        # self.waypoints = self.get_waypoints_ladder_horizontal(numAgents, agent_id, 15)
         left_col = self.waypoints.real.reshape(-1, 1)
         right_col = self.waypoints.imag.reshape(-1, 1)
         right_col = np.append(right_col, [boundary, boundary]).reshape(-1, 1)

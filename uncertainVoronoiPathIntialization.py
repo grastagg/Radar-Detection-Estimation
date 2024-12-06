@@ -671,21 +671,14 @@ def new_filter_points_by_vertices(
     testOtherDistanceMatrix = np.linalg.norm(
         contour[~mask][:, np.newaxis] - verticies, axis=2
     )
-    print("max distance", np.max(testDistanceMatrix))
-    print("max other distance", np.max(testOtherDistanceMatrix))
-    print("min distance", np.min(distanceMatrix))
-    print("min other distance", np.min(otherDistanceMatrix))
     # if np.max(testDistanceMatrix) > np.max(testOtherDistanceMatrix):
     #     mask = ~mask
     #     points_in_range = contour[mask]
     distanceThreshold = 200
-    if np.min(distanceMatrix) < distanceThreshold:
-        mask = ~mask
-        points_in_range = contour[mask]
-
-    # if np.min(distanceMatrix) < np.min(otherDistanceMatrix):
-    #     mask = ~mask
-    #     points_in_range = contour[mask]
+    if np.min(distanceMatrix) < np.min(otherDistanceMatrix):
+        if np.min(distanceMatrix) < distanceThreshold:
+            mask = ~mask
+            points_in_range = contour[mask]
 
     # sort points
     if mask[0] == True and mask[-1] == True:

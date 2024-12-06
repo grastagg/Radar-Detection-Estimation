@@ -5,6 +5,8 @@ from jax import jit
 import jax
 import matplotlib
 
+from probabilityOfDetectionJax import ground_truth_probability_of_detection
+
 matplotlib.rcParams["pdf.fonttype"] = 42
 matplotlib.rcParams["ps.fonttype"] = 42
 
@@ -2329,7 +2331,7 @@ def paper_plot():
 
 
 def paper_plot_deterministic():
-    dataFilePath = "saved_data/new_data/run37/56054251/optimization/"
+    dataFilePath = "saved_data/new_data/run37/86654325/optimization/"
     params = importlib.import_module(dataFilePath.replace("/", ".") + "params")
     radarList = create_radar_list(
         params.radarPositions,
@@ -2346,15 +2348,60 @@ def paper_plot_deterministic():
 
     hpp = HighPriorityPathPlanner(params=params)
     hpp.uncertainRadar = False
-    fig, ax = plt.subplots(2, 3)
+    fig, ax = plt.subplots(2, 3, layout="constrained")
 
-    hpp.plan_deterministic_path(radarList, plot=True, ax=ax)
+    # def ground_truth_probability_of_detection(X_test, trueRadarParametersList, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm):
+    pd = ground_truth_probability_of_detection(
+        params.X_test,
+        tuple(radarList),
+        params.radarWavelength,
+        params.agentRadarCrossSection,
+        params.radarPulseWidth,
+        params.radarSystemTemperaturePriorMean,
+        params.radarProbabilityOfFalseAlarmPriorMean,
+    )
+    titles = [
+        "Weighted Voronoi Diagram",
+        "Trimmed Voronoi Diagram",
+        "A* Path",
+        "Initial Spline Trajectory",
+        "Optimized Spline Trajectory",
+        "none",
+    ]
+    for i, a in enumerate(ax.flatten()):
+        if i != 5:
+            a.set_aspect("equal")
+            a.set_xlabel("East (m)", fontsize=16)
+            a.set_ylabel("North (m)", fontsize=16)
+            a.tick_params(axis="both", which="major", labelsize=14)
+            a.set_title(titles.pop(0), fontsize=22)
+            c = a.pcolormesh(
+                params.X_test[:, 0].reshape(params.numTestPoints, params.numTestPoints),
+                params.X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
+                pd.reshape(params.numTestPoints, params.numTestPoints),
+            )
+            cbar = fig.colorbar(c, ax=a, shrink=0.7)
+            cbar.set_label(r"$P_D$", fontsize=16)
 
+            for radar in radarList:
+                a.scatter(
+                    radar.position[0], radar.position[1], c="r", marker="x", s=100
+                )
+
+    hpp.plan_deterministic_path(tuple(radarList), plot=True, ax=ax)
+    print("pd", pd.shape)
+
+    for a in ax.flatten():
+        a.set_xlim(-500, params.bounds[0] + 500)
+        a.set_ylim(-500, params.bounds[1] + 500)
+
+    hpp.plot_spline(hpp.spline, ax[1, 1], c="magenta")
+    ax[1, 2].set_visible(False)
     plt.show()
 
 
 if __name__ == "__main__":
     # main()
-    paper_plot()
-    # paper_plot_deterministic()
+    # paper_plot()
+    paper_plot_deterministic()
 #

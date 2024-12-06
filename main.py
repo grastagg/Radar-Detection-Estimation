@@ -275,7 +275,7 @@ def main(params, dataFile):
 
     tEnd = params.simulationEndTime
     if params.lowPriorityPathPlanner == "lawnmower":
-        tEnd *= 2
+        tEnd *= 4
     else:
         tEnd *= 2
     dt = params.simulationTimestep
@@ -506,9 +506,6 @@ if __name__ == "__main__":
     print("distWeight", distWeight)
     dataFile = sys.argv[7]
     print("dataFile", dataFile)
-    print("here")
-
-    print("Test", explorationWeight, covarianceWeight, distWeight)
 
     randomSeed = run_mc_simulation(
         randomSeed,

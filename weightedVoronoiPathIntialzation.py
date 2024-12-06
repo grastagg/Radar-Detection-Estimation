@@ -59,7 +59,7 @@ def plot_arc(center, radius, theta1=0, theta2=2 * np.pi, ax=None, c="b"):
 
     # x = center[0] + radius*np.cos(theta)
     # y = center[1] + radius*np.sin(theta)
-    ax.plot(x, y, c=c)
+    ax.plot(x, y, c=c, linewidth=3)
 
 
 def plot_arc_pd(center, radius, radarList, theta1=0, theta2=2 * np.pi, ax=None, c="b"):
@@ -104,11 +104,11 @@ def plot_weighted_voronoi_arcs(arcs, boundarySegments, ax):
         if theta2 < theta1:
             theta2 += 2 * np.pi
 
-        ax.scatter([p1[0], p2[0]], [p1[1], p2[1]], c=c)
+        ax.scatter([p1[0], p2[0]], [p1[1], p2[1]], c=c, marker="*", s=100)
         # plot_arc(center, radius, np.min([theta1,theta2]), np.max([theta2,theta1]), ax)
         plot_arc(center, radius, theta1, theta2, ax, c=c)
     for seg in boundarySegments:
-        ax.plot(seg[:, 0], seg[:, 1], c=c, marker="o")
+        ax.plot(seg[:, 0], seg[:, 1], c=c, marker="*", markersize=10, linewidth=3)
     # plt.plot([0,0,params.bounds[0],params.bounds[0],0],[0,params.bounds[1],params.bounds[1],0,0],c = 'k')
 
 
@@ -854,7 +854,8 @@ def compute_path_weighted_voronoi(radarList, params, plot=False, ax=None):
     path = fill_in_path(path, edges, nodes, spacing=50)
 
     if plot:
-        plot_weighted_voronoi_arcs(arcs, [], ax[0, 1])
+        plot_weighted_voronoi_arcs(arcs, boundarySegments, ax[0, 1])
+        plot_weighted_voronoi_arcs(arcs, boundarySegments, ax[0, 2])
 
     if plot:
         ax[0, 2].plot(path[:, 0], path[:, 1], c="r", linewidth=3)
