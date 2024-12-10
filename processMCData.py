@@ -5,6 +5,7 @@ import matplotlib
 
 import os
 from scipy.interpolate import griddata
+from scipy.sparse import data
 import ternary
 
 failedRuns = {}
@@ -22,6 +23,7 @@ def processMCData(dataFile, pathPlanner="optimization", boxPlot=False, ax=None):
     averageOptimizedDiffDeterministic = 0
     countOpt = 0
     totalCount = 0
+    testCount = 0
 
     indcludeFailedRunsInTime = False
 
@@ -38,6 +40,19 @@ def processMCData(dataFile, pathPlanner="optimization", boxPlot=False, ax=None):
             + pathPlanner
             + "/high_priority_path/groundTruthPdAlongSplines.txt"
         ):
+            plot = False
+            if plot:
+                fig, ax = plt.subplots()
+                img = plt.imread(
+                    dataFile
+                    + "/"
+                    + file
+                    + "/"
+                    + pathPlanner
+                    + "/high_priority_path/spline.png"
+                )
+                plt.imshow(img)
+                plt.show()
             optimizedMaxPD = np.genfromtxt(
                 dataFile
                 + "/"
@@ -101,6 +116,37 @@ def processMCData(dataFile, pathPlanner="optimization", boxPlot=False, ax=None):
             if indcludeFailedRunsInTime:
                 averageOptimizedTimeToFindPath += 1200
             print("Optimized path not found for: ", file)
+            plot = True
+            if not os.path.isfile(
+                dataFile
+                + "/"
+                + file
+                + "/"
+                + pathPlanner
+                + "/high_priority_path/noPathFound.png"
+            ):
+                testCount += 1
+            if plot:
+                fig, ax = plt.subplots()
+                # show high_priority_path/noPathFound.png
+                if os.path.isfile(
+                    dataFile
+                    + "/"
+                    + file
+                    + "/"
+                    + pathPlanner
+                    + "/high_priority_path/noPathFound.png"
+                ):
+                    img = plt.imread(
+                        dataFile
+                        + "/"
+                        + file
+                        + "/"
+                        + pathPlanner
+                        + "/high_priority_path/noPathFound.png"
+                    )
+                    plt.imshow(img)
+                    plt.show()
 
             # if file == "86454584":
             #     countTest += 1
@@ -122,6 +168,8 @@ def processMCData(dataFile, pathPlanner="optimization", boxPlot=False, ax=None):
     print("totalCount: ", totalCount)
     print("average lp time: ", averageOptimizedTimeToFindPath)
     print("percent found: ", percentFoundOptimized)
+
+    print("testCount: ", testCount)
 
     return np.array(
         [
@@ -322,30 +370,83 @@ def create_simplex_ternary_projection(
     plt.title(f"{title}", fontsize=24)
 
 
+def get_radar_uncertainty_over_time(folder):
+    print("TESTING: ", folder)
+    numRuns = 13
+    detListList = []
+
+    for i in range(numRuns):
+        # saved_data/new_data/run37/86154247/optimization/radar_0/estimated_params_cov.npz
+        radarData = np.load(folder + "/radar_" + str(i) + "/estimated_params_cov.npz")
+        detList = []
+        firstCovDet = 0
+        for j in radarData.files:
+            if radarData[j].shape[0] > 1:
+                if firstCovDet == 0:
+                    firstCovDet = np.linalg.det(radarData[j])
+                detList.append(np.linalg.det(radarData[j]))
+            else:
+                detList.append(0)
+
+        time = np.genfromtxt(folder + "/radarEstimateTimestamps.txt")
+        newTime = np.linspace(time[0], time[-1], 1000)
+        detList = np.array(detList)
+        print("len time: ", len(time))
+        print("len detList: ", len(detList))
+        detList[detList == 0] = firstCovDet
+        detListResampled = np.interp(newTime, time, detList)
+        detListList.append(detListResampled)
+    detListList = np.array(detListList)
+    detTotal = np.sum(detListList, axis=0)
+    # fig, ax = plt.subplots()
+    # ax.plot(newTime, np.log10(detTotal))
+    # plt.show()
+    return detTotal
+
+
+def plot_radar_uncertainty_over_time(dataFile, pathPlanner="optimization"):
+    detList = []
+    for folder in os.listdir(dataFile):
+        print("Processing data from: ", folder)
+        detList.append(
+            get_radar_uncertainty_over_time(dataFile + folder + "/" + pathPlanner)
+        )
+    detList = np.array(detList)
+    detTotal = np.mean(detList, axis=0)
+
+    fig, ax = plt.subplots()
+    ax.plot(np.log10(detTotal))
+    plt.show()
+
+
 #
 
 
 if __name__ == "__main__":
+    # plot_radar_uncertainty_over_time("saved_data/new_data/run37/")
     fig, ax = plt.subplots()
-    # processMCData("saved_data/new_data/run37/", "optimization", boxPlot=True, ax=ax)
-    # processMCData("saved_data/new_data/run83/", "optimization", boxPlot=True, ax=ax)
-    # plt.show()
-    parameterNames = [
-        "Average Time To Find Path (Only Successful Runs)",
-        "Average Max PD",
-        "Average Max Prob Undiscovered",
-        "Average Diff Deterministic",
-        "Percent Successful Runs",
-    ]
-    parameterIndecies = [0, 4]
-    # create_simplex(
-    #     "saved_data/ratioData/", parameterIndex, parameterNames[parameterIndex]
-    # )
-    for i in parameterIndecies:
-        # create_heatmap("./saved_data/ratioData/", i, title)
-        create_simplex_ternary_projection("saved_data/new_data/", i, parameterNames[i])
+    # processMCData("saved_data/new_data/run437/", "optimization", boxPlot=True, ax=ax)
+    processMCData("saved_data/new_data/run37/", "optimization", boxPlot=True, ax=ax)
+    processMCData("saved_data/new_data/run100/", "lawnmower", boxPlot=True, ax=ax)
+    processMCData("saved_data/new_data/run101/", "lawnmower", boxPlot=True, ax=ax)
+    # processMCData("saved_data/new_data/run537/", "optimization", boxPlot=True, ax=ax)
     plt.show()
-    for key in failedRuns:
-        print(key)
-        for val in failedRuns[key]:
-            print(val)
+    # parameterNames = [
+    #     "Average Time To Find Path (Only Successful Runs)",
+    #     "Average Max PD",
+    #     "Average Max Prob Undiscovered",
+    #     "Average Diff Deterministic",
+    #     "Percent Successful Runs",
+    # ]
+    # parameterIndecies = [0, 4]
+    # # create_simplex(
+    # #     "saved_data/ratioData/", parameterIndex, parameterNames[parameterIndex]
+    # # )
+    # for i in parameterIndecies:
+    #     # create_heatmap("./saved_data/ratioData/", i, title)
+    #     create_simplex_ternary_projection("saved_data/new_data/", i, parameterNames[i])
+    # plt.show()
+    # for key in failedRuns:
+    #     print(key)
+    #     for val in failedRuns[key]:
+    #         print(val)

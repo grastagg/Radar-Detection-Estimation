@@ -1902,11 +1902,19 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner, dataFilePath)
         agent1PathHistory = np.genfromtxt(
             dataFilePath + "/agent1PathHistory.txt", delimiter=","
         )
-        pathHistoryList = [
-            np.genfromtxt(dataFilePath + "/agent0PathHistory.txt", delimiter=","),
-            np.genfromtxt(dataFilePath + "/agent1PathHistory.txt", delimiter=","),
-            np.genfromtxt(dataFilePath + "/agent2PathHistory.txt", delimiter=","),
-        ]
+        pathHistoryList = []
+        for i in range(params.numAgents):
+            pathHistoryList.append(
+                np.genfromtxt(
+                    dataFilePath + "/agent" + str(i) + "PathHistory.txt", delimiter=","
+                )
+            )
+
+        # pathHistoryList = [
+        #     np.genfromtxt(dataFilePath + "/agent0PathHistory.txt", delimiter=","),
+        #     np.genfromtxt(dataFilePath + "/agent1PathHistory.txt", delimiter=","),
+        #     np.genfromtxt(dataFilePath + "/agent2PathHistory.txt", delimiter=","),
+        # ]
         radarTimeStamp = np.genfromtxt(
             dataFilePath + "/radarEstimateTimestamps.txt", delimiter=","
         )
@@ -1990,27 +1998,30 @@ def test_high_priority_path_planner(seeds, lowPriorityPathPlanner, dataFilePath)
                     Z.reshape(params.numTestPoints, params.numTestPoints),
                     alpha=1,
                 )
-                ax.scatter(
-                    pathHistoryList[0][:, 0],
-                    pathHistoryList[0][:, 1],
-                    c="r",
-                    marker="x",
-                    s=1,
-                )
-                ax.scatter(
-                    pathHistoryList[1][:, 0],
-                    pathHistoryList[1][:, 1],
-                    c="g",
-                    marker="x",
-                    s=1,
-                )
-                ax.scatter(
-                    pathHistoryList[2][:, 0],
-                    pathHistoryList[2][:, 1],
-                    c="b",
-                    marker="x",
-                    s=1,
-                )
+                for p in range(params.numAgents):
+                    ax.scatter(pathHistoryList[p][:, 0], pathHistoryList[p][:, 1], s=1)
+
+                # ax.scatter(
+                #     pathHistoryList[0][:, 0],
+                #     pathHistoryList[0][:, 1],
+                #     c="r",
+                #     marker="x",
+                #     s=1,
+                # )
+                # ax.scatter(
+                #     pathHistoryList[1][:, 0],
+                #     pathHistoryList[1][:, 1],
+                #     c="g",
+                #     marker="x",
+                #     s=1,
+                # )
+                # ax.scatter(
+                #     pathHistoryList[2][:, 0],
+                #     pathHistoryList[2][:, 1],
+                #     c="b",
+                #     marker="x",
+                #     s=1,
+                # )
                 ax.scatter(radarPositions[:, 0], radarPositions[:, 1], s=100)
 
                 ax.scatter(

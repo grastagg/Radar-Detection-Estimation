@@ -276,6 +276,13 @@ safePdDists = np.array(safePdDists)
 # agentInitialStates = [[100,100,np.pi/4]]
 # agentInitialStates = [[100,100,np.pi/4],[200,200,np.pi/3]]
 agentInitialStates = [[100, 100, np.pi / 4], [200, 200, np.pi / 2], [150, 150, 0]]
+agentInitialStates = [
+    [0, 0, np.pi / 4],
+    [0, 0, np.pi / 2],
+    [0, 0, 0],
+    [0, 0, np.pi / 2],
+    [0, 0, 0],
+]
 numAgents = len(agentInitialStates)
 # agentSensingRange = 10000
 agentSensingRange = 5000
