@@ -29,6 +29,8 @@ def processMCData(dataFile, pathPlanner="optimization", boxPlot=False, ax=None):
 
     timesToFindPath = []
 
+    maxPDs = []
+
     countTest = 0
     for file in os.listdir(dataFile):
         totalCount += 1
@@ -86,6 +88,11 @@ def processMCData(dataFile, pathPlanner="optimization", boxPlot=False, ax=None):
             )
 
             timesToFindPath.append(optimizedTimeToFindPath)
+            maxPDs.append(optimizedMaxPD)
+            if optimizedMaxPD > 0.15:
+                print("violated PD constraint: ", file)
+                print("max PD: ", optimizedMaxPD)
+                print("time to find path: ", optimizedTimeToFindPath)
             averageOptimizedTimeToFindPath += np.sum(optimizedTimeToFindPath)
 
             optimalPathTime = np.genfromtxt(
@@ -108,7 +115,7 @@ def processMCData(dataFile, pathPlanner="optimization", boxPlot=False, ax=None):
             )
 
             averageOptimizedDiffDeterministic += (
-                np.abs(optimalPathTime - optimizedOptimalPathTime) / optimalPathTime
+                optimizedOptimalPathTime / optimalPathTime * 100
             )
 
             countOpt += 1
@@ -116,7 +123,7 @@ def processMCData(dataFile, pathPlanner="optimization", boxPlot=False, ax=None):
             if indcludeFailedRunsInTime:
                 averageOptimizedTimeToFindPath += 1200
             print("Optimized path not found for: ", file)
-            plot = True
+            plot = False
             if not os.path.isfile(
                 dataFile
                 + "/"
@@ -151,6 +158,7 @@ def processMCData(dataFile, pathPlanner="optimization", boxPlot=False, ax=None):
             # if file == "86454584":
             #     countTest += 1
     timesToFindPath = np.array(timesToFindPath)
+    maxPds = np.array(maxPDs)
     print("mean time to find path: ", np.mean(timesToFindPath))
     print("std time to find path: ", np.std(timesToFindPath))
     if boxPlot:
@@ -168,8 +176,12 @@ def processMCData(dataFile, pathPlanner="optimization", boxPlot=False, ax=None):
     print("totalCount: ", totalCount)
     print("average lp time: ", averageOptimizedTimeToFindPath)
     print("percent found: ", percentFoundOptimized)
+    print("diff deterministic: ", averageOptimizedDiffDeterministic)
 
     print("testCount: ", testCount)
+    print("averageMaxPD: ", np.mean(maxPds))
+    print("pds: ", maxPds)
+    print("maxMaxPD: ", np.max(maxPds))
 
     return np.array(
         [
@@ -178,6 +190,7 @@ def processMCData(dataFile, pathPlanner="optimization", boxPlot=False, ax=None):
             averageOptimizedMaxProbUndiscovered,
             averageOptimizedDiffDeterministic,
             percentFoundOptimized,
+            np.std(timesToFindPath),
         ]
     ), countTest
 
@@ -419,18 +432,87 @@ def plot_radar_uncertainty_over_time(dataFile, pathPlanner="optimization"):
     plt.show()
 
 
-#
+def plot_varying_number_of_agents(dataFile, numAgentsList, pathPlanner="optimization"):
+    vals = []
+    stds = []
+    for i in numAgentsList:
+        if i == 3:
+            data, _ = processMCData(dataFile + "run37/", pathPlanner)
+
+            vals.append(data[0])
+            stds.append(data[5])
+            continue
+        else:
+            data, _ = processMCData(dataFile + "run" + str(i) + "37/", pathPlanner)
+            vals.append(data[0])
+            stds.append(data[5])
+            print("std = ", data[5])
+    fig, ax = plt.subplots()
+    ax.plot(numAgentsList, vals)
+    # plot 1 standard deviation
+    ax.fill_between(
+        numAgentsList,
+        np.array(vals) - np.array(stds),
+        np.array(vals) + np.array(stds),
+        alpha=0.1,
+    )
+    ax.set_xticks(numAgentsList)
+    ax.tick_params(axis="x", labelsize=24)  # Large font size for x-ticks
+    ax.tick_params(axis="y", labelsize=24)  # Large font size for y-ticks
+
+    ax.set_title("Mean Time to Find Path Varying Number of Agents", fontsize=28)
+    ax.set_ylabel("Seconds", fontsize=26)
+    ax.set_xlabel("Number of Agents", fontsize=26)
+    plt.show()
 
 
 if __name__ == "__main__":
     # plot_radar_uncertainty_over_time("saved_data/new_data/run37/")
-    fig, ax = plt.subplots()
+
+    # processMCData(
+    #     "saved_data/new_data/run2037/", "optimization", boxPlot=False, ax=None
+    # )
+
+    numAgentVals = [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+    ]
+    plot_varying_number_of_agents("saved_data/new_data/", numAgentVals)
+
+    # fig, ax = plt.subplots()
+    # processMCData("saved_data/new_data/run37/", "optimization", boxPlot=True, ax=ax)
+    # processMCData("saved_data/new_data/run100/", "lawnmower", boxPlot=True, ax=ax)
+    # ax.set_title("Time to Find Path", fontsize=24)
+    # ax.set_ylabel("Seconds", fontsize=18)
+    # plt.xticks(ticks=np.arange(0, 2), labels=["Ours", "Lawnmower"], fontsize=18)
+    # plt.yticks(fontsize=18)
+
+    # processMCData("saved_data/new_data/run137/", "optimization", boxPlot=True, ax=ax)
+    # processMCData("saved_data/new_data/run237/", "optimization", boxPlot=True, ax=ax)
     # processMCData("saved_data/new_data/run437/", "optimization", boxPlot=True, ax=ax)
-    processMCData("saved_data/new_data/run37/", "optimization", boxPlot=True, ax=ax)
-    processMCData("saved_data/new_data/run100/", "lawnmower", boxPlot=True, ax=ax)
-    processMCData("saved_data/new_data/run101/", "lawnmower", boxPlot=True, ax=ax)
+    # # processMCData("saved_data/new_data/run100/", "lawnmower", boxPlot=True, ax=ax)
     # processMCData("saved_data/new_data/run537/", "optimization", boxPlot=True, ax=ax)
-    plt.show()
+    # # processMCData("saved_data/new_data/run101/", "lawnmower", boxPlot=True, ax=ax)
+    # processMCData("saved_data/new_data/run537/", "optimization", boxPlot=True, ax=ax)
+    # plt.show()
     # parameterNames = [
     #     "Average Time To Find Path (Only Successful Runs)",
     #     "Average Max PD",

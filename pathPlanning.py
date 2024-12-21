@@ -283,7 +283,7 @@ class SplinePathPlanningLowPriority:
         self.objectiveFunctionPlotIndex = 0
 
     def get_control(self, dt, currentPose, low_priority_agent_index):
-        u = np.pi / 4
+        u = currentPose[2]
         v = (self.params.velocityBounds[0] + self.params.velocityBounds[1]) / 2
         if self.useSpline:
             if self.splinePath is not None:

@@ -4,11 +4,10 @@
 # threads=20
 # startSeed=86054190
 
-# seeds=(66654257 56654547 66954242 56854448 56954271 66254449 66854281 66454389 66754324 56054251 66054256 66354230 66154399 56754333 56454227 56354501 56154509 66554406 56254262 56554214)
-# seeds=(76154193 76254242 76354897 76454238 76554284 76654210 76754433 76854237 76954542 77054275)
-# seeds=(86154247 86354587 86554450 86754256 86954233 87154541 87354250 87554316 87754220 87954688 86254556 86454584 86654325 86854282 87054537 87254233 87454254 87654224 87854353 88054312)
 
 seeds=(66654257 56654547 66954242 56854448 56954271 66254449 66854281 66454389 66754324 56054251 66054256 66354230 66154399 56754333 56454227 56354501 56154509 66554406 56254262 56554214 76154193 76254242 76354897 76454238 76554284 76654210 76754433 76854237 76954542 77054275 86154247 86354587 86554450 86754256 86954233 87154541 87354250 87554316 87754220 87954688 86254556 86454584 86654325 86854282 87054537 87254233 87454254 87654224 87854353 88054312)
+# seeds=(86354587 )
+
 
 
 
@@ -33,6 +32,7 @@ covarianceWeights=(1.0 0.9166666666666666 0.8333333333333334 0.75 0.666666666666
 runs=(37 )
 
   
+numAgentList=(20 )
 
 
 # Get the length of arrays (assuming all arrays are the same size)
@@ -42,40 +42,45 @@ array_length=${#covarianceWeights[@]}
 # for ((i=37; i<array_length; i++)); do
 commandList=( )
 commandIndex=0
-# for ((i=0; i<array_length; i++))
-for i in $runs 
+for k in $numAgentList
 do
-  echo $i
-  explorationValue="${explorationWeights[$i+1]}"
-  covarianceValue="${covarianceWeights[$i+1]}"
-  distValue="${distWeights[$i+1]}"
-  # echo "Index $i: Exploration: $explorationValue, Covariance: $covarianceValue, Dist: $distValue"
-
-
-  index=$((i+500))
-  dataFile="saved_data/new_data/run$index/"
-
-  mkdir -p saved_data/new_data/run$index
-  # echo "running experiment with exploration weight $explorationValue, covariance weight $covarianceValue, and distance weight $distValue"
-
-  # for k in $(seq 1 $threads)
-  for seed in $seeds
+  echo $k
+  # for ((i=0; i<array_length; i++))
+  for i in $runs 
   do
-    # seed=$((startSeed+k*100000))
-    # echo "running seed $seed"
-  #
-      # pathPlanner='lawnmower'
-      pathPlanner='optimization'
-      dataFileTemp="${dataFile}$seed/"
-      # nohup python3 -u main.py $seed 1 $pathPlanner $explorationValue $covarianceValue $distValue $dataFile> outputs/optimization/$seed.log 2>&1 &
-      # nohup python3 -u main.py $seed 1 $pathPlanner $explorationValue $covarianceValue $distValue $dataFile> outputs/optimization/$seed.log 2>&1 &
-      commandList+=( "nohup python3 -u main.py $seed 1 $pathPlanner $explorationValue $covarianceValue $distValue $dataFile> outputs/optimization/$commandIndex.log 2>&1 &" )
-      # commandList+=( "python3 main.py $seed 1 $pathPlanner $explorationValue $covarianceValue $distValue $dataFile" )
-      commandIndex=$((commandIndex+1))
-  done
-  # echo "finished experiment with exploration weight $explorationValue, covariance weight $covarianceValue, and distance weight $distValue"
+    echo $i
+    explorationValue="${explorationWeights[$i+1]}"
+    covarianceValue="${covarianceWeights[$i+1]}"
+    distValue="${distWeights[$i+1]}"
+    # echo "Index $i: Exploration: $explorationValue, Covariance: $covarianceValue, Dist: $distValue"
 
-    
+
+    #index should be 100*agentNum + runNum
+    index=$((k*100+i))
+    echo $index
+    dataFile="saved_data/new_data/run$index/"
+
+    mkdir -p saved_data/new_data/run$index
+    # echo "running experiment with exploration weight $explorationValue, covariance weight $covarianceValue, and distance weight $distValue"
+
+    # for k in $(seq 1 $threads)
+    for seed in $seeds
+    do
+      # seed=$((startSeed+k*100000))
+      echo "running seed $seed"
+    #
+        # pathPlanner='lawnmower'
+        pathPlanner='optimization'
+        dataFileTemp="${dataFile}$seed/"
+
+        commandList+=( "nohup python3 -u main.py $seed 1 $pathPlanner $explorationValue $covarianceValue $distValue $dataFile $k > outputs/optimization/$commandIndex.log 2>&1 &" )
+        # python3 main.py $seed 1 $pathPlanner $explorationValue $covarianceValue $distValue $dataFile $k 
+        commandIndex=$((commandIndex+1))
+    done
+    # echo "finished experiment with exploration weight $explorationValue, covariance weight $covarianceValue, and distance weight $distValue"
+
+      
+  done
 done
 
 echo "${commandList[@]}"
@@ -84,7 +89,7 @@ echo "${commandList[@]}"
 
 numCommands=${#commandList[@]}
 
-numThreads=20
+numThreads=10
 currentCommand=1
 
 while (( currentCommand < numCommands+1 )); do

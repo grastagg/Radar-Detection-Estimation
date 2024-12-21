@@ -275,16 +275,25 @@ safePdDists = np.array(safePdDists)
 # agent parameters
 # agentInitialStates = [[100,100,np.pi/4]]
 # agentInitialStates = [[100,100,np.pi/4],[200,200,np.pi/3]]
-agentInitialStates = [[100, 100, np.pi / 4], [200, 200, np.pi / 2], [150, 150, 0]]
+# agentInitialStates = [[100, 100, np.pi / 4], [200, 200, np.pi / 2], [150, 150, 0]]
 agentInitialStates = [
-    [0, 0, np.pi / 4],
-    [0, 0, np.pi / 2],
     [0, 0, 0],
-    [0, 0, np.pi / 2],
+    [0, 0, 0],
     [0, 0, 0],
 ]
-numAgents = len(agentInitialStates)
-# agentSensingRange = 10000
+
+#     [0, 0, np.pi / 2],
+#     [0, 0, 0],
+# ]
+numAgents = 3
+# get list of zeors for initial states
+agentInitialStates = []
+agentStartAngle = 0
+agentEndAngle = np.pi / 2
+agentHeadings = np.linspace(agentStartAngle, agentEndAngle, numAgents)
+for i in range(numAgents):
+    agentInitialStates.append([0, 0, agentHeadings[i]])
+print("agentInitialStates", agentInitialStates)
 agentSensingRange = 5000
 agentPowerMeasurementStdDev = 0.0001
 agentAngleMeasurementStdDev = 2 * np.pi / 180

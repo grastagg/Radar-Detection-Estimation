@@ -1850,36 +1850,18 @@ def evaluate_path_safety(hpp, pathHistoryList, i, params, radarTimeStamp):
     plot = False
     if plot:
         fig, ax = plt.subplots()
-        ax.scatter(
-            pathHistoryListTemp[0][:, 0],
-            pathHistoryListTemp[0][:, 1],
-            c="r",
-            marker="x",
-            s=1,
-        )
-        ax.scatter(
-            pathHistoryListTemp[1][:, 0],
-            pathHistoryListTemp[1][:, 1],
-            c="g",
-            marker="x",
-            s=1,
-        )
-        ax.scatter(
-            pathHistoryListTemp[2][:, 0],
-            pathHistoryListTemp[2][:, 1],
-            c="b",
-            marker="x",
-            s=1,
-        )
+        for i, path in enumerate(pathHistoryListTemp):
+            print(i)
+            plt.plot(path[:, 0], path[:, 1])
         hpp.plot_spline(hpp.spline, ax)
-        # plt.show()
+        plt.show()
     return np.max(pathSafety)
 
 
 def test_high_priority_path_planner(seeds, lowPriorityPathPlanner, dataFilePath):
     largeStep = 100
     optimalTime = None
-    maxPathSafetyThreshold = 0.2
+    maxPathSafetyThreshold = 0.18
     for seed in seeds:
         importDir = dataFilePath.replace("/", ".") + "params"
         print("importDir", importDir)

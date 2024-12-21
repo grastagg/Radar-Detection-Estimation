@@ -39,6 +39,7 @@ from utils import (
     set_path_planner,
     change_parameter_ratios,
     change_weights,
+    change_num_agents,
 )
 
 from lawn_mower_control import LawnMowerControlAllAgents
@@ -390,6 +391,7 @@ def run_mc_simulation(
     covarianceWeight,
     distWeight,
     dataFile,
+    numAgents,
 ):
     currentNumSeeds = 0
     numRadar = 13
@@ -420,6 +422,7 @@ def run_mc_simulation(
             lowPriorityPathPlanner,
         )
         change_weights(paramsFile, explorationWeight, covarianceWeight, distWeight)
+        change_num_agents(paramsFile, numAgents)
 
         # set_path_planner("params.py", lowPriorityPathPlanner)
         importDir = dataFile.replace("/", ".") + pathPlanner + ".params"
@@ -506,6 +509,8 @@ if __name__ == "__main__":
     print("distWeight", distWeight)
     dataFile = sys.argv[7]
     print("dataFile", dataFile)
+    numAgents = sys.argv[8]
+    print("numAgents", numAgents)
 
     randomSeed = run_mc_simulation(
         randomSeed,
@@ -515,6 +520,7 @@ if __name__ == "__main__":
         covarianceWeight,
         distWeight,
         dataFile,
+        numAgents,
     )
     dataFile = dataFile + str(randomSeed) + "/"
     test_high_priority_path_planner(

@@ -79,6 +79,19 @@ def change_weights(file_path, explorationWeight, covarianceWeight, distWeight):
     )
 
 
+def change_num_agents(file_path, numAgents):
+    with open(file_path, "r") as file:
+        lines = file.readlines()
+    for i, line in enumerate(lines):
+        if line.strip().startswith("numAgents ="):
+            print(lines[i])
+            lines[i] = f"numAgents = {numAgents}\n"
+            print("numAgents changed to ", numAgents)
+            break
+    with open(file_path, "w") as file:
+        file.writelines(lines)
+
+
 def set_path_planner(file_path, pathPlanner):
     # Read the existing script
     with open(file_path, "r") as file:
