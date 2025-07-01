@@ -291,6 +291,7 @@ agentInitialStates = []
 agentStartAngle = 0
 agentEndAngle = np.pi / 2
 agentHeadings = np.linspace(agentStartAngle, agentEndAngle, numAgents)
+agentHeadings = np.array([np.pi / 4])
 for i in range(numAgents):
     agentInitialStates.append([0, 0, agentHeadings[i]])
 print("agentInitialStates", agentInitialStates)

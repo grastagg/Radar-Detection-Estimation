@@ -73,7 +73,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         # these will be used to make sure aoa are different enough before starting estimate
         self.min_aoa_measurement = None
         self.max_aoa_measurement = None
-        self.min_aoa_diff_to_start = 2.0
+        self.min_aoa_diff_to_start = 0.1
         # self.minDistBetweenModels = params.minInterRadarDist
         self.minDistBetweenModels = np.average([self.params.minInterRadarDistList])
 
@@ -569,7 +569,7 @@ class MultipleEmitterOnlineLocationAndPowerEstimator:
         if measurement_value[1] > 1e-3:
             return
 
-        numMeasurementsNeeded = 20
+        numMeasurementsNeeded = 10
         # if len(self.group_lists[radarId]) > numMeasurementsNeeded:
         aoaDiff = self.compute_inlier_aoa_diff(
             np.array(self.measurement_values)[self.group_lists[radarId]]

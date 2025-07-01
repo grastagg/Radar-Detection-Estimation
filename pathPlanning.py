@@ -582,14 +582,12 @@ class SplinePathPlanningLowPriority:
         obj_cov = 0
         for i in range(len(estimatedRadarParams)):
             obj_cov += np.linalg.det(estimatedRadarParamsCov_temp[i])
-        (
-            returnself.params.nextCovarianceWeight
-            * obj_cov
-            / params.nextCovarianceScale
+        return (
+            self.params.nextCovarianceWeight * obj_cov / params.nextCovarianceScale
             - self.params.seperationWeight
             * kernelSeperationObj
-            / params.seperationScale
-            + self.params.distFromStraitWeight
+            / params.seperationScal
+            / +self.params.distFromStraitWeight
             * distanceFromStraitLinePathObj
             / params.distFromStraitScale
         )
@@ -1055,17 +1053,18 @@ class SplinePathPlanningLowPriority:
         allAgentPathHistory_temp = allAgentPathHistory.copy()
 
         numTestPoints = 50
+        numTestPoints = 500
         testX = numpy.linspace(0, self.params.bounds[0], numTestPoints)
         testY = numpy.linspace(0, self.params.bounds[1], numTestPoints)
         testX, testY = numpy.meshgrid(testX, testY)
         pos = np.vstack((testX.ravel(), testY.ravel())).T
         tempOptLocations = []
 
-        showPlot = False
+        showPlot = True
         if showPlot:
             k = 0
             index = agentOrder[k]
-            fig, axs = plt.subplots(1, 3, layout="constrained")
+            fig, axs = plt.subplots(1, 3, constrained_layout=True, figsize=(20, 6))
             objF1 = compute_objective_vec(
                 pos,
                 np.array(estimatedRadarParams),
@@ -1150,13 +1149,18 @@ class SplinePathPlanningLowPriority:
                 1.0,
                 self.params.distFromStraitScale,
             )
-            ax1 = axs[0]
-            ax2 = axs[1]
+            ax1 = axs[1]
+            ax2 = axs[0]
             ax3 = axs[2]
             ax1.set_title(r"Covariance Reduction", fontsize=24)
             ax1.set_aspect("equal")
-            c = ax1.pcolormesh(testX, testY, objF1.reshape(testX.shape))
-            # fig.colorbar(c, ax=ax)
+            c = ax1.pcolormesh(testX, testY, objF1.reshape(testX.shape) / np.max(objF1))
+            cbar = fig.colorbar(
+                c,
+                ax=ax1,
+            )
+            cbar.set_label(r"$\Gamma_u$", fontsize=20)
+            cbar.ax.tick_params(labelsize=14)
             print("estimatedRadarParams", estimatedRadarParams)
             ax1.scatter(
                 estimatedRadarParams[0][0],
@@ -1168,7 +1172,12 @@ class SplinePathPlanningLowPriority:
             ax2.set_title("Exploration", fontsize=24)
             ax2.set_aspect("equal")
             c = ax2.pcolormesh(testX, testY, objF2.reshape(testX.shape))
-            # fig.colorbar(c, ax=ax)
+            cbar = fig.colorbar(
+                c,
+                ax=ax2,
+            )
+            cbar.set_label(r"$-\Gamma_e$", fontsize=20)
+            cbar.ax.tick_params(labelsize=14)
             ax2.scatter(
                 allAgentPathHistory_temp[:, 0],
                 allAgentPathHistory_temp[:, 1],
@@ -1180,7 +1189,12 @@ class SplinePathPlanningLowPriority:
             ax3.set_title("Distance to Goal", fontsize=24)
             ax3.set_aspect("equal")
             c = ax3.pcolormesh(testX, testY, objF3.reshape(testX.shape))
-            # fig.colorbar(c, ax=ax)
+            cbar = fig.colorbar(
+                c,
+                ax=ax3,
+            )
+            cbar.set_label(r"$\Gamma_s$", fontsize=20)
+            cbar.ax.tick_params(labelsize=14)
 
             ax1.set_xlabel("East (m)", fontsize=20)
             ax1.set_ylabel("North (m)", fontsize=20)
@@ -1191,6 +1205,9 @@ class SplinePathPlanningLowPriority:
             ax1.tick_params(axis="both", which="major", labelsize=14)
             ax2.tick_params(axis="both", which="major", labelsize=14)
             ax3.tick_params(axis="both", which="major", labelsize=14)
+            for agent in agentList:
+                agent.plot_angle_of_arrival_measurements(ax1)
+            plt.show()
 
         start = time.time()
         for k in range(len(agentList)):

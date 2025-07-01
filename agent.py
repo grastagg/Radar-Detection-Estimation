@@ -192,33 +192,33 @@ class Agent:
             # ax.scatter(data[:,0],data[:,1],c=np.log10(np.array(self.measurementPowerValues)))
             return p
 
-    def plot_angle_of_arrival_measurements(self, ax, inlier_mask):
-        color = "g"
+    def plot_angle_of_arrival_measurements(self, ax, inlier_mask=None):
+        color = "m"
         for i, angle in enumerate(self.measurementAngleOfArrivalValues):
             if inlier_mask is not None:
                 if not inlier_mask[i]:
                     color = "r"
                 else:
-                    color = "g"
+                    color = "m"
             start_x = self.measurementLocations[i][0]
             start_y = self.measurementLocations[i][1]
             end_x = start_x + self.sensingRange * np.cos(angle)
             end_y = start_y + self.sensingRange * np.sin(angle)
-            ax.plot([start_x, end_x], [start_y, end_y], c=color)
+            ax.plot([start_x, end_x], [start_y, end_y], c=color, alpha=0.5)
             end_x = start_x + self.sensingRange * np.cos(
                 angle + self.angelMeasurementStdDev
             )
             end_y = start_y + self.sensingRange * np.sin(
                 angle + self.angelMeasurementStdDev
             )
-            ax.plot([start_x, end_x], [start_y, end_y], linestyle="--", c=color)
+            # ax.plot([start_x, end_x], [start_y, end_y], linestyle="--", c=color)
             end_x = start_x + self.sensingRange * np.cos(
                 angle - self.angelMeasurementStdDev
             )
             end_y = start_y + self.sensingRange * np.sin(
                 angle - self.angelMeasurementStdDev
             )
-            ax.plot([start_x, end_x], [start_y, end_y], linestyle="--", c=color)
+            # ax.plot([start_x, end_x], [start_y, end_y], linestyle="--", c=color)
 
     def plot_agent(self, ax, inlier_mask=None):
         if self.firstPlot:
