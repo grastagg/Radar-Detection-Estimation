@@ -1694,9 +1694,8 @@ class HighPriorityPathPlanner:
         if plot:
             tmpSpline = self.spline_seg(controlPoints, knotPoints)
             # ax.scatter(path[:,0], path[:,1], c='r')
-            ax[1, 0].plot(path[:, 0], path[:, 1], c="r", linewidth=3)
-            self.plot_spline(tmpSpline, ax[1, 0])
-            self.plot_spline(tmpSpline, ax[1, 1])
+            ax.plot(path[:, 0], path[:, 1], c="r", linewidth=3, label="A* Path")
+            self.plot_spline(tmpSpline, ax, label="Initial Spline")
 
             # self.plot_constraints(spline, tuple(radarList), radarParams, radarParamsCov)
             # plt.show()
@@ -1706,12 +1705,12 @@ class HighPriorityPathPlanner:
             tf,
         )
 
-    def plot_spline(self, spline, ax, c="blue"):
+    def plot_spline(self, spline, ax, c="blue", label=""):
         controlPoints = spline.c
         tf = spline.t[-self.params.splineOrder - 1]
         t = np.linspace(0, tf, 1000)
         pos = spline(t)
-        ax.plot(pos[:, 0], pos[:, 1], linewidth=3, c=c)
+        ax.plot(pos[:, 0], pos[:, 1], linewidth=3, c=c, label=label)
         # ax.plot(controlPoints[:,0], controlPoints[:,1], 'k--',marker='o',alpha=.5)
 
     def plot_spline_from_control_points(self, controlPoints, knotPoints, ax):
@@ -2227,7 +2226,7 @@ def main():
 
 
 def paper_plot():
-    fig, ax = plt.subplots(2, 3, layout="constrained")
+    fig, ax = plt.subplots()
     # dataFilePath = "saved_data/new_data/run37/56054251/optimization/"
     dataFilePath = "saved_data/new_data/run37/86654325/optimization/"
     importDir = dataFilePath.replace("/", ".") + "params"
@@ -2268,58 +2267,32 @@ def paper_plot():
         params.radarProbabilityOfFalseAlarm,
         params.radarProbabilityOfFalseAlarmPriorVariance,
     )
-    titles = [
-        "Generalized Voronoi",
-        "Trimmed",
-        "A-star Path",
-        "Initial Spline Trajectory",
-        "Optimized Spline Trajectory",
-        "Path Safety",
-    ]
-    for i, a in enumerate(ax.flatten()):
-        if i != 5:
-            c = a.pcolormesh(
-                params.X_test[:, 0].reshape(params.numTestPoints, params.numTestPoints),
-                params.X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
-                Z.reshape(params.numTestPoints, params.numTestPoints),
-                alpha=1,
-            )
-            # set colorbar of each subplot
-            cbar = fig.colorbar(c, ax=a, shrink=0.7)
-            cbar.set_label(r"$P(P_D \leq P_{D,t})$", fontsize=16)
-        a.set_aspect("equal")
-        a.scatter(radarParams[:, 0], radarParams[:, 1], c="r", marker="x", s=100)
-        # a.set_ylim([0, params.bounds[1]])
-        a.set_xlabel("East (m)", fontsize=16)
-        a.set_ylabel("North (m)", fontsize=16)
-        a.set_title(titles[i], fontsize=22)
-        a.tick_params(axis="both", which="major", labelsize=14)
+    c = ax.pcolormesh(
+        params.X_test[:, 0].reshape(params.numTestPoints, params.numTestPoints),
+        params.X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
+        Z.reshape(params.numTestPoints, params.numTestPoints),
+        alpha=1,
+    )
 
     optimalTime = hpp.plan_uncertain_path(
         tuple(), radarParams, radarParamsCov, plot=True, ax=ax
     )
-    pathHistoryList = [
-        np.genfromtxt(dataFilePath + "/agent0PathHistory.txt", delimiter=","),
-        np.genfromtxt(dataFilePath + "/agent1PathHistory.txt", delimiter=","),
-        np.genfromtxt(dataFilePath + "/agent2PathHistory.txt", delimiter=","),
-    ]
-    radarTimeStamp = np.genfromtxt(
-        dataFilePath + "/radarEstimateTimestamps.txt", delimiter=","
-    )
-    numPathHistory = int(radarTimeStamp[dataIndex] // params.agentPathHistorydt)
-    pathHistoryListTemp = [
-        pathHistory[0:numPathHistory] for pathHistory in pathHistoryList
-    ]
+    cbar = fig.colorbar(c, ax=ax, shrink=0.6)
+    cbar.ax.set_position([0.80, 0.2, 0.06, 0.45])
+    cbar.set_label(r"$P(P_D \leq P_{D,t})$", fontsize=26)
+    cbar.ax.tick_params(labelsize=26)
+    ax.set_xlim(-500, params.bounds[0] + 500)
+    ax.set_ylim(-500, params.bounds[1] + 500)
+    ax.set_aspect("equal")
+    ax.set_xlabel("East (m)", fontsize=26)
+    ax.set_ylabel("North (m)", fontsize=26)
+    ax.tick_params(axis="both", which="major", labelsize=24)
+    ax.set_title("Uncertain", fontsize=32)
 
-    pathSafety = hpp.evaluate_path_sefety(
-        hpp.spline, pathHistoryListTemp, plot=True, ax=ax[1, 2]
-    )
-    print(pathSafety)
-
-    hpp.plot_spline(hpp.spline, ax[1, 1], c="magenta")
-    for a in ax.flatten():
-        a.set_xlim(-500, params.bounds[0] + 500)
-        a.set_ylim(-500, params.bounds[1] + 500)
+    hpp.plot_spline(hpp.spline, ax, c="magenta", label="Optimized Spline")
+    ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1.0), fontsize=22)
+    fig.set_size_inches(20, 20)
+    fig.savefig("/home/ggs24/Desktop/uncertain.png", dpi=500, bbox_inches="tight")
     plt.show()
 
 
@@ -2341,7 +2314,7 @@ def paper_plot_deterministic():
 
     hpp = HighPriorityPathPlanner(params=params)
     hpp.uncertainRadar = False
-    fig, ax = plt.subplots(2, 3, layout="constrained")
+    fig, ax = plt.subplots()
 
     # def ground_truth_probability_of_detection(X_test, trueRadarParametersList, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm):
     pd = ground_truth_probability_of_detection(
@@ -2353,48 +2326,53 @@ def paper_plot_deterministic():
         params.radarSystemTemperaturePriorMean,
         params.radarProbabilityOfFalseAlarmPriorMean,
     )
-    titles = [
-        "Weighted Voronoi Diagram",
-        "Trimmed Voronoi Diagram",
-        "A* Path",
-        "Initial Spline Trajectory",
-        "Optimized Spline Trajectory",
-        "none",
-    ]
-    for i, a in enumerate(ax.flatten()):
-        if i != 5:
-            a.set_aspect("equal")
-            a.set_xlabel("East (m)", fontsize=16)
-            a.set_ylabel("North (m)", fontsize=16)
-            a.tick_params(axis="both", which="major", labelsize=14)
-            a.set_title(titles.pop(0), fontsize=22)
-            c = a.pcolormesh(
-                params.X_test[:, 0].reshape(params.numTestPoints, params.numTestPoints),
-                params.X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
-                pd.reshape(params.numTestPoints, params.numTestPoints),
-            )
-            cbar = fig.colorbar(c, ax=a, shrink=0.7)
-            cbar.set_label(r"$P_D$", fontsize=16)
-
-            for radar in radarList:
-                a.scatter(
-                    radar.position[0], radar.position[1], c="r", marker="x", s=100
-                )
+    # titles = [
+    #     "Weighted Voronoi Diagram",
+    #     "Trimmed Voronoi Diagram",
+    #     "A* Path",
+    #     "Initial Spline Trajectory",
+    #     "Optimized Spline Trajectory",
+    #     "none",
+    # ]
+    # for i, a in enumerate(ax.flatten()):
+    #     if i != 5:
+    #
+    #         for radar in radarList:
+    #             a.scatter(
+    #                 radar.position[0], radar.position[1], c="r", marker="x", s=100
+    #             )
 
     hpp.plan_deterministic_path(tuple(radarList), plot=True, ax=ax)
     print("pd", pd.shape)
 
-    for a in ax.flatten():
-        a.set_xlim(-500, params.bounds[0] + 500)
-        a.set_ylim(-500, params.bounds[1] + 500)
+    c = ax.pcolormesh(
+        params.X_test[:, 0].reshape(params.numTestPoints, params.numTestPoints),
+        params.X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
+        pd.reshape(params.numTestPoints, params.numTestPoints),
+    )
+    cbar = fig.colorbar(c, ax=ax, shrink=0.6)
+    cbar.ax.set_position([0.80, 0.2, 0.06, 0.45])
+    cbar.set_label(r"$P_D$", fontsize=26)
+    cbar.ax.tick_params(labelsize=26)
+    ax.set_xlim(-500, params.bounds[0] + 500)
+    ax.set_ylim(-500, params.bounds[1] + 500)
+    ax.set_aspect("equal")
+    ax.set_xlabel("East (m)", fontsize=26)
+    ax.set_ylabel("North (m)", fontsize=26)
+    ax.tick_params(axis="both", which="major", labelsize=24)
+    ax.set_title("deterministic", fontsize=32)
 
-    hpp.plot_spline(hpp.spline, ax[1, 1], c="magenta")
-    ax[1, 2].set_visible(False)
+    hpp.plot_spline(hpp.spline, ax, c="magenta", label="Optimized Spline")
+    ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1.0), fontsize=22)
+    # set figure size
+    fig.set_size_inches(20, 20)
+    fig.savefig("/home/ggs24/Desktop/deterministic.png", dpi=500, bbox_inches="tight")
+
     plt.show()
 
 
 if __name__ == "__main__":
     # main()
-    # paper_plot()
-    paper_plot_deterministic()
+    paper_plot()
+    # paper_plot_deterministic()
 #

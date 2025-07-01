@@ -1167,13 +1167,21 @@ def find_ridge_line(
     return splineControlPoints, splineKnotPoints, pointsInRange
 
 
+tmpCount = 0
+
+
 def plot_spline(spline, ax, c="g"):
+    global tmpCount
     controlPoints = spline.c
     tf = spline.t[-1 - spline.k]
     t = np.linspace(0, tf, 20)
     pos = spline(t)
     # ax.plot(pos[:,0], pos[:,1],c=c,marker='o')
-    ax.plot(pos[:, 0], pos[:, 1], c=c, linewidth=3)
+    if tmpCount == 0:
+        ax.plot(pos[:, 0], pos[:, 1], c=c, linewidth=3, label="Voronoi Ridges")
+        tmpCount += 1
+    else:
+        ax.plot(pos[:, 0], pos[:, 1], c=c, linewidth=3)
 
 
 def find_generalized_voronoi_ridges(
@@ -2072,12 +2080,16 @@ def find_initial_trajectory_uncertain_radar(
             endVertexIndex1,
             cellAssinments1,
         ) = find_generalized_voronoi(radarParams, radarParamsCov, bounds, params, -0.1)
-        plot_generalized_voronoi(verticies1, ridges1, boundarySegments1, ax[0, 0])
 
-        plot_generalized_voronoi(verticies, ridges, boundarySegments, ax[0, 1])
-        plot_generalized_voronoi(verticies, ridges, boundarySegments, ax[0, 2])
+        plot_generalized_voronoi(verticies, ridges, boundarySegments, ax)
         if pathPoints is not None:
-            ax[0, 2].plot(pathPoints[:, 0], pathPoints[:, 1], color="r")
+            ax.plot(
+                pathPoints[:, 0],
+                pathPoints[:, 1],
+                color="r",
+                linewidth=3,
+                # label="A* Path",
+            )
         # ax.plot(pathPoints[:,0],pathPoints[:,1],color='r')
 
     return pathPoints

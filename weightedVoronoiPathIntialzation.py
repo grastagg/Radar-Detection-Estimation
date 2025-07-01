@@ -50,16 +50,24 @@ def plot_dist_grid(X_test, points, weights, ax):
     )
 
 
+tmpCount = 0
+
+
 def plot_arc(center, radius, theta1=0, theta2=2 * np.pi, ax=None, c="b"):
     # theta = np.linspace(theta1,theta2,100)
     # theta = np.unwrap(theta)
+    global tmpCount
     out = evaluate_arc(center, radius, theta1, theta2, spacing=50)
     x = out[:, 0]
     y = out[:, 1]
 
     # x = center[0] + radius*np.cos(theta)
     # y = center[1] + radius*np.sin(theta)
-    ax.plot(x, y, c=c, linewidth=3)
+    if tmpCount == 0:
+        ax.plot(x, y, c=c, linewidth=3, label="Voronoi Ridges")
+        tmpCount += 1
+    else:
+        ax.plot(x, y, c=c, linewidth=3)
 
 
 def plot_arc_pd(center, radius, radarList, theta1=0, theta2=2 * np.pi, ax=None, c="b"):
@@ -833,8 +841,6 @@ def compute_path_weighted_voronoi(radarList, params, plot=False, ax=None):
         arcs, radarList, weights, params.probabilityOfDetectionThreshold, params, ax
     )
     arcs, boundarySegments = intersect_arcs_with_boundary(arcs, params.bounds, ax)
-    if plot:
-        plot_weighted_voronoi_arcs(arcs, boundarySegments, ax[0, 0])
     boundarySegments = np.array(boundarySegments)
     boundarySegments = remove_unfeasible_segments(
         boundarySegments, radarPositions, params
@@ -854,11 +860,10 @@ def compute_path_weighted_voronoi(radarList, params, plot=False, ax=None):
     path = fill_in_path(path, edges, nodes, spacing=50)
 
     if plot:
-        plot_weighted_voronoi_arcs(arcs, boundarySegments, ax[0, 1])
-        plot_weighted_voronoi_arcs(arcs, boundarySegments, ax[0, 2])
+        plot_weighted_voronoi_arcs(arcs, boundarySegments, ax)
 
     if plot:
-        ax[0, 2].plot(path[:, 0], path[:, 1], c="r", linewidth=3)
+        ax.plot(path[:, 0], path[:, 1], c="r", linewidth=3)
 
     return path
 
@@ -910,4 +915,3 @@ if __name__ == "__main__":
     # #     plot_arc(center,radius,ax)
 
     # plt.show()
-
