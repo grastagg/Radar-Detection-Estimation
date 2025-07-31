@@ -115,8 +115,11 @@ def processMCData(dataFile, pathPlanner="optimization", boxPlot=False, ax=None):
             )
 
             averageOptimizedDiffDeterministic += (
-                optimizedOptimalPathTime / optimalPathTime * 100
-            )
+                optimizedOptimalPathTime / optimalPathTime - 1
+            ) * 100
+            # averageOptimizedDiffDeterministic += (
+            #     optimizedOptimalPathTime / optimalPathTime * 100
+            # )
 
             countOpt += 1
         else:
@@ -181,6 +184,7 @@ def processMCData(dataFile, pathPlanner="optimization", boxPlot=False, ax=None):
     print("testCount: ", testCount)
     print("averageMaxPD: ", np.mean(maxPds))
     print("pds: ", maxPds)
+    print(len(maxPds))
     print("maxMaxPD: ", np.max(maxPds))
 
     return np.array(
@@ -287,6 +291,8 @@ def create_simplex_ternary_projection(
             distWeights.append(params.distFromStraitWeight)
             covWeights.append(params.nextCovarianceWeight)
             expWeights.append(params.seperationWeight)
+            if params.seperationWeight == 1:
+                print("Found expWeight = 1 in: ", folder)
             vals, cTest = processMCData(os.path.join(dataFile, folder))
             val = vals[parameterIndex]
             countTest += cTest
@@ -301,6 +307,7 @@ def create_simplex_ternary_projection(
             continue
 
     print("countTest: ", countTest)
+    print("values ", values)
 
     # Convert lists to arrays
     dist_weights_arr = np.array(distWeights)
@@ -380,7 +387,7 @@ def create_simplex_ternary_projection(
     plt.box(False)
 
     # Add a title
-    plt.title(f"{title}", fontsize=24)
+    plt.title(f"{title}", fontsize=24, pad=20)
 
 
 def get_radar_uncertainty_over_time(folder):
@@ -469,33 +476,31 @@ def plot_varying_number_of_agents(dataFile, numAgentsList, pathPlanner="optimiza
 if __name__ == "__main__":
     # plot_radar_uncertainty_over_time("saved_data/new_data/run37/")
 
-    # processMCData(
-    #     "saved_data/new_data/run2037/", "optimization", boxPlot=False, ax=None
-    # )
+    # processMCData("saved_data/new_data/run37/", "optimization", boxPlot=False, ax=None)
 
-    numAgentVals = [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-    ]
-    plot_varying_number_of_agents("saved_data/new_data/", numAgentVals)
+    # numAgentVals = [
+    #     1,
+    #     2,
+    #     3,
+    #     4,
+    #     5,
+    #     6,
+    #     7,
+    #     8,
+    #     9,
+    #     10,
+    #     11,
+    #     12,
+    #     13,
+    #     14,
+    #     15,
+    #     16,
+    #     17,
+    #     18,
+    #     19,
+    #     20,
+    # ]
+    # plot_varying_number_of_agents("saved_data/new_data/", numAgentVals)
 
     # fig, ax = plt.subplots()
     # processMCData("saved_data/new_data/run37/", "optimization", boxPlot=True, ax=ax)
@@ -513,21 +518,21 @@ if __name__ == "__main__":
     # # processMCData("saved_data/new_data/run101/", "lawnmower", boxPlot=True, ax=ax)
     # processMCData("saved_data/new_data/run537/", "optimization", boxPlot=True, ax=ax)
     # plt.show()
-    # parameterNames = [
-    #     "Average Time To Find Path (Only Successful Runs)",
-    #     "Average Max PD",
-    #     "Average Max Prob Undiscovered",
-    #     "Average Diff Deterministic",
-    #     "Percent Successful Runs",
-    # ]
-    # parameterIndecies = [0, 4]
-    # # create_simplex(
-    # #     "saved_data/ratioData/", parameterIndex, parameterNames[parameterIndex]
-    # # )
-    # for i in parameterIndecies:
-    #     # create_heatmap("./saved_data/ratioData/", i, title)
-    #     create_simplex_ternary_projection("saved_data/new_data/", i, parameterNames[i])
-    # plt.show()
+    parameterNames = [
+        "Average Time To Find Path (Only Successful Runs)",
+        "Average Max PD",
+        "Average Max Prob Undiscovered",
+        "Average Diff Deterministic",
+        "Percent Successful Runs",
+    ]
+    parameterIndecies = [0, 1, 3, 4]
+    # create_simplex(
+    #     "saved_data/ratioData/", parameterIndex, parameterNames[parameterIndex]
+    # )
+    for i in parameterIndecies:
+        # create_heatmap("./saved_data/ratioData/", i, title)
+        create_simplex_ternary_projection("saved_data/new_data/", i, parameterNames[i])
+    plt.show()
     # for key in failedRuns:
     #     print(key)
     #     for val in failedRuns[key]:

@@ -4,6 +4,10 @@ from jax import jacfwd, grad
 from jax import jit
 import jax
 import matplotlib
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+import urllib.request
+from PIL import Image
+import io
 
 from probabilityOfDetectionJax import ground_truth_probability_of_detection
 
@@ -2224,6 +2228,7 @@ def main():
         expCovRatio,
         expDistRatio,
     )
+    a.scatter()
 
 
 def paper_plot():
@@ -2269,9 +2274,9 @@ def paper_plot():
         params.radarProbabilityOfFalseAlarmPriorVariance,
     )
     titles = [
-        "Generalized Voronoi",
-        "Trimmed",
-        "A-star Path",
+        "Generalized Voronoi Diagram",
+        "Trimmed Voronoi Diagram",
+        "Path Search",
         "Initial Spline Trajectory",
         "Optimized Spline Trajectory",
         "Path Safety",
@@ -2287,6 +2292,18 @@ def paper_plot():
             # set colorbar of each subplot
             cbar = fig.colorbar(c, ax=a, shrink=0.7)
             cbar.set_label(r"$P(P_D \leq P_{D,t})$", fontsize=16)
+        label = f"({chr(97 + i)})"
+        a.text(
+            -0.15,
+            1.05,
+            label,
+            transform=a.transAxes,
+            fontsize=20,
+            fontweight="bold",
+            va="top",
+            ha="left",
+            color="red",
+        )
         a.set_aspect("equal")
         a.scatter(radarParams[:, 0], radarParams[:, 1], c="r", marker="x", s=100)
         # a.set_ylim([0, params.bounds[1]])
@@ -2323,6 +2340,56 @@ def paper_plot():
     plt.show()
 
 
+def load_icon(path, zoom=0.1):
+    img = Image.open(path)
+    return OffsetImage(np.array(img), zoom=zoom)
+
+
+def place_icon(ax, icon, xy):
+    ab = AnnotationBbox(icon, xy, frameon=False)
+    ax.add_artist(ab)
+
+
+def overview_figure():
+    dataFilePath = "saved_data/new_data/run37/86654325/optimization/"
+    params = importlib.import_module(dataFilePath.replace("/", ".") + "params")
+    radarList = create_radar_list(
+        params.radarPositions,
+        params.radarPhases,
+        params.radarAngularRates,
+        params.radarOutputPowerList,
+        params.radarTransmitGainList,
+        params.radarRecieveGainList,
+        params.radarWavelength,
+        params.radarPulseWidth,
+        params.radarSystemTemperature,
+        params.radarProbabilityOfFalseAlarm,
+    )
+    pd = ground_truth_probability_of_detection(
+        params.X_test,
+        tuple(radarList),
+        params.radarWavelength,
+        params.agentRadarCrossSection,
+        params.radarPulseWidth,
+        params.radarSystemTemperaturePriorMean,
+        params.radarProbabilityOfFalseAlarmPriorMean,
+    )
+    fig, a = plt.subplots()
+    a.set_aspect("equal")
+    a.set_xlabel("East (m)", fontsize=16)
+    a.set_ylabel("North (m)", fontsize=16)
+    a.tick_params(axis="both", which="major", labelsize=14)
+    for radar in radarList:
+        a.scatter(radar.position[0], radar.position[1], c="r", marker="x", s=100)
+    # Inside your plotting loop:
+    home_icon = load_icon("https://publicicons.org/home-icon.png", zoom=0.08)
+    target_icon = load_icon(
+        "https://thenounproject.com/download/4586700-icon.png", zoom=0.08
+    )
+    place_icon(a, home_icon, [0, 0])
+    # place_icon(ax, target_icon, high_agent_goal)
+
+
 def paper_plot_deterministic():
     dataFilePath = "saved_data/new_data/run37/86654325/optimization/"
     params = importlib.import_module(dataFilePath.replace("/", ".") + "params")
@@ -2343,7 +2410,6 @@ def paper_plot_deterministic():
     hpp.uncertainRadar = False
     fig, ax = plt.subplots(2, 3, layout="constrained")
 
-    # def ground_truth_probability_of_detection(X_test, trueRadarParametersList, radarWavelength, agentRadarCrossSection, radarPulseWidth, radarSystemTemperature, radarProbabilityOfFalseAlarm):
     pd = ground_truth_probability_of_detection(
         params.X_test,
         tuple(radarList),
@@ -2356,11 +2422,14 @@ def paper_plot_deterministic():
     titles = [
         "Weighted Voronoi Diagram",
         "Trimmed Voronoi Diagram",
-        "A* Path",
+        "Path Search",
         "Initial Spline Trajectory",
         "Optimized Spline Trajectory",
         "none",
     ]
+
+    # overview fig
+
     for i, a in enumerate(ax.flatten()):
         if i != 5:
             a.set_aspect("equal")
@@ -2368,6 +2437,21 @@ def paper_plot_deterministic():
             a.set_ylabel("North (m)", fontsize=16)
             a.tick_params(axis="both", which="major", labelsize=14)
             a.set_title(titles.pop(0), fontsize=22)
+
+            # Add subplot label (a), (b), ...
+            label = f"({chr(97 + i)})"
+            a.text(
+                -0.15,
+                1.05,
+                label,
+                transform=a.transAxes,
+                fontsize=20,
+                fontweight="bold",
+                va="top",
+                ha="left",
+                color="red",
+            )
+
             c = a.pcolormesh(
                 params.X_test[:, 0].reshape(params.numTestPoints, params.numTestPoints),
                 params.X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
@@ -2396,5 +2480,7 @@ def paper_plot_deterministic():
 if __name__ == "__main__":
     # main()
     # paper_plot()
-    paper_plot_deterministic()
+    # paper_plot_deterministic()
+    overview_figure()
+    plt.show()
 #
