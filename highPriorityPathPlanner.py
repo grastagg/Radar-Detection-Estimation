@@ -1,3 +1,4 @@
+from igraph import layout
 import numpy as np
 import jax.numpy as jnp
 from jax import jacfwd, grad
@@ -6,8 +7,10 @@ import jax
 import matplotlib
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import urllib.request
-from PIL import Image
+from PIL import Image, ImageOps
 import io
+from matplotlib.patches import Polygon, Patch
+from matplotlib.lines import Line2D
 
 from probabilityOfDetectionJax import ground_truth_probability_of_detection
 
@@ -2338,9 +2341,10 @@ def paper_plot():
         a.set_xlim(-500, params.bounds[0] + 500)
         a.set_ylim(-500, params.bounds[1] + 500)
     plt.show()
+    return hpp
 
 
-def load_icon(path, zoom=0.1):
+def load_icon(path, zoom=1.0):
     img = Image.open(path)
     return OffsetImage(np.array(img), zoom=zoom)
 
@@ -2350,9 +2354,77 @@ def place_icon(ax, icon, xy):
     ax.add_artist(ab)
 
 
-def overview_figure():
+def colorize_icon(image_path, color=(255, 0, 0), zoom=1.0):
+    img = Image.open(image_path).convert("RGBA")
+    arr = np.array(img)
+
+    # Create a mask for black pixels (e.g., R=G=B=0)
+    black_mask = (arr[:, :, 0] == 0) & (arr[:, :, 1] == 0) & (arr[:, :, 2] == 0)
+
+    # Apply color only to black pixels
+    recolored = np.zeros_like(arr)
+    recolored[..., :3] = color
+    recolored[..., 3] = arr[..., 3]  # preserve alpha
+    arr[black_mask] = recolored[black_mask]
+
+    return OffsetImage(arr, zoom=zoom)
+
+
+def draw_airplane(ax, position, color="red", size=1.5, angle=0, show_cockpit=True):
+    def transform(part, angle, position):
+        rotation_matrix = np.array(
+            [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]
+        )
+        return part @ rotation_matrix.T + position
+
+    # Fuselage (shortened)
+    fuselage = np.array([[0, 0.4], [-0.08, -0.5], [0.08, -0.5]]) * size
+
+    # Left wing
+    left_wing = np.array([[-0.08, -0.2], [-0.6, -0.5], [-0.08, -0.5]]) * size
+
+    # Right wing
+    right_wing = np.array([[0.08, -0.2], [0.08, -0.5], [0.6, -0.5]]) * size
+
+    # Tail fin
+    tail = np.array([[-0.03, -0.5], [0.03, -0.5], [0, -0.7]]) * size
+
+    # Cockpit
+    cockpit = np.array([[0, 0.3], [-0.05, 0], [0.05, 0]]) * size
+
+    # Transform and draw parts
+    parts = [
+        (fuselage, color),
+        (left_wing, color),
+        (right_wing, color),
+        (tail, color),
+    ]
+
+    for shape, fill_color in parts:
+        transformed = transform(shape, angle, position)
+        ax.add_patch(
+            Polygon(transformed, closed=True, facecolor=fill_color, edgecolor="black")
+        )
+
+    if show_cockpit:
+        cockpit_transformed = transform(cockpit, angle, position)
+        ax.add_patch(
+            Polygon(
+                cockpit_transformed,
+                closed=True,
+                facecolor="gray",
+                alpha=0.6,
+                edgecolor="black",
+            )
+        )
+
+
+def overview_figure(hpp):
+    fig, a = plt.subplots(layout="constrained")
     dataFilePath = "saved_data/new_data/run37/86654325/optimization/"
-    params = importlib.import_module(dataFilePath.replace("/", ".") + "params")
+    importDir = dataFilePath.replace("/", ".") + "params"
+    print("importDir", importDir)
+    params = importlib.import_module(importDir)
     radarList = create_radar_list(
         params.radarPositions,
         params.radarPhases,
@@ -2365,29 +2437,132 @@ def overview_figure():
         params.radarSystemTemperature,
         params.radarProbabilityOfFalseAlarm,
     )
-    pd = ground_truth_probability_of_detection(
+
+    estimatedParamsList = [
+        np.load(dataFilePath + "radar_" + str(i) + "/estimated_params.npz")
+        for i in range(params.numRadar)
+    ]
+    estimatedParamsCovList = [
+        np.load(dataFilePath + "radar_" + str(i) + "/estimated_params_cov.npz")
+        for i in range(params.numRadar)
+    ]
+    dataIndex = 990
+    radarParams, radarParamsCov = load_estimated_params(
+        estimatedParamsList, estimatedParamsCovList, dataIndex, params.numRadar
+    )
+
+    Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(
         params.X_test,
-        tuple(radarList),
+        params.probabilityOfDetectionThreshold,
+        params.thresholdConfidence,
+        radarParams,
+        radarParamsCov,
+        params.radarRecieveGain,
+        0,
         params.radarWavelength,
+        params.radarWavelengthPriorVariance,
         params.agentRadarCrossSection,
         params.radarPulseWidth,
-        params.radarSystemTemperaturePriorMean,
-        params.radarProbabilityOfFalseAlarmPriorMean,
+        params.radarPulseWidthPriorVariance,
+        params.radarSystemTemperature,
+        params.radarSystemTemperaturePriorVariance,
+        params.radarProbabilityOfFalseAlarm,
+        params.radarProbabilityOfFalseAlarmPriorVariance,
     )
-    fig, a = plt.subplots()
+
+    pathHistoryList = [
+        np.genfromtxt(dataFilePath + "/agent0PathHistory.txt", delimiter=","),
+        np.genfromtxt(dataFilePath + "/agent1PathHistory.txt", delimiter=","),
+        np.genfromtxt(dataFilePath + "/agent2PathHistory.txt", delimiter=","),
+    ]
+    radarTimeStamp = np.genfromtxt(
+        dataFilePath + "/radarEstimateTimestamps.txt", delimiter=","
+    )
+    numPathHistory = int(radarTimeStamp[dataIndex] // params.agentPathHistorydt)
+    pathHistoryListTemp = [
+        pathHistory[0:numPathHistory] for pathHistory in pathHistoryList
+    ]
+
+    pathSafety = hpp.evaluate_path_sefety(
+        hpp.spline, pathHistoryListTemp, plot=False, ax=a
+    )
+    print(pathSafety)
+
+    hpp.plot_spline(hpp.spline, a, c="magenta")
+
     a.set_aspect("equal")
-    a.set_xlabel("East (m)", fontsize=16)
-    a.set_ylabel("North (m)", fontsize=16)
-    a.tick_params(axis="both", which="major", labelsize=14)
-    for radar in radarList:
-        a.scatter(radar.position[0], radar.position[1], c="r", marker="x", s=100)
-    # Inside your plotting loop:
-    home_icon = load_icon("https://publicicons.org/home-icon.png", zoom=0.08)
-    target_icon = load_icon(
-        "https://thenounproject.com/download/4586700-icon.png", zoom=0.08
+    a.set_xlabel("East (m)", fontsize=26)
+    a.set_ylabel("North (m)", fontsize=26)
+    a.tick_params(axis="both", which="major", labelsize=24)
+    a.set_xlim(-500, params.bounds[0] + 500)
+    a.set_ylim(-500, params.bounds[1] + 500)
+
+    # Goal (home base)
+    goal_pos = [params.bounds[1] - 2300, params.bounds[1] - 3000]
+    home_icon = colorize_icon("home.png", zoom=0.1, color=(0, 0, 0))
+    place_icon(a, home_icon, goal_pos)
+    a.set_frame_on(False)  # Remove axis border (optional)
+
+    a.annotate(
+        "Goal",
+        xy=goal_pos,
+        xytext=(goal_pos[0] + 600, goal_pos[1] - 200),
+        fontsize=28,
+        color="black",
     )
-    place_icon(a, home_icon, [0, 0])
-    # place_icon(ax, target_icon, high_agent_goal)
+
+    # High-priority agent
+    hp_pos = [1000, 1000]
+    draw_airplane(
+        a, hp_pos, color="blue", size=1300, angle=-np.pi / 4, show_cockpit=False
+    )
+    a.annotate(
+        "High-priority\n agent",
+        xy=hp_pos,
+        xytext=(hp_pos[0] + 300, hp_pos[1] - 900),
+        fontsize=28,
+        color="blue",
+    )
+
+    # Low-priority agents
+    np.random.seed(4243)  # For reproducibility
+    scout_size = 900
+    scout_color = "green"
+    num_scouts = 5
+    scout_angles = np.random.uniform(np.pi / 2, -np.pi / 2, num_scouts)
+    scout_positions = np.random.uniform(0, params.bounds[1], (num_scouts, 2))
+    for i in range(num_scouts):
+        pos = scout_positions[i]
+        draw_airplane(
+            a,
+            pos,
+            color=scout_color,
+            size=scout_size,
+            angle=scout_angles[i],
+            show_cockpit=False,
+        )
+        if i == 4:
+            a.annotate(
+                "Low-priority agents",
+                xy=pos,
+                xytext=(pos[0] + 800, pos[1] - 300),
+                fontsize=28,
+                color="green",
+            )
+
+    # Radar stations (label only one)
+    for i, radar in enumerate(radarList):
+        radar_icon = colorize_icon("radar.png", zoom=0.08)
+        pos = [radar.position[0], radar.position[1]]
+        place_icon(a, radar_icon, pos)
+        if i == 0:
+            a.annotate(
+                "Radar stations",
+                xy=pos,
+                xytext=(pos[0] + 350, pos[1] + 200),
+                fontsize=28,
+                color="red",
+            )
 
 
 def paper_plot_deterministic():
@@ -2479,8 +2654,8 @@ def paper_plot_deterministic():
 
 if __name__ == "__main__":
     # main()
-    # paper_plot()
+    hpp = paper_plot()
     # paper_plot_deterministic()
-    overview_figure()
+    overview_figure(hpp)
     plt.show()
 #
