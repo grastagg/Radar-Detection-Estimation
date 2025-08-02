@@ -2419,7 +2419,7 @@ def draw_airplane(ax, position, color="red", size=1.5, angle=0, show_cockpit=Tru
         )
 
 
-def overview_figure(hpp):
+def overview_figure():
     fig, a = plt.subplots(layout="constrained")
     dataFilePath = "saved_data/new_data/run37/86654325/optimization/"
     importDir = dataFilePath.replace("/", ".") + "params"
@@ -2450,6 +2450,8 @@ def overview_figure(hpp):
     radarParams, radarParamsCov = load_estimated_params(
         estimatedParamsList, estimatedParamsCovList, dataIndex, params.numRadar
     )
+    hpp = HighPriorityPathPlanner(params=params)
+    hpp.uncertainRadar = True
 
     Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(
         params.X_test,
@@ -2482,6 +2484,9 @@ def overview_figure(hpp):
     pathHistoryListTemp = [
         pathHistory[0:numPathHistory] for pathHistory in pathHistoryList
     ]
+    optimalTime = hpp.plan_uncertain_path(
+        tuple(), radarParams, radarParamsCov, plot=False, ax=None
+    )
 
     pathSafety = hpp.evaluate_path_sefety(
         hpp.spline, pathHistoryListTemp, plot=False, ax=a
@@ -2654,8 +2659,8 @@ def paper_plot_deterministic():
 
 if __name__ == "__main__":
     # main()
-    hpp = paper_plot()
+    # paper_plot()
     # paper_plot_deterministic()
-    overview_figure(hpp)
+    overview_figure()
     plt.show()
 #
