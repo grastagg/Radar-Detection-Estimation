@@ -2354,11 +2354,6 @@ def paper_plot():
     return hpp
 
 
-def load_icon(path, zoom=1.0):
-    img = Image.open(path)
-    return OffsetImage(np.array(img), zoom=zoom)
-
-
 def place_icon(ax, icon, xy):
     ab = AnnotationBbox(icon, xy, frameon=False)
     ax.add_artist(ab)
@@ -2421,6 +2416,13 @@ def colorize_icon(image_path, color=(255, 0, 0), zoom=1.0):
     recolored[..., :3] = color
     recolored[..., 3] = arr[..., 3]  # preserve alpha
     arr[black_mask] = recolored[black_mask]
+
+    return OffsetImage(arr, zoom=zoom), arr
+
+
+def load_icon(image_path, zoom=1.0):
+    img = Image.open(image_path).convert("RGBA")
+    arr = np.array(img)
 
     return OffsetImage(arr, zoom=zoom), arr
 
@@ -2759,16 +2761,13 @@ def overview_figure():
         )
 
     # Radar stations (label only one)
-    radar_icon, radar_icon_unknown_arr = colorize_icon(
-        "radar.png", color=(169, 169, 169), zoom=0.08
-    )
+    radar_icon, radar_icon_unknown_arr = load_icon("gray_radar.png", zoom=0.04)
     for i, radar in enumerate(radarList):
         pos = [radar.position[0], radar.position[1]]
         place_icon(a2, radar_icon, pos)
         place_icon(a1, radar_icon, pos)
-    radar_icon, radar_icon_known_arr = colorize_icon(
-        "radar.png", color=(255, 0, 0), zoom=0.08
-    )
+    radar_icon, radar_icon_known_arr = load_icon("red_radar.png", zoom=0.04)
+
     print(radar_icon_known_arr)
     for radar in radarParams:
         radar_pos = [radar[0], radar[1]]
