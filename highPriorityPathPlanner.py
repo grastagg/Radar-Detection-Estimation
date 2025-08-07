@@ -2421,9 +2421,9 @@ def draw_airplane(ax, position, color="red", size=1.5, angle=0, show_cockpit=Tru
 
 def overview_figure():
     fig, a = plt.subplots(layout="constrained")
+    # dataFilePath = "saved_data/new_data/agent_test/run537/66654257/optimization/"
     dataFilePath = "saved_data/new_data/run37/86654325/optimization/"
     importDir = dataFilePath.replace("/", ".") + "params"
-    print("importDir", importDir)
     params = importlib.import_module(importDir)
     radarList = create_radar_list(
         params.radarPositions,
@@ -2446,7 +2446,7 @@ def overview_figure():
         np.load(dataFilePath + "radar_" + str(i) + "/estimated_params_cov.npz")
         for i in range(params.numRadar)
     ]
-    dataIndex = 990
+    dataIndex = 790
     radarParams, radarParamsCov = load_estimated_params(
         estimatedParamsList, estimatedParamsCovList, dataIndex, params.numRadar
     )
@@ -2471,12 +2471,22 @@ def overview_figure():
         params.radarProbabilityOfFalseAlarm,
         params.radarProbabilityOfFalseAlarmPriorVariance,
     )
+    a.pcolormesh(
+        params.X_test[:, 0].reshape(params.numTestPoints, params.numTestPoints),
+        params.X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
+        Z.reshape(params.numTestPoints, params.numTestPoints),
+        alpha=1,
+        vmin=0,
+        vmax=1,
+        cmap="viridis_r",
+    )
 
-    pathHistoryList = [
-        np.genfromtxt(dataFilePath + "/agent0PathHistory.txt", delimiter=","),
-        np.genfromtxt(dataFilePath + "/agent1PathHistory.txt", delimiter=","),
-        np.genfromtxt(dataFilePath + "/agent2PathHistory.txt", delimiter=","),
-    ]
+    numAgents = params.numAgents
+    pathHistoryList = []
+    for i in range(numAgents):
+        pathHistoryList.append(
+            np.genfromtxt(dataFilePath + f"/agent{i}PathHistory.txt", delimiter=","),
+        )
     radarTimeStamp = np.genfromtxt(
         dataFilePath + "/radarEstimateTimestamps.txt", delimiter=","
     )
@@ -2487,11 +2497,30 @@ def overview_figure():
     optimalTime = hpp.plan_uncertain_path(
         tuple(), radarParams, radarParamsCov, plot=False, ax=None
     )
+    combinedPathHistory = []
+    for pathHistory in pathHistoryListTemp:
+        combinedPathHistory.extend(pathHistory)
+    combinedPathHistory = np.array(combinedPathHistory)
 
-    pathSafety = hpp.evaluate_path_sefety(
-        hpp.spline, pathHistoryListTemp, plot=False, ax=a
+    pathSafety = path_safety_prob(
+        combinedPathHistory,
+        params.X_test,
+        params.radarTransmitGain,
+        params.radarOutputPower,
+        params.agentELINTAnteneaGain,
+        params.radarWavelength,
+        params.radarSystemTemperature,
+        params.radarProbabilityOfFalseAlarm,
+        params.radarPulseWidth,
     )
-    print(pathSafety)
+    print("min path safety", np.min(pathSafety))
+    print("max path safety", np.max(pathSafety))
+    a.pcolormesh(
+        params.X_test[:, 0].reshape(params.numTestPoints, params.numTestPoints),
+        params.X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
+        pathSafety.reshape(params.numTestPoints, params.numTestPoints),
+        alpha=1,
+    )
 
     hpp.plot_spline(hpp.spline, a, c="magenta")
 
@@ -2503,7 +2532,7 @@ def overview_figure():
     a.set_ylim(-500, params.bounds[1] + 500)
 
     # Goal (home base)
-    goal_pos = [params.bounds[1] - 2300, params.bounds[1] - 3000]
+    goal_pos = [params.bounds[1], params.bounds[1]]
     home_icon = colorize_icon("home.png", zoom=0.1, color=(0, 0, 0))
     place_icon(a, home_icon, goal_pos)
     a.set_frame_on(False)  # Remove axis border (optional)
@@ -2517,7 +2546,7 @@ def overview_figure():
     )
 
     # High-priority agent
-    hp_pos = [1000, 1000]
+    hp_pos = [0, 0]
     draw_airplane(
         a, hp_pos, color="blue", size=1300, angle=-np.pi / 4, show_cockpit=False
     )
@@ -2529,21 +2558,30 @@ def overview_figure():
         color="blue",
     )
 
-    # Low-priority agents
-    np.random.seed(4243)  # For reproducibility
-    scout_size = 900
     scout_color = "green"
-    num_scouts = 5
-    scout_angles = np.random.uniform(np.pi / 2, -np.pi / 2, num_scouts)
-    scout_positions = np.random.uniform(0, params.bounds[1], (num_scouts, 2))
+    num_scouts = len(pathHistoryListTemp)
+    scout_size = 900
     for i in range(num_scouts):
-        pos = scout_positions[i]
+        pos = pathHistoryListTemp[i][-1]
+        scout_angle = (
+            np.arctan2(
+                pathHistoryListTemp[i][-1, 1] - pathHistoryListTemp[i][-2, 1],
+                pathHistoryListTemp[i][-1, 0] - pathHistoryListTemp[i][-2, 0],
+            )
+            - np.pi / 2
+        )
+        a.plot(
+            pathHistoryListTemp[i][:, 0],
+            pathHistoryListTemp[i][:, 1],
+            c=scout_color,
+            alpha=0.5,
+        )
         draw_airplane(
             a,
             pos,
             color=scout_color,
             size=scout_size,
-            angle=scout_angles[i],
+            angle=scout_angle,
             show_cockpit=False,
         )
         if i == 4:
