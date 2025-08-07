@@ -1,4 +1,10 @@
 from igraph import layout
+
+from matplotlib.transforms import TransformedBbox, Bbox
+from matplotlib.image import BboxImage
+from matplotlib.legend_handler import HandlerBase
+from matplotlib.offsetbox import OffsetImage, TextArea, HPacker, DrawingArea
+from matplotlib.legend_handler import HandlerBase
 import numpy as np
 import jax.numpy as jnp
 from jax import jacfwd, grad
@@ -11,6 +17,11 @@ from PIL import Image, ImageOps
 import io
 from matplotlib.patches import Polygon, Patch
 from matplotlib.lines import Line2D
+import sys
+import importlib
+import pyvista as pv
+import getpass
+
 
 from probabilityOfDetectionJax import ground_truth_probability_of_detection
 
@@ -26,8 +37,6 @@ import os
 import re
 import importlib
 import traceback
-import sys
-
 
 import matplotlib.pyplot as plt
 
@@ -479,7 +488,7 @@ class HighPriorityPathPlanner:
         )
         opt.options["linear_solver"] = "ma97"
         opt.options["print_level"] = 5
-        opt.options["max_iter"] = 1000
+        opt.options["max_iter"] = 0
         opt.options["tol"] = 1e-8
         sol = opt(optProb, sens=sens)
         # sol = opt(optProb, sens = 'FD')
@@ -737,7 +746,7 @@ class HighPriorityPathPlanner:
         )
         opt.options["linear_solver"] = "ma97"
         opt.options["print_level"] = 0
-        opt.options["max_iter"] = 1000
+        opt.options["max_iter"] = 0
         opt.options["tol"] = 1e-5
         sol = opt(optProb, sens=sens)
         # sol = opt(optProb, sens = 'FD')
@@ -1718,8 +1727,9 @@ class HighPriorityPathPlanner:
         tf = spline.t[-self.params.splineOrder - 1]
         t = np.linspace(0, tf, 1000)
         pos = spline(t)
-        ax.plot(pos[:, 0], pos[:, 1], linewidth=3, c=c)
+        (line,) = ax.plot(pos[:, 0], pos[:, 1], linewidth=3, c=c, label="High-priority")
         # ax.plot(controlPoints[:,0], controlPoints[:,1], 'k--',marker='o',alpha=.5)
+        return pos, line
 
     def plot_spline_from_control_points(self, controlPoints, knotPoints, ax):
         t = np.linspace(0, knotPoints[-self.params.splineOrder - 1], 1000)
@@ -2354,6 +2364,51 @@ def place_icon(ax, icon, xy):
     ax.add_artist(ab)
 
 
+class HandlerImage(HandlerBase):
+    def __init__(self, img_array, zoom=1):
+        HandlerBase.__init__(self)
+        self.img_array = img_array
+        self.zoom = zoom
+        self.image_stretch = (0, 30)  # margins to enlarge the image
+
+    def create_artists(
+        self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
+    ):
+        # enlarge the image by these margins
+        sx, sy = self.image_stretch
+
+        # create a bounding box to house the image
+        xOffset = 15
+        yOffset = 18
+        # Original dimensions after stretch and offset
+        W = width + sx
+        H = height + sy
+
+        # Shrink dimensions by scale
+        scale = self.zoom
+        new_W = W * scale
+        new_H = H * scale
+
+        # Center the new box inside the original
+        x0 = xdescent - sx + xOffset + (W - new_W) / 2
+        y0 = ydescent - sy + yOffset + (H - new_H) / 2
+
+        # Final bounding box
+        bb = Bbox.from_bounds(x0, y0, new_W, new_H)
+        # bb = Bbox.from_bounds(
+        #     xdescent - sx + xOffset,
+        #     ydescent - sy + yOffset,
+        #     width + sx + xOffset,
+        #     height + sy + yOffset,
+        # )
+
+        tbb = TransformedBbox(bb, trans)
+        image = BboxImage(tbb)
+        image.set_data(self.img_array)
+
+        return [image]
+
+
 def colorize_icon(image_path, color=(255, 0, 0), zoom=1.0):
     img = Image.open(image_path).convert("RGBA")
     arr = np.array(img)
@@ -2367,7 +2422,7 @@ def colorize_icon(image_path, color=(255, 0, 0), zoom=1.0):
     recolored[..., 3] = arr[..., 3]  # preserve alpha
     arr[black_mask] = recolored[black_mask]
 
-    return OffsetImage(arr, zoom=zoom)
+    return OffsetImage(arr, zoom=zoom), arr
 
 
 def draw_airplane(ax, position, color="red", size=1.5, angle=0, show_cockpit=True):
@@ -2419,8 +2474,75 @@ def draw_airplane(ax, position, color="red", size=1.5, angle=0, show_cockpit=Tru
         )
 
 
+def make_heatmap3d(x_flat, y_flat, c_flat, scale=100, name="pd_manual"):
+    """
+    Write out an ASCII PLY of a surface mesh with per-vertex RGB colors,
+    automatically handling any face size and avoiding deprecated properties.
+    """
+    print(np.min(c_flat), np.max(c_flat))
+    # 1) Ensure square grid and reshape
+    n = int(np.sqrt(len(x_flat)))
+    assert n * n == len(x_flat), "x_flat/y_flat must form a square grid"
+    X = x_flat.reshape((n, n)) / scale
+    Y = y_flat.reshape((n, n)) / scale
+    Z = 0.005 * np.ones_like(X)
+
+    # 2) Build structured grid & extract surface mesh
+    grid = pv.StructuredGrid()
+    grid.points = np.column_stack([X.ravel(), Y.ravel(), Z.ravel()])
+    grid.dimensions = (n, n, 1)
+    surf = grid.extract_surface()  # PolyData with faces
+
+    # 3) Compute RGB colors from your scalar field
+    norm = plt.Normalize(vmin=np.min(c_flat), vmax=np.max(c_flat))
+    rgba = plt.cm.viridis(norm(c_flat))  # shape (n^2, 4)
+    rgb = (rgba[:, :3] * 255).astype(np.uint8)
+
+    # 4) Extract face connectivity
+    face_vals = surf.faces  # flat: [k,v0,v1,..., k,v0,v1,..., ...]
+    first_k = int(face_vals[0])  # number of verts on first face
+    face_size = first_k + 1  # entries per face row
+    faces = face_vals.reshape(-1, face_size)
+
+    # 5) Write ASCII PLY
+    out = f"{name}.ply"
+    with open(out, "w") as f:
+        # Header
+        f.write("ply\nformat ascii 1.0\n")
+        f.write(f"element vertex {surf.n_points}\n")
+        f.write("property float x\nproperty float y\nproperty float z\n")
+        f.write("property uchar red\nproperty uchar green\nproperty uchar blue\n")
+        f.write(f"element face {faces.shape[0]}\n")
+        f.write("property list uchar int vertex_indices\n")
+        f.write("end_header\n")
+
+        # Vertices + colors
+        for idx, (x, y, z) in enumerate(surf.points):
+            r, g, b = rgb[idx]
+            f.write(f"{x:.6f} {y:.6f} {z:.6f} {r} {g} {b}\n")
+
+        # Faces
+        for face in faces:
+            # face[0] is k (# of verts), face[1:] are the vertex indices
+            f.write(" ".join(map(str, face)) + "\n")
+
+    # 6) Sanity check
+    mesh = pv.read(out)
+    print(f"✅ Wrote {out}")
+    print("📦 Read-back point data keys:", mesh.point_data.keys())
+    if all(c in mesh.point_data for c in ("red", "green", "blue")):
+        print("🎨 Color arrays present for Blender import.")
+    else:
+        print("⚠️ Missing color arrays on read-back.")
+
+
 def overview_figure():
-    fig, a = plt.subplots(layout="constrained")
+    fig = plt.figure(figsize=(12, 6))
+    gs = matplotlib.gridspec.GridSpec(2, 2, height_ratios=[1, 0.2])  # 2 cols, 2 rows
+    # Axes for plots
+    a1 = fig.add_subplot(gs[0, 0])
+    a2 = fig.add_subplot(gs[0, 1])
+    lines = []
     # dataFilePath = "saved_data/new_data/agent_test/run537/66654257/optimization/"
     dataFilePath = "saved_data/new_data/run37/86654325/optimization/"
     importDir = dataFilePath.replace("/", ".") + "params"
@@ -2447,6 +2569,7 @@ def overview_figure():
         for i in range(params.numRadar)
     ]
     dataIndex = 790
+    dataIndex = 920
     radarParams, radarParamsCov = load_estimated_params(
         estimatedParamsList, estimatedParamsCovList, dataIndex, params.numRadar
     )
@@ -2471,15 +2594,20 @@ def overview_figure():
         params.radarProbabilityOfFalseAlarm,
         params.radarProbabilityOfFalseAlarmPriorVariance,
     )
-    a.pcolormesh(
+
+    make_heatmap3d(params.X_test[:, 0], params.X_test[:, 1], Z, name="pd")
+    c = a2.pcolormesh(
         params.X_test[:, 0].reshape(params.numTestPoints, params.numTestPoints),
         params.X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
         Z.reshape(params.numTestPoints, params.numTestPoints),
         alpha=1,
         vmin=0,
         vmax=1,
-        cmap="viridis_r",
+        cmap="viridis",
     )
+    cbar = fig.colorbar(c, ax=a2, shrink=0.8)
+    cbar.set_label("Safety Probability", fontsize=20)
+    cbar.ax.tick_params(labelsize=16)
 
     numAgents = params.numAgents
     pathHistoryList = []
@@ -2515,50 +2643,85 @@ def overview_figure():
     )
     print("min path safety", np.min(pathSafety))
     print("max path safety", np.max(pathSafety))
-    a.pcolormesh(
+    c = a1.pcolormesh(
         params.X_test[:, 0].reshape(params.numTestPoints, params.numTestPoints),
         params.X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
         pathSafety.reshape(params.numTestPoints, params.numTestPoints),
         alpha=1,
     )
+    cbar = fig.colorbar(c, ax=a1, shrink=0.8)
+    cbar.set_label("Unknown Radar Probability", fontsize=20)
+    cbar.ax.tick_params(labelsize=18)
 
-    hpp.plot_spline(hpp.spline, a, c="magenta")
-
-    a.set_aspect("equal")
-    a.set_xlabel("East (m)", fontsize=26)
-    a.set_ylabel("North (m)", fontsize=26)
-    a.tick_params(axis="both", which="major", labelsize=24)
-    a.set_xlim(-500, params.bounds[0] + 500)
-    a.set_ylim(-500, params.bounds[1] + 500)
+    a1.set_aspect("equal")
+    a1.set_xlabel("East (m)", fontsize=26)
+    a1.set_ylabel("North (m)", fontsize=26)
+    a1.tick_params(axis="both", which="major", labelsize=24)
+    a1.set_xlim(-500, params.bounds[0] + 500)
+    a1.set_ylim(-500, params.bounds[1] + 500)
+    a2.set_aspect("equal")
+    a2.set_xlabel("East (m)", fontsize=26)
+    a2.set_yticklabels([])
+    a2.set_yticks([])
+    a2.tick_params(axis="both", which="major", labelsize=24)
+    a2.set_xlim(-500, params.bounds[0] + 500)
+    a2.set_ylim(-500, params.bounds[1] + 500)
 
     # Goal (home base)
     goal_pos = [params.bounds[1], params.bounds[1]]
-    home_icon = colorize_icon("home.png", zoom=0.1, color=(0, 0, 0))
-    place_icon(a, home_icon, goal_pos)
-    a.set_frame_on(False)  # Remove axis border (optional)
-
-    a.annotate(
-        "Goal",
-        xy=goal_pos,
-        xytext=(goal_pos[0] + 600, goal_pos[1] - 200),
-        fontsize=28,
-        color="black",
-    )
+    home_icon, home_icon_arr = colorize_icon("home.png", zoom=0.1, color=(0, 0, 0))
+    place_icon(a1, home_icon, goal_pos)
+    place_icon(a2, home_icon, goal_pos)
+    a1.set_frame_on(False)  # Remove axis border (optional)
+    a2.set_frame_on(False)  # Remove axis border (optional)
 
     # High-priority agent
-    hp_pos = [0, 0]
+    hp_pos = hpp.spline(8)
+    hp_heading = hpp.spline.derivative(1)(8)
+    hp_heading = np.arctan2(hp_heading[1], hp_heading[0])
+    hp_color = "blue"
     draw_airplane(
-        a, hp_pos, color="blue", size=1300, angle=-np.pi / 4, show_cockpit=False
+        a1,
+        hp_pos,
+        color=hp_color,
+        size=1300,
+        angle=hp_heading - np.pi / 2,
+        show_cockpit=False,
     )
-    a.annotate(
-        "High-priority\n agent",
-        xy=hp_pos,
-        xytext=(hp_pos[0] + 300, hp_pos[1] - 900),
-        fontsize=28,
-        color="blue",
+    draw_airplane(
+        a2,
+        hp_pos,
+        color=hp_color,
+        size=1300,
+        angle=hp_heading - np.pi / 2,
+        show_cockpit=False,
     )
+    # 1) get your 2D spline (East, North)
+    pos2d, hppLine = hpp.plot_spline(hpp.spline, a2, c=hp_color)  # shape (n,2)
+    lines.append(hppLine)
 
-    scout_color = "green"
+    # 2) lift it above the plane
+    #    choose a tiny Z so it sits just above your plane
+    alt = 0.005 * np.ones((pos2d.shape[0], 1))  # 5 mm above
+
+    # 3) stack into 3D as (East, North, Up)
+    east = pos2d[:, 1]
+    north = pos2d[:, 0]
+    alt = np.zeros_like(east)
+
+    # still the same pack:
+    pos3d = np.column_stack([east, north, alt])
+    print(pos3d)
+
+    # 4) scale exactly the same as your plane
+    #    (if you divided your plane coords by 100, do the same here)
+    pos3d /= 100
+
+    # 5) make a polyline and export
+    line = pv.lines_from_points(pos3d)
+    line.save("hpp_path.obj")
+
+    scout_color = "teal"
     num_scouts = len(pathHistoryListTemp)
     scout_size = 900
     for i in range(num_scouts):
@@ -2570,42 +2733,73 @@ def overview_figure():
             )
             - np.pi / 2
         )
-        a.plot(
-            pathHistoryListTemp[i][:, 0],
-            pathHistoryListTemp[i][:, 1],
-            c=scout_color,
-            alpha=0.5,
-        )
+        if i == 0:
+            (l,) = a1.plot(
+                pathHistoryListTemp[i][:, 0],
+                pathHistoryListTemp[i][:, 1],
+                c=scout_color,
+                label="Scout",
+                linewidth=3,
+            )
+            lines.append(l)
+        else:
+            a1.plot(
+                pathHistoryListTemp[i][:, 0],
+                pathHistoryListTemp[i][:, 1],
+                c=scout_color,
+                linewidth=3,
+            )
         draw_airplane(
-            a,
+            a1,
             pos,
             color=scout_color,
             size=scout_size,
             angle=scout_angle,
             show_cockpit=False,
         )
-        if i == 4:
-            a.annotate(
-                "Low-priority agents",
-                xy=pos,
-                xytext=(pos[0] + 800, pos[1] - 300),
-                fontsize=28,
-                color="green",
-            )
 
     # Radar stations (label only one)
+    radar_icon, radar_icon_unknown_arr = colorize_icon(
+        "radar.png", color=(169, 169, 169), zoom=0.08
+    )
     for i, radar in enumerate(radarList):
-        radar_icon = colorize_icon("radar.png", zoom=0.08)
         pos = [radar.position[0], radar.position[1]]
-        place_icon(a, radar_icon, pos)
-        if i == 0:
-            a.annotate(
-                "Radar stations",
-                xy=pos,
-                xytext=(pos[0] + 350, pos[1] + 200),
-                fontsize=28,
-                color="red",
-            )
+        place_icon(a2, radar_icon, pos)
+        place_icon(a1, radar_icon, pos)
+    radar_icon, radar_icon_known_arr = colorize_icon(
+        "radar.png", color=(255, 0, 0), zoom=0.08
+    )
+    print(radar_icon_known_arr)
+    for radar in radarParams:
+        radar_pos = [radar[0], radar[1]]
+        place_icon(a1, radar_icon, radar_pos)
+        place_icon(a2, radar_icon, radar_pos)
+    legend_ax = fig.add_subplot(gs[1, :])
+    legend_ax.axis("off")  # Hide
+    radar_icon_handle = object()
+    radar_icon_handle_u = object()
+    legend_ax.legend(
+        loc="lower center",
+        handles=[radar_icon_handle, radar_icon_handle_u, lines[1], lines[0]],
+        labels=[
+            "Discovered Radar",
+            "Undiscovered Radar",
+            "Scouting Agents",
+            "High-priority Agent",
+        ],
+        handler_map={
+            radar_icon_handle: HandlerImage(
+                radar_icon_known_arr.astype(np.float64) / 255.0,
+                zoom=0.75,
+            ),
+            radar_icon_handle_u: HandlerImage(
+                radar_icon_unknown_arr.astype(np.float64) / 255.0,
+                zoom=0.75,
+            ),
+        },
+        ncol=2,
+        fontsize=24,
+    )
 
 
 def paper_plot_deterministic():
