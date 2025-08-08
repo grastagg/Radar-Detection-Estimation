@@ -1,4 +1,5 @@
 from igraph import layout
+import scipy
 
 from matplotlib.transforms import TransformedBbox, Bbox
 from matplotlib.image import BboxImage
@@ -2354,6 +2355,22 @@ def paper_plot():
     return hpp
 
 
+def place_icon_arr(ax, icon_array, xy, angle=0, zoom=0.05):
+    """
+    Place a rotated icon image (as a NumPy array) at the specified location.
+    """
+    # Rotate the image array
+    angle = np.rad2deg(angle)
+    rotated_icon = scipy.ndimage.rotate(
+        icon_array, angle=angle, reshape=True, mode="nearest"
+    )
+
+    # Create image and place it
+    image = OffsetImage(rotated_icon, zoom=zoom)
+    ab = AnnotationBbox(image, xy, frameon=False)
+    ax.add_artist(ab)
+
+
 def place_icon(ax, icon, xy):
     ab = AnnotationBbox(icon, xy, frameon=False)
     ax.add_artist(ab)
@@ -2726,6 +2743,7 @@ def overview_figure():
     scout_color = "teal"
     num_scouts = len(pathHistoryListTemp)
     scout_size = 900
+    scout_icon, scout_icon_arr = load_icon("blue_uav.png", zoom=0.05)
     for i in range(num_scouts):
         pos = pathHistoryListTemp[i][-1]
         scout_angle = (
@@ -2751,14 +2769,15 @@ def overview_figure():
                 c=scout_color,
                 linewidth=3,
             )
-        draw_airplane(
-            a1,
-            pos,
-            color=scout_color,
-            size=scout_size,
-            angle=scout_angle,
-            show_cockpit=False,
-        )
+        place_icon_arr(a1, scout_icon_arr, pos, angle=scout_angle)
+        # draw_airplane(
+        #     a1,
+        #     pos,
+        #     color=scout_color,
+        #     size=scout_size,
+        #     angle=scout_angle,
+        #     show_cockpit=False,
+        # )
 
     # Radar stations (label only one)
     radar_icon, radar_icon_unknown_arr = load_icon("gray_radar.png", zoom=0.04)
