@@ -2688,7 +2688,7 @@ def overview_figure():
 
     # Goal (home base)
     goal_pos = [params.bounds[1], params.bounds[1]]
-    home_icon, home_icon_arr = colorize_icon("home.png", zoom=0.1, color=(0, 0, 0))
+    home_icon, home_icon_arr = load_icon("goal.png", zoom=0.1)
     place_icon(a1, home_icon, goal_pos)
     place_icon(a2, home_icon, goal_pos)
     a1.set_frame_on(False)  # Remove axis border (optional)
