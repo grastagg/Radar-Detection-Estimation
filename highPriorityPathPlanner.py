@@ -1,5 +1,6 @@
 from igraph import layout
 import scipy
+import utils
 
 from matplotlib.transforms import TransformedBbox, Bbox
 from matplotlib.image import BboxImage
@@ -28,6 +29,7 @@ from probabilityOfDetectionJax import ground_truth_probability_of_detection
 
 matplotlib.rcParams["pdf.fonttype"] = 42
 matplotlib.rcParams["ps.fonttype"] = 42
+
 
 jax.config.update("jax_enable_x64", True)
 jax.config.update("jax_platform_name", "cpu")  # Sets the default device to CPU
@@ -2498,14 +2500,15 @@ def make_heatmap3d(x_flat, y_flat, c_flat, scale=100, name="pd_manual"):
 
 
 def overview_figure():
-    fig = plt.figure(figsize=(12, 6))
-    gs = matplotlib.gridspec.GridSpec(2, 2, height_ratios=[1, 0.2])  # 2 cols, 2 rows
+    fig = plt.figure(figsize=(24, 12))
+    gs = matplotlib.gridspec.GridSpec(2, 2, height_ratios=[1, 0.2])
+    gs.update(wspace=0.1)  # 👈 Tighten horizontal spacing
     # Axes for plots
     a1 = fig.add_subplot(gs[0, 0])
     a2 = fig.add_subplot(gs[0, 1])
     lines = []
     # dataFilePath = "saved_data/new_data/agent_test/run537/66654257/optimization/"
-    dataFilePath = "saved_data/new_data/run37/86654325/optimization/"
+    dataFilePath = "saved_data/overviewdata/"
     importDir = dataFilePath.replace("/", ".") + "params"
     params = importlib.import_module(importDir)
     radarList = create_radar_list(
@@ -2537,8 +2540,13 @@ def overview_figure():
     hpp = HighPriorityPathPlanner(params=params)
     hpp.uncertainRadar = True
 
+    buffer = 1500
+    X_test = utils.create_test_points(
+        params.numTestPoints, params.bounds, buffer=buffer
+    )
+
     Z = uncertainVoronoiPathIntialization.safe_corridors_uncertain_radar(
-        params.X_test,
+        X_test,
         params.probabilityOfDetectionThreshold,
         params.thresholdConfidence,
         radarParams,
@@ -2556,19 +2564,20 @@ def overview_figure():
         params.radarProbabilityOfFalseAlarmPriorVariance,
     )
 
-    make_heatmap3d(params.X_test[:, 0], params.X_test[:, 1], Z, name="pd")
+    make_heatmap3d(X_test[:, 0], X_test[:, 1], Z, name="pd")
     c = a2.pcolormesh(
-        params.X_test[:, 0].reshape(params.numTestPoints, params.numTestPoints),
-        params.X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
+        X_test[:, 0].reshape(params.numTestPoints, params.numTestPoints),
+        X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
         Z.reshape(params.numTestPoints, params.numTestPoints),
         alpha=1,
         vmin=0,
         vmax=1,
         cmap="viridis",
+        rasterized=True,
     )
-    cbar = fig.colorbar(c, ax=a2, shrink=0.8)
+    cbar = fig.colorbar(c, ax=a2, shrink=0.9)
     cbar.set_label("Safety Probability", fontsize=20)
-    cbar.ax.tick_params(labelsize=16)
+    cbar.ax.tick_params(labelsize=18)
 
     numAgents = params.numAgents
     pathHistoryList = []
@@ -2593,7 +2602,7 @@ def overview_figure():
 
     pathSafety = path_safety_prob(
         combinedPathHistory,
-        params.X_test,
+        X_test,
         params.radarTransmitGain,
         params.radarOutputPower,
         params.agentELINTAnteneaGain,
@@ -2605,12 +2614,14 @@ def overview_figure():
     print("min path safety", np.min(pathSafety))
     print("max path safety", np.max(pathSafety))
     c = a1.pcolormesh(
-        params.X_test[:, 0].reshape(params.numTestPoints, params.numTestPoints),
-        params.X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
+        X_test[:, 0].reshape(params.numTestPoints, params.numTestPoints),
+        X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
         pathSafety.reshape(params.numTestPoints, params.numTestPoints),
         alpha=1,
+        cmap="inferno_r",
+        rasterized=True,
     )
-    cbar = fig.colorbar(c, ax=a1, shrink=0.8)
+    cbar = fig.colorbar(c, ax=a1, shrink=0.9)
     cbar.set_label("Unknown Radar Probability", fontsize=20)
     cbar.ax.tick_params(labelsize=18)
 
@@ -2618,15 +2629,15 @@ def overview_figure():
     a1.set_xlabel("East (m)", fontsize=26)
     a1.set_ylabel("North (m)", fontsize=26)
     a1.tick_params(axis="both", which="major", labelsize=24)
-    a1.set_xlim(-500, params.bounds[0] + 500)
-    a1.set_ylim(-500, params.bounds[1] + 500)
+    a1.set_xlim(-buffer, params.bounds[0] + buffer)
+    a1.set_ylim(-buffer, params.bounds[1] + buffer)
     a2.set_aspect("equal")
     a2.set_xlabel("East (m)", fontsize=26)
     a2.set_yticklabels([])
     a2.set_yticks([])
     a2.tick_params(axis="both", which="major", labelsize=24)
-    a2.set_xlim(-500, params.bounds[0] + 500)
-    a2.set_ylim(-500, params.bounds[1] + 500)
+    a2.set_xlim(-buffer, params.bounds[0] + buffer)
+    a2.set_ylim(-buffer, params.bounds[1] + buffer)
 
     # Goal (home base)
     goal_pos = [params.bounds[1], params.bounds[1]]
@@ -2701,16 +2712,24 @@ def overview_figure():
 
     radar_icon_unknown_arr = load_icon("gray_radar.png")
     for i, radar in enumerate(radarList):
-        pos = [radar.position[0], radar.position[1]]
-        place_icon_arr(a2, radar_icon_unknown_arr, pos, zoom=0.06)
-        place_icon_arr(a1, radar_icon_unknown_arr, pos, zoom=0.06)
+        posKnown = np.array([radar.position[0], radar.position[1]])
+        plotR = True
+        for j in range(len(radarParams)):
+            posEstimated = radarParams[j, :2]
+            dist = np.linalg.norm(posKnown - posEstimated)
+            if dist < 100:
+                plotR = False
+
+        if plotR:
+            place_icon_arr(a2, radar_icon_unknown_arr, posKnown, zoom=0.04)
+            place_icon_arr(a1, radar_icon_unknown_arr, posKnown, zoom=0.04)
     radar_icon_known_arr = load_icon("red_radar.png")
 
     print(radar_icon_known_arr)
     for radar in radarParams:
         radar_pos = [radar[0], radar[1]]
-        place_icon_arr(a1, radar_icon_known_arr, radar_pos, zoom=0.06)
-        place_icon_arr(a2, radar_icon_known_arr, radar_pos, zoom=0.06)
+        place_icon_arr(a1, radar_icon_known_arr, radar_pos, zoom=0.04)
+        place_icon_arr(a2, radar_icon_known_arr, radar_pos, zoom=0.04)
     legend_ax = fig.add_subplot(gs[1, :])
 
     legend_ax.axis("off")  # Hide
@@ -2718,44 +2737,22 @@ def overview_figure():
     radar_icon_handle_u = object()
     hp_icon_handle = object()
     lp_icon_handle = object()
+    # Create dummy text-only handles (no line, no marker)
+    text_handles = [
+        Line2D([], [], linestyle="None", marker=None, label="Discovered Radar"),
+        Line2D([], [], linestyle="None", marker=None, label="Undiscovered Radar"),
+        Line2D([], [], linestyle="None", marker=None, label="Scouting Agents"),
+        Line2D([], [], linestyle="None", marker=None, label="High-priority Agent"),
+    ]
+
+    # Add the legend with just text
     legend_ax.legend(
+        handles=text_handles,
         loc="lower center",
-        # handles=[radar_icon_handle, radar_icon_handle_u, lines[1], lines[0]],
-        handles=[
-            radar_icon_handle,
-            radar_icon_handle_u,
-            lp_icon_handle,
-            hp_icon_handle,
-        ],
-        labels=[
-            "Discovered Radar",
-            "Undiscovered Radar",
-            "Scouting Agents",
-            "High-priority Agent",
-        ],
-        handler_map={
-            radar_icon_handle: HandlerImage(
-                radar_icon_known_arr.astype(np.float64) / 255.0,
-                zoom=0.75,
-            ),
-            radar_icon_handle_u: HandlerImage(
-                radar_icon_unknown_arr.astype(np.float64) / 255.0,
-                zoom=0.75,
-            ),
-            lp_icon_handle: HandlerImage(
-                scipy.ndimage.rotate(scout_icon_arr, -90).astype(np.float64) / 255.0,
-                zoom=0.8,
-                stretch=(20, 50),
-            ),
-            hp_icon_handle: HandlerImage(
-                scipy.ndimage.rotate(hp_icon_arr, -90).astype(np.float64) / 255.0,
-                zoom=0.8,
-                stretch=(20, 50),
-            ),
-        },
         ncol=2,
         fontsize=24,
     )
+    fig.savefig("overview_fig.svg", format="svg", bbox_inches="tight")
 
 
 def paper_plot_deterministic():

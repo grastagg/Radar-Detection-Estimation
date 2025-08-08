@@ -2,9 +2,9 @@ import numpy as np
 import os
 
 
-def create_test_points(numTestPoints, bounds):
-    x_test = np.linspace(0, bounds[0], numTestPoints)
-    y_test = np.linspace(0, bounds[1], numTestPoints)
+def create_test_points(numTestPoints, bounds, buffer=0):
+    x_test = np.linspace(-buffer, bounds[0] + buffer, numTestPoints)
+    y_test = np.linspace(-buffer, bounds[1] + buffer, numTestPoints)
 
     X_test = []
 
