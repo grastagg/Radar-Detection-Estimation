@@ -489,7 +489,7 @@ class HighPriorityPathPlanner:
         )
         opt.options["linear_solver"] = "ma97"
         opt.options["print_level"] = 5
-        opt.options["max_iter"] = 0
+        opt.options["max_iter"] = 1000
         opt.options["tol"] = 1e-8
         sol = opt(optProb, sens=sens)
         # sol = opt(optProb, sens = 'FD')
@@ -747,7 +747,7 @@ class HighPriorityPathPlanner:
         )
         opt.options["linear_solver"] = "ma97"
         opt.options["print_level"] = 0
-        opt.options["max_iter"] = 0
+        opt.options["max_iter"] = 1000
         opt.options["tol"] = 1e-5
         sol = opt(optProb, sens=sens)
         # sol = opt(optProb, sens = 'FD')
@@ -2355,27 +2355,6 @@ def paper_plot():
     return hpp
 
 
-def place_icon_arr(ax, icon_array, xy, angle=0, zoom=0.05):
-    """
-    Place a rotated icon image (as a NumPy array) at the specified location.
-    """
-    # Rotate the image array
-    angle = np.rad2deg(angle)
-    rotated_icon = scipy.ndimage.rotate(
-        icon_array, angle=angle, reshape=True, mode="nearest"
-    )
-
-    # Create image and place it
-    image = OffsetImage(rotated_icon, zoom=zoom)
-    ab = AnnotationBbox(image, xy, frameon=False)
-    ax.add_artist(ab)
-
-
-def place_icon(ax, icon, xy):
-    ab = AnnotationBbox(icon, xy, frameon=False)
-    ax.add_artist(ab)
-
-
 class HandlerImage(HandlerBase):
     def __init__(self, img_array, zoom=1.0, stretch=(0, 30)):
         HandlerBase.__init__(self)
@@ -2421,76 +2400,39 @@ class HandlerImage(HandlerBase):
         return [image]
 
 
-def colorize_icon(image_path, color=(255, 0, 0), zoom=1.0):
+def place_icon_arr(ax, icon_array, xy, angle=0, zoom=0.1):
+    """
+    Place a rotated icon image (as a NumPy array) at the specified location.
+
+    Parameters:
+    - icon_array: np.array of shape (H, W, 4), RGBA image
+    - xy: (x, y) position on plot
+    - angle: rotation in radians
+    - zoom: scaling factor for on-plot size (0.1 = small, 1.0 = original size)
+    """
+    angle_deg = np.rad2deg(angle)
+
+    # Use PIL for anti-aliased rotation
+    pil_img = Image.fromarray(icon_array)
+    rotated_pil = pil_img.rotate(angle_deg, resample=Image.BICUBIC, expand=True)
+    rotated_array = np.array(rotated_pil)
+
+    # Adjust zoom to control visual size
+    image = OffsetImage(rotated_array, zoom=zoom, interpolation="hanning")
+
+    ab = AnnotationBbox(image, xy, frameon=False)
+    ax.add_artist(ab)
+
+
+def load_icon(image_path):
+    """
+    Load an RGBA image and return both a displayable OffsetImage and raw NumPy array.
+    Use a reasonably high-res image (e.g. 64×64+).
+    """
     img = Image.open(image_path).convert("RGBA")
     arr = np.array(img)
 
-    # Create a mask for black pixels (e.g., R=G=B=0)
-    black_mask = (arr[:, :, 0] == 0) & (arr[:, :, 1] == 0) & (arr[:, :, 2] == 0)
-
-    # Apply color only to black pixels
-    recolored = np.zeros_like(arr)
-    recolored[..., :3] = color
-    recolored[..., 3] = arr[..., 3]  # preserve alpha
-    arr[black_mask] = recolored[black_mask]
-
-    return OffsetImage(arr, zoom=zoom), arr
-
-
-def load_icon(image_path, zoom=1.0):
-    img = Image.open(image_path).convert("RGBA")
-    arr = np.array(img)
-
-    return OffsetImage(arr, zoom=zoom), arr
-
-
-def draw_airplane(ax, position, color="red", size=1.5, angle=0, show_cockpit=True):
-    def transform(part, angle, position):
-        rotation_matrix = np.array(
-            [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]
-        )
-        return part @ rotation_matrix.T + position
-
-    # Fuselage (shortened)
-    fuselage = np.array([[0, 0.4], [-0.08, -0.5], [0.08, -0.5]]) * size
-
-    # Left wing
-    left_wing = np.array([[-0.08, -0.2], [-0.6, -0.5], [-0.08, -0.5]]) * size
-
-    # Right wing
-    right_wing = np.array([[0.08, -0.2], [0.08, -0.5], [0.6, -0.5]]) * size
-
-    # Tail fin
-    tail = np.array([[-0.03, -0.5], [0.03, -0.5], [0, -0.7]]) * size
-
-    # Cockpit
-    cockpit = np.array([[0, 0.3], [-0.05, 0], [0.05, 0]]) * size
-
-    # Transform and draw parts
-    parts = [
-        (fuselage, color),
-        (left_wing, color),
-        (right_wing, color),
-        (tail, color),
-    ]
-
-    for shape, fill_color in parts:
-        transformed = transform(shape, angle, position)
-        ax.add_patch(
-            Polygon(transformed, closed=True, facecolor=fill_color, edgecolor="black")
-        )
-
-    if show_cockpit:
-        cockpit_transformed = transform(cockpit, angle, position)
-        ax.add_patch(
-            Polygon(
-                cockpit_transformed,
-                closed=True,
-                facecolor="gray",
-                alpha=0.6,
-                edgecolor="black",
-            )
-        )
+    return arr
 
 
 def make_heatmap3d(x_flat, y_flat, c_flat, scale=100, name="pd_manual"):
@@ -2688,9 +2630,9 @@ def overview_figure():
 
     # Goal (home base)
     goal_pos = [params.bounds[1], params.bounds[1]]
-    home_icon, home_icon_arr = load_icon("goal.png", zoom=0.1)
-    place_icon(a1, home_icon, goal_pos)
-    place_icon(a2, home_icon, goal_pos)
+    home_icon_arr = load_icon("goal.png")
+    place_icon_arr(a1, home_icon_arr, goal_pos, zoom=0.04)
+    place_icon_arr(a2, home_icon_arr, goal_pos, zoom=0.04)
     a1.set_frame_on(False)  # Remove axis border (optional)
     a2.set_frame_on(False)  # Remove axis border (optional)
 
@@ -2699,9 +2641,9 @@ def overview_figure():
     hp_heading = hpp.spline.derivative(1)(8)
     hp_heading = np.arctan2(hp_heading[1], hp_heading[0])
     hp_color = "green"
-    hhp_icon, hp_icon_arr = load_icon("hp_plane.png", zoom=0.05)
-    place_icon_arr(a2, hp_icon_arr, hp_pos, angle=hp_heading - np.pi / 2)
-    place_icon_arr(a1, hp_icon_arr, hp_pos, angle=hp_heading - np.pi / 2)
+    hp_icon_arr = load_icon("hp_plane.png")
+    place_icon_arr(a2, hp_icon_arr, hp_pos, angle=hp_heading - np.pi / 2, zoom=0.05)
+    place_icon_arr(a1, hp_icon_arr, hp_pos, angle=hp_heading - np.pi / 2, zoom=0.05)
     # 1) get your 2D spline (East, North)
     pos2d, hppLine = hpp.plot_spline(hpp.spline, a2, c=hp_color)  # shape (n,2)
     lines.append(hppLine)
@@ -2729,7 +2671,7 @@ def overview_figure():
 
     scout_color = "blue"
     num_scouts = len(pathHistoryListTemp)
-    scout_icon, scout_icon_arr = load_icon("blue_uav.png", zoom=0.05)
+    scout_icon_arr = load_icon("blue_uav.png")
     for i in range(num_scouts):
         pos = pathHistoryListTemp[i][-1]
         scout_angle = (
@@ -2755,21 +2697,22 @@ def overview_figure():
                 c=scout_color,
                 linewidth=3,
             )
-        place_icon_arr(a1, scout_icon_arr, pos, angle=scout_angle)
+        place_icon_arr(a1, scout_icon_arr, pos, angle=scout_angle, zoom=0.05)
 
-    radar_icon, radar_icon_unknown_arr = load_icon("gray_radar.png", zoom=0.04)
+    radar_icon_unknown_arr = load_icon("gray_radar.png")
     for i, radar in enumerate(radarList):
         pos = [radar.position[0], radar.position[1]]
-        place_icon(a2, radar_icon, pos)
-        place_icon(a1, radar_icon, pos)
-    radar_icon, radar_icon_known_arr = load_icon("red_radar.png", zoom=0.04)
+        place_icon_arr(a2, radar_icon_unknown_arr, pos, zoom=0.06)
+        place_icon_arr(a1, radar_icon_unknown_arr, pos, zoom=0.06)
+    radar_icon_known_arr = load_icon("red_radar.png")
 
     print(radar_icon_known_arr)
     for radar in radarParams:
         radar_pos = [radar[0], radar[1]]
-        place_icon(a1, radar_icon, radar_pos)
-        place_icon(a2, radar_icon, radar_pos)
+        place_icon_arr(a1, radar_icon_known_arr, radar_pos, zoom=0.06)
+        place_icon_arr(a2, radar_icon_known_arr, radar_pos, zoom=0.06)
     legend_ax = fig.add_subplot(gs[1, :])
+
     legend_ax.axis("off")  # Hide
     radar_icon_handle = object()
     radar_icon_handle_u = object()
@@ -2802,12 +2745,12 @@ def overview_figure():
             lp_icon_handle: HandlerImage(
                 scipy.ndimage.rotate(scout_icon_arr, -90).astype(np.float64) / 255.0,
                 zoom=0.8,
-                stretch=(20, 40),
+                stretch=(20, 50),
             ),
             hp_icon_handle: HandlerImage(
                 scipy.ndimage.rotate(hp_icon_arr, -90).astype(np.float64) / 255.0,
                 zoom=0.8,
-                stretch=(20, 40),
+                stretch=(20, 50),
             ),
         },
         ncol=2,
