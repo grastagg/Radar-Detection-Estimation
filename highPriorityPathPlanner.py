@@ -2377,11 +2377,11 @@ def place_icon(ax, icon, xy):
 
 
 class HandlerImage(HandlerBase):
-    def __init__(self, img_array, zoom=1):
+    def __init__(self, img_array, zoom=1.0, stretch=(0, 30)):
         HandlerBase.__init__(self)
         self.img_array = img_array
         self.zoom = zoom
-        self.image_stretch = (0, 30)  # margins to enlarge the image
+        self.image_stretch = stretch  # margins to enlarge the image
 
     def create_artists(
         self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
@@ -2698,23 +2698,10 @@ def overview_figure():
     hp_pos = hpp.spline(8)
     hp_heading = hpp.spline.derivative(1)(8)
     hp_heading = np.arctan2(hp_heading[1], hp_heading[0])
-    hp_color = "blue"
-    draw_airplane(
-        a1,
-        hp_pos,
-        color=hp_color,
-        size=1300,
-        angle=hp_heading - np.pi / 2,
-        show_cockpit=False,
-    )
-    draw_airplane(
-        a2,
-        hp_pos,
-        color=hp_color,
-        size=1300,
-        angle=hp_heading - np.pi / 2,
-        show_cockpit=False,
-    )
+    hp_color = "green"
+    hhp_icon, hp_icon_arr = load_icon("hp_plane.png", zoom=0.05)
+    place_icon_arr(a2, hp_icon_arr, hp_pos, angle=hp_heading - np.pi / 2)
+    place_icon_arr(a1, hp_icon_arr, hp_pos, angle=hp_heading - np.pi / 2)
     # 1) get your 2D spline (East, North)
     pos2d, hppLine = hpp.plot_spline(hpp.spline, a2, c=hp_color)  # shape (n,2)
     lines.append(hppLine)
@@ -2740,9 +2727,8 @@ def overview_figure():
     line = pv.lines_from_points(pos3d)
     line.save("hpp_path.obj")
 
-    scout_color = "teal"
+    scout_color = "blue"
     num_scouts = len(pathHistoryListTemp)
-    scout_size = 900
     scout_icon, scout_icon_arr = load_icon("blue_uav.png", zoom=0.05)
     for i in range(num_scouts):
         pos = pathHistoryListTemp[i][-1]
@@ -2770,16 +2756,7 @@ def overview_figure():
                 linewidth=3,
             )
         place_icon_arr(a1, scout_icon_arr, pos, angle=scout_angle)
-        # draw_airplane(
-        #     a1,
-        #     pos,
-        #     color=scout_color,
-        #     size=scout_size,
-        #     angle=scout_angle,
-        #     show_cockpit=False,
-        # )
 
-    # Radar stations (label only one)
     radar_icon, radar_icon_unknown_arr = load_icon("gray_radar.png", zoom=0.04)
     for i, radar in enumerate(radarList):
         pos = [radar.position[0], radar.position[1]]
@@ -2796,9 +2773,17 @@ def overview_figure():
     legend_ax.axis("off")  # Hide
     radar_icon_handle = object()
     radar_icon_handle_u = object()
+    hp_icon_handle = object()
+    lp_icon_handle = object()
     legend_ax.legend(
         loc="lower center",
-        handles=[radar_icon_handle, radar_icon_handle_u, lines[1], lines[0]],
+        # handles=[radar_icon_handle, radar_icon_handle_u, lines[1], lines[0]],
+        handles=[
+            radar_icon_handle,
+            radar_icon_handle_u,
+            lp_icon_handle,
+            hp_icon_handle,
+        ],
         labels=[
             "Discovered Radar",
             "Undiscovered Radar",
@@ -2813,6 +2798,16 @@ def overview_figure():
             radar_icon_handle_u: HandlerImage(
                 radar_icon_unknown_arr.astype(np.float64) / 255.0,
                 zoom=0.75,
+            ),
+            lp_icon_handle: HandlerImage(
+                scipy.ndimage.rotate(scout_icon_arr, -90).astype(np.float64) / 255.0,
+                zoom=0.8,
+                stretch=(20, 40),
+            ),
+            hp_icon_handle: HandlerImage(
+                scipy.ndimage.rotate(hp_icon_arr, -90).astype(np.float64) / 255.0,
+                zoom=0.8,
+                stretch=(20, 40),
             ),
         },
         ncol=2,
