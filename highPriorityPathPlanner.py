@@ -2572,7 +2572,7 @@ def overview_figure():
         alpha=1,
         vmin=0,
         vmax=1,
-        cmap="viridis",
+        cmap="viridis_r",
         rasterized=True,
     )
     cbar = fig.colorbar(c, ax=a2, shrink=0.9)
@@ -2618,20 +2618,24 @@ def overview_figure():
         X_test[:, 1].reshape(params.numTestPoints, params.numTestPoints),
         pathSafety.reshape(params.numTestPoints, params.numTestPoints),
         alpha=1,
-        cmap="inferno_r",
+        cmap="magma_r",
         rasterized=True,
+        # vmin=-0.5,
+        # vmax=0.5,
     )
     cbar = fig.colorbar(c, ax=a1, shrink=0.9)
     cbar.set_label("Unknown Radar Probability", fontsize=20)
     cbar.ax.tick_params(labelsize=18)
 
     a1.set_aspect("equal")
+    a1.set_title("Low-priority Exploration", fontsize=28)
     a1.set_xlabel("East (m)", fontsize=26)
     a1.set_ylabel("North (m)", fontsize=26)
     a1.tick_params(axis="both", which="major", labelsize=24)
     a1.set_xlim(-buffer, params.bounds[0] + buffer)
     a1.set_ylim(-buffer, params.bounds[1] + buffer)
     a2.set_aspect("equal")
+    a2.set_title("High-priority Path", fontsize=28)
     a2.set_xlabel("East (m)", fontsize=26)
     a2.set_yticklabels([])
     a2.set_yticks([])
