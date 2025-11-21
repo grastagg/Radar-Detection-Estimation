@@ -10,6 +10,10 @@ from main_helper import create_radar_list
 
 from weightedVoronoiHelperFunctions import arc_line_segment_intersection
 from probabilityOfDetectionMap import ProbabilityOfDetectionMap
+import sys
+
+sys.path.append("/home/ggs24/repos/github/RESEARCH/Radar-Detection-Estimation")
+
 from wevo_py import weighted_voronoi_diagram
 from probabilityOfDetectionJax import ground_truth_probability_of_detection
 from highPriorityHelperFunctions import dist_of_points_to_line_segment
@@ -910,4 +914,3 @@ if __name__ == "__main__":
     # #     plot_arc(center,radius,ax)
 
     # plt.show()
-

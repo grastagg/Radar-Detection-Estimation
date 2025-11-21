@@ -9,6 +9,7 @@
 # seeds=(86154247 86354587 86554450 86754256 86954233 87154541 87354250 87554316 87754220 87954688 86254556 86454584 86654325 86854282 87054537 87254233 87454254 87654224 87854353 88054312)
 # seeds=(86454584 )
 seeds=(87154541 )
+seeds=(1000 )
 
 
 # Define arrays
@@ -51,7 +52,7 @@ for ((i=37; i<38; i++)); do
 
 
   index=$((i))
-  dataFile="saved_data/new_data/run$index/"
+  dataFile="saved_data/new_seeds_for_test/run$index/"
 
   mkdir -p saved_data/new_data/run$index
   echo "running experiment with exploration weight $explorationValue, covariance weight $covarianceValue, and distance weight $distValue"
