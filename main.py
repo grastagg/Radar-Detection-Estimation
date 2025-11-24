@@ -452,7 +452,7 @@ def run_mc_simulation(
             params.radarSystemTemperature,
             params.radarProbabilityOfFalseAlarm,
         )
-        loadHPPDataFromFile = True
+        loadHPPDataFromFile = False
         loadHPPDataFile = (
             "saved_data/new_data/run1/"
             + str(seed)

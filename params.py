@@ -28,9 +28,6 @@ def frequency_to_wavelength(freq):
     return c / freq
 
 
-# TODO: To make simulation more realistic compute the max range the radar can detect a UAV and the max range the UAV can detect the radar or define them probabalistically
-
-
 # simulation parameters
 # bounds = (18000.0, 18000.0) #meters
 bounds = (22000.0, 22000.0)  # meters
@@ -288,13 +285,15 @@ agentInitialStates = [
 numAgents = 3
 # get list of zeors for initial states
 agentInitialStates = []
-agentStartAngle = 0
-agentEndAngle = np.pi / 2
+# agentStartAngle = 0
+# agentEndAngle = np.pi / 2
+agentStartAngle = np.pi / 4
+agentEndAngle = np.pi / 4
 agentHeadings = np.linspace(agentStartAngle, agentEndAngle, numAgents)
 for i in range(numAgents):
     agentInitialStates.append([0, 0, agentHeadings[i]])
 print("agentInitialStates", agentInitialStates)
-agentSensingRange = 5000
+agentSensingRange = 10000
 agentPowerMeasurementStdDev = 0.0001
 agentAngleMeasurementStdDev = 2 * np.pi / 180
 agentELINTAnteneaGaindb = 1

@@ -466,37 +466,49 @@ def plot_varying_number_of_agents(dataFile, numAgentsList, pathPlanner="optimiza
     plt.show()
 
 
+def generate_weight_test_data():
+    dataFile = "saved_data/new_data/"
+    seeds=[
+56054251/  56354501/  56654547/  56954271/  66254449/  66554406/  66854281/  76254242/  76554284/  76854237/  86154247/  86454584/  86754256/  87054537/  87354250/  87654224/  87954688/
+56154509/  56454227/  56754333/  66054256/  66354230/  66654257/  66954242/  76354897/  76654210/  76954542/  86254556/  86554450/  86854282/  87154541/  87454254/  87754220/  88054312/
+56254262/  56554214/  56854448/  66154399/  66454389/  66754324/  76154193/  76454238/  76754433/  77054554/  86354587/  86654325/  86954233/  87254233/  87554316/  87854353/
+]
+    for i in range(1, 92):
+
+
 if __name__ == "__main__":
     # plot_radar_uncertainty_over_time("saved_data/new_data/run37/")
 
-    # processMCData(
-    #     "saved_data/new_data/run2037/", "optimization", boxPlot=False, ax=None
-    # )
+    fig, ax = plt.subplots()
+    processMCData(
+        "saved_data/test_with_new_seeds/run337/", "optimization", boxPlot=True, ax=ax
+    )
+    plt.show()
 
-    numAgentVals = [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-    ]
-    plot_varying_number_of_agents("saved_data/new_data/", numAgentVals)
-
+    # numAgentVals = [
+    #     1,
+    #     2,
+    #     3,
+    #     4,
+    #     5,
+    #     6,
+    #     7,
+    #     8,
+    #     9,
+    #     10,
+    #     11,
+    #     12,
+    #     13,
+    #     14,
+    #     15,
+    #     16,
+    #     17,
+    #     18,
+    #     19,
+    #     20,
+    # ]
+    # plot_varying_number_of_agents("saved_data/new_data/", numAgentVals)
+    #
     # fig, ax = plt.subplots()
     # processMCData("saved_data/new_data/run37/", "optimization", boxPlot=True, ax=ax)
     # processMCData("saved_data/new_data/run100/", "lawnmower", boxPlot=True, ax=ax)

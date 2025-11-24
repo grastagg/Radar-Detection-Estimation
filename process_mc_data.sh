@@ -1,7 +1,7 @@
 #!/bin/zsh
 
 # Directory containing the folders
-directory="./saved_data/mc_runs/"
+directory="./saved_data/test_with_new_seeds/"
 
 # Path to the Python script
 python_script="highPriorityPathPlanner.py"
@@ -27,6 +27,7 @@ for folder in "$directory"/*/; do
   # pathPlanner='lawnmower'
   # nohup python3 -u "$python_script" "$folder_name" "$pathPlanner" >outputsMC/lawnmower/$folder_name.log 2>&1 &
   pathPlanner='optimization'
+  # nohup python3 -u "$python_script" "$folder_name" "$pathPlanner" >outputsMC/optimization/$folder_name.log 2>&1 &
   nohup python3 -u "$python_script" "$folder_name" "$pathPlanner" >outputsMC/optimization/$folder_name.log 2>&1 &
 
   echo "------------------------"

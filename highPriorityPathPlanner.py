@@ -186,6 +186,7 @@ class HighPriorityPathPlanner:
     ):
         # spline = self.spline_seg(controlPoints, knotPoints)
         tf = knotPoints[-self.params.splineOrder - 1]
+
         t = np.linspace(0, tf, numConstraintSamples)
         u, v = self.get_turn_rate_and_velocity(t, controlPoints, knotPoints)
 
@@ -278,6 +279,8 @@ class HighPriorityPathPlanner:
             radar_list, self.params.bounds, plot=plot, ax=ax, params=self.params
         )
         print("Time to find initial guess", time.time() - startTimer)
+        print("initial control points:", initialControlPoints)
+        print("initial tf:", tfIntial)
         spline = self.spline_seg(
             initialControlPoints,
             create_unclamped_knot_points(
@@ -286,7 +289,7 @@ class HighPriorityPathPlanner:
         )
 
         def objective_function(xDict):
-            tf = xDict["tf"]
+            tf = xDict["tf"][0]
             knotPoints = create_unclamped_knot_points(
                 0, tf, self.params.numControlPoints, self.params.splineOrder
             )
@@ -1545,7 +1548,7 @@ class HighPriorityPathPlanner:
         # scaleFactor = knotPoints[-splineOrder-1]/(len(knotPoints)-2*splineOrder-1)
         # return np.array([matrix_bspline_evaluation(point, scaleFactor, controlPoints.T, knotPoints) for point in evalPoints]).squeeze()
         return matrix_bspline_evaluation_for_dataset(
-            controlPoints.T, knotPoints, self.params.numSamplesPerInterval
+            controlPoints.T, knotPoints, int(self.params.numSamplesPerInterval)
         )
         # return self.spline_seg(controlPoints, knotPoints)(evalPoints)
 
@@ -1671,8 +1674,6 @@ class HighPriorityPathPlanner:
             self.params.numControlPoints,
         )
         velocity = self.evaluate_spline_derivative(0, controlPoints, knotPoints, 3, 1)
-        # print("velocity", velocity[0])
-        # print("velocity", velocity[-1])
 
         controlPoints = self.move_first_control_point_so_spline_passes_through_start(
             controlPoints, knotPoints, self.params.highPriorityStart, velocity[0]
