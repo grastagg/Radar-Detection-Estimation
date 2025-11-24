@@ -292,7 +292,6 @@ agentEndAngle = np.pi / 4
 agentHeadings = np.linspace(agentStartAngle, agentEndAngle, numAgents)
 for i in range(numAgents):
     agentInitialStates.append([0, 0, agentHeadings[i]])
-print("agentInitialStates", agentInitialStates)
 agentSensingRange = 10000
 agentPowerMeasurementStdDev = 0.0001
 agentAngleMeasurementStdDev = 2 * np.pi / 180

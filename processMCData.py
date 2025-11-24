@@ -2,10 +2,11 @@ import numpy as np
 import importlib
 import matplotlib.pyplot as plt
 import matplotlib
+import pandas as pd
+from collections import Counter
 
 import os
 from scipy.interpolate import griddata
-from scipy.sparse import data
 import ternary
 
 failedRuns = {}
@@ -278,13 +279,9 @@ def create_simplex_ternary_projection(
     countTest = 0
     for folder in os.listdir(dataFile):
         try:
-            import_dir = (
-                (dataFile + folder).replace("/", ".")
-                + "."
-                + module_suffix
-                + ".optimization"
-                ".params"
-            )
+            import_dir = (dataFile + folder).replace(
+                "/", "."
+            ) + "." + module_suffix + ".optimization" ".params"
             params = importlib.import_module(import_dir)
 
             # Collect weights and values
@@ -470,6 +467,102 @@ def plot_varying_number_of_agents(dataFile, numAgentsList, pathPlanner="optimiza
     plt.show()
 
 
+def crossval_5fold(df, metric_col="found", verbose=True):
+    """
+    Performs 5-fold cross-validation on a DataFrame with columns:
+        weight_id, seed_id, metric_col
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Must contain columns ["weight_id", "seed_id", metric_col].
+    metric_col : str
+        Column name containing the metric to optimize. (higher = better)
+
+    Returns
+    -------
+    results : dict with keys:
+        - cv_mean: float, cross-validated mean performance
+        - cv_std:  float, cross-validated std dev
+        - test_all: np.array of all held-out metrics (length 50)
+        - best_weights_per_fold: list of 5 selected *weight_id* values
+        - final_weight_id: weight_id selected most frequently across folds
+        - folds: list of lists of column indices (0..num_seeds-1)
+    """
+
+    # Ensure sorting for reproducibility
+    df = df.sort_values(["weight_id", "seed_id"])
+
+    # Pivot into a DataFrame: rows = weight_id, cols = seed_id
+    pivot = df.pivot(index="weight_id", columns="seed_id", values=metric_col)
+
+    # Extract matrix and explicit label arrays
+    J = pivot.to_numpy()  # shape: (num_weights, num_seeds)
+    weight_ids = pivot.index.to_numpy()  # shape: (num_weights,)
+    seed_labels = pivot.columns.to_numpy()  # not strictly needed for CV
+    num_weights, num_seeds = J.shape
+
+    assert num_seeds == 50, f"Expected 50 seeds, got {num_seeds}"
+
+    # We'll define folds over column indices 0..49 directly
+    folds = [
+        list(range(0, 10)),
+        list(range(10, 20)),
+        list(range(20, 30)),
+        list(range(30, 40)),
+        list(range(40, 50)),
+    ]
+
+    best_weights_per_fold = []  # store actual weight_id values
+    test_results_all = []
+
+    for k in range(5):
+        test_idx = folds[k]
+        train_idx = [i for i in range(num_seeds) if i not in test_idx]
+
+        # Mean performance across 40 training seeds for each row (weight)
+        mean_train = J[:, train_idx].mean(axis=1)
+
+        # Higher is better
+        best_row = np.argmax(mean_train)
+        best_weight_id = weight_ids[best_row]  # map row index -> weight_id
+        best_weights_per_fold.append(best_weight_id)
+
+        # Evaluate that row on held-out columns
+        test_perf = J[best_row, test_idx]
+
+        # test_perf is shape (1,10); flatten:
+        test_results_all.append(test_perf.ravel())
+
+    # Flatten all held-out metrics (should be length 50)
+    test_all = np.concatenate(test_results_all)
+    cv_mean = test_all.mean()
+    cv_std = test_all.std()
+
+    # Mode of best weights across folds
+    counts = Counter(best_weights_per_fold)
+    final_weight_id = counts.most_common(1)[0][0]
+
+    if verbose:
+        print("5-fold cross-validation complete.")
+        print(f"  Cross-validated mean {metric_col}: {cv_mean:.4f}")
+        print(f"  Std: {cv_std:.4f}")
+        print(f"  Best weight_ids per fold: {best_weights_per_fold}")
+        print(f"  Final recommended weight_id: {final_weight_id}")
+        print(f"  Seed labels (column order): {list(seed_labels)}")
+        # print row at first best weight
+        print(df[df["weight_id"] == best_weights_per_fold[0]])
+
+    return {
+        "cv_mean": cv_mean,
+        "cv_std": cv_std,
+        "test_all": test_all,
+        "best_weights_per_fold": best_weights_per_fold,
+        "final_weight_id": final_weight_id,
+        "folds": folds,
+    }
+
+
 def generate_weight_test_data():
     seeds = [
         56054251,
@@ -523,19 +616,105 @@ def generate_weight_test_data():
         87554316,
         87854353,
     ]
+    rows = []
     for i in range(1, 92):
+        dataFile = (
+            "saved_data/new_data/run" + str(i) + "/" + str(56054251) + "/optimization/"
+        )
+        importDir = dataFile.replace("/", ".") + "params"
+        print("Importing params from: ", importDir)
+        params = importlib.import_module(importDir)
+        explorationWeight = params.seperationWeight
+        covarianceWeight = params.nextCovarianceWeight
+        straitDistanceWeight = params.distFromStraitWeight
         for seed in seeds:
-            dataFile = "saved_data/new_data/run" + str(i) + ""
+            dataFile = (
+                "saved_data/new_data/run" + str(i) + "/" + str(seed) + "/optimization/"
+            )
+            dataFile += "/high_priority_path/"
+            # check if lpFindPathTime.txt exists
+            found = False
+            if os.path.isfile(dataFile + "lpFindPathTime.txt"):
+                found = 1
+                lpTime = np.genfromtxt(dataFile + "lpFindPathTime.txt", delimiter=",")
+            else:
+                found = 0
+                lpTime = -1
+            rows.append(
+                {
+                    "weight_id": i,
+                    "seed_id": seed,
+                    "explorationWeight": explorationWeight,
+                    "covarianceWeight": covarianceWeight,
+                    "straitDistanceWeight": straitDistanceWeight,
+                    "found": found,
+                    "lpTime": lpTime,
+                }
+            )
+    df = pd.DataFrame(rows)
+    print(df)
+    # save to csv
+    path = "saved_data/weight_test_data.csv"
+    print("Saving weight test data to: ", path)
+    pd.DataFrame.to_csv(df, path, index=False)
+    crossval_results = crossval_5fold(df, metric_col="found", verbose=True)
+
+
+def best_ablation_weights(df):
+    results = {}
+
+    # Remove exploration
+    df_exp = df[df["explorationWeight"] == 0]
+    perf_exp = df_exp.groupby("weight_id")["found"].mean()
+    best_exp = perf_exp.idxmax()
+    results["remove_exploration"] = (best_exp, perf_exp[best_exp])
+
+    # Remove covariance reduction
+    df_cov = df[df["covarianceWeight"] == 0]
+    perf_cov = df_cov.groupby("weight_id")["found"].mean()
+    best_cov = perf_cov.idxmax()
+    results["remove_covariance"] = (best_cov, perf_cov[best_cov])
+
+    # Remove goal seeking
+    df_goal = df[df["straitDistanceWeight"] == 0]
+    perf_goal = df_goal.groupby("weight_id")["found"].mean()
+    best_goal = perf_goal.idxmax()
+    results["remove_goal"] = (best_goal, perf_goal[best_goal])
+
+    return results
 
 
 if __name__ == "__main__":
     # plot_radar_uncertainty_over_time("saved_data/new_data/run37/")
 
-    fig, ax = plt.subplots()
-    processMCData(
-        "saved_data/test_with_new_seeds/run337/", "optimization", boxPlot=True, ax=ax
-    )
-    plt.show()
+    # generate_weight_test_data()
+    df = pd.read_csv("saved_data/weight_test_data.csv")
+    # print("10")
+    # print(
+    #     df[df.weight_id == 10].drop_duplicates(
+    #         subset=["explorationWeight", "covarianceWeight", "straitDistanceWeight"]
+    #     )
+    # )
+    # print("90")
+    # print(
+    #     df[df.weight_id == 90].drop_duplicates(
+    #         subset=["explorationWeight", "covarianceWeight", "straitDistanceWeight"]
+    #     )
+    # )
+    # print("85")
+    # print(
+    #     df[df.weight_id == 85].drop_duplicates(
+    #         subset=["explorationWeight", "covarianceWeight", "straitDistanceWeight"]
+    #     )
+    # )
+
+    abalation_results = best_ablation_weights(df)
+    print(abalation_results)
+    # crossval_results = crossval_5fold(
+    #     weight_test_data, metric_col="found", verbose=True
+    # )
+    # processMCData("saved_data/new_data/run37/", "optimization", boxPlot=False, ax=None)
+    # processMCData("saved_data/new_data/run36/", "optimization", boxPlot=False, ax=None)
 
     # numAgentVals = [
     #     1,
