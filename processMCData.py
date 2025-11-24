@@ -471,7 +471,6 @@ def plot_varying_number_of_agents(dataFile, numAgentsList, pathPlanner="optimiza
 
 
 def generate_weight_test_data():
-    dataFile = "saved_data/new_data/"
     seeds = [
         56054251,
         56354501,
